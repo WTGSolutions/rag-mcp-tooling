@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { createHash } from 'node:crypto';
+import { sha1 } from '../hash.js';
 import type { RagChunkConfig } from '../config.js';
 import type { WalkedFile } from '../walker.js';
 import { chunkLines } from './line-chunker.js';
@@ -29,6 +29,6 @@ export async function chunkFile(file: WalkedFile, config: RagChunkConfig): Promi
   } catch (e) {
     throw new Error(`Failed to read file for chunking: ${file.absolutePath}`, { cause: e });
   }
-  const fileHash = createHash('sha1').update(text).digest('hex');
+  const fileHash = sha1(text);
   return dispatchChunker(text, file, config, fileHash);
 }

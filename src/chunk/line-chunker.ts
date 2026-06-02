@@ -1,6 +1,6 @@
-import { createHash } from 'node:crypto';
 import type { RagChunkConfig } from '../config.js';
 import type { WalkedFile } from '../walker.js';
+import { createChunk } from './chunk-factory.js';
 import type { Chunk } from './types.js';
 
 export function estimateTokens(text: string): number {
@@ -14,22 +14,7 @@ function makeChunk(
   startLine: number,
   endLine: number,
 ): Chunk {
-  const id = createHash('sha1')
-    .update(`${file.segment}::${file.relativePath}:${startLine}-${endLine}`)
-    .digest('hex');
-
-  return {
-    id,
-    segment: file.segment,
-    filePath: file.relativePath,
-    startLine,
-    endLine,
-    language: file.language,
-    symbol: undefined,
-    kind: 'block',
-    text,
-    fileHash,
-  };
+  return createChunk({ file, fileHash, startLine, endLine, text, kind: 'block' });
 }
 
 export function chunkLines(
