@@ -1,0 +1,11 @@
+{
+  "segments": [
+    { "name": "web", "root": "web/src", "include": ["**/*.{ts,tsx}"] },
+    { "name": "mobile", "root": "mobile/src", "include": ["**/*.{ts,tsx}"] },
+    { "name": "wiki", "root": "wiki", "include": ["**/*.md"] }
+  ],
+  "exclude": ["**/node_modules/**", "**/*.test.ts", "**/dist/**"],
+  "embedder": { "provider": "local", "model": "Xenova/bge-small-en-v1.5" },
+  "chunk": { "maxTokens": 512, "overlapLines": 8 },
+  "store": { "path": ".rag/index.db" }
+}

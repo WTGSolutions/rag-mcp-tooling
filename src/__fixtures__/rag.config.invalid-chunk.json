@@ -1,0 +1,4 @@
+{
+  "segments": [{ "name": "src", "root": "src", "include": ["**/*.ts"] }],
+  "chunk": { "maxTokens": -1, "overlapLines": 3.7 }
+}

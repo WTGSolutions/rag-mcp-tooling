@@ -1,0 +1,5 @@
+{
+  "segments": [
+    { "name": "src", "root": "src", "include": ["**/*.ts"] }
+  ]
+}

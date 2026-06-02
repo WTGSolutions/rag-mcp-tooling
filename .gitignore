@@ -1,0 +1,23 @@
+# build output
+dist/
+
+# dependencies
+node_modules/
+
+# vector index database
+.rag/
+
+# local model cache (transformers.js / fastembed)
+.cache/
+models/
+
+# environment variables
+.env
+.env.local
+
+# logs
+*.log
+npm-debug.log*
+
+# macOS
+.DS_Store
