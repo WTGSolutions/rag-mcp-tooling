@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { join, resolve } from 'node:path';
-import { mkdtemp, writeFile, mkdir, rm } from 'node:fs/promises';
+import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { walkSegments, detectLanguage, type WalkedFile } from './walker.js';
 import type { RagConfig } from './config.js';
@@ -13,9 +13,9 @@ async function collect(gen: AsyncGenerator<WalkedFile>): Promise<WalkedFile[]> {
   return files;
 }
 
-function makeConfig(root: string, overrides: Partial<RagConfig> = {}): RagConfig {
+function makeConfig(overrides: Partial<RagConfig> = {}): RagConfig {
   return {
-    segments: [{ name: 'src', root, include: ['**/*.{ts,tsx,js,md}'] }],
+    segments: [{ name: 'src', root: MINI_REPO, include: ['**/*.{ts,tsx,js,md}'] }],
     exclude: [],
     embedder: { provider: 'local', model: 'test' },
     chunk: { maxTokens: 512, overlapLines: 8 },
@@ -58,7 +58,9 @@ describe('walkSegments', () => {
   describe('file metadata', () => {
     it('returns correct absolutePath, relativePath, segment, and language for each file', async () => {
       // Arrange
-      const config = makeConfig('.', { segments: [{ name: 'mini', root: MINI_REPO, include: ['alpha.ts'] }] });
+      const config = makeConfig({
+        segments: [{ name: 'mini', root: MINI_REPO, include: ['alpha.ts'] }],
+      });
 
       // Act
       const files = await collect(walkSegments(config, '/'));
@@ -75,7 +77,7 @@ describe('walkSegments', () => {
 
     it('assigns language based on file extension', async () => {
       // Arrange
-      const config = makeConfig(MINI_REPO, {
+      const config = makeConfig({
         segments: [{
           name: 'src',
           root: MINI_REPO,
@@ -98,7 +100,7 @@ describe('walkSegments', () => {
   describe('include patterns', () => {
     it('returns only files that match include globs', async () => {
       // Arrange — include only .ts files, not .js or .md
-      const config = makeConfig(MINI_REPO, {
+      const config = makeConfig({
         segments: [{ name: 'src', root: MINI_REPO, include: ['**/*.ts'] }],
       });
 
@@ -107,16 +109,31 @@ describe('walkSegments', () => {
       const names = files.map(f => f.relativePath);
 
       // Assert — alpha.ts and alpha.test.ts match *.ts (no exclude yet)
+      expect(names.length).toBeGreaterThan(0);
       expect(names.every(n => n.endsWith('.ts'))).toBe(true);
       expect(names).not.toContain('script.js');
       expect(names).not.toContain('readme.md');
+    });
+
+    it('includes files inside dot-directories (.wiki, .epics, .github)', async () => {
+      // Arrange — .wiki/notes.md lives in a dot-directory
+      const config = makeConfig({
+        segments: [{ name: 'src', root: MINI_REPO, include: ['**/*.md'] }],
+      });
+
+      // Act
+      const files = await collect(walkSegments(config, '/'));
+      const names = files.map(f => f.relativePath);
+
+      // Assert
+      expect(names).toContain('.wiki/notes.md');
     });
   });
 
   describe('exclude patterns', () => {
     it('skips files matching config exclude patterns', async () => {
       // Arrange
-      const config = makeConfig(MINI_REPO, {
+      const config = makeConfig({
         segments: [{ name: 'src', root: MINI_REPO, include: ['**/*.{ts,tsx,js,md}'] }],
         exclude: ['**/*.test.ts'],
       });
@@ -134,7 +151,7 @@ describe('walkSegments', () => {
   describe('always-excluded files', () => {
     it('never returns lockfiles even if include pattern would match', async () => {
       // Arrange — broad include catches everything
-      const config = makeConfig(MINI_REPO, {
+      const config = makeConfig({
         segments: [{ name: 'src', root: MINI_REPO, include: ['**/*'] }],
       });
 
@@ -142,13 +159,14 @@ describe('walkSegments', () => {
       const files = await collect(walkSegments(config, '/'));
       const names = files.map(f => f.relativePath);
 
-      // Assert
+      // Assert — verify the walker actually returned files (not vacuously empty)
+      expect(names).toContain('alpha.ts');
       expect(names).not.toContain('package-lock.json');
     });
 
     it('never returns binary files (images) even if include pattern would match', async () => {
       // Arrange
-      const config = makeConfig(MINI_REPO, {
+      const config = makeConfig({
         segments: [{ name: 'src', root: MINI_REPO, include: ['**/*'] }],
       });
 
@@ -156,7 +174,8 @@ describe('walkSegments', () => {
       const files = await collect(walkSegments(config, '/'));
       const names = files.map(f => f.relativePath);
 
-      // Assert
+      // Assert — verify the walker actually returned files (not vacuously empty)
+      expect(names).toContain('alpha.ts');
       expect(names).not.toContain('image.png');
     });
   });
@@ -186,10 +205,10 @@ describe('walkSegments', () => {
   });
 
   describe('.gitignore support', () => {
-    let tmpDir: string;
+    let tmpDir: string | undefined;
 
     afterEach(async () => {
-      await rm(tmpDir, { recursive: true, force: true });
+      if (tmpDir) await rm(tmpDir, { recursive: true, force: true });
     });
 
     it('skips files listed in .gitignore', async () => {
@@ -199,7 +218,7 @@ describe('walkSegments', () => {
       await writeFile(join(tmpDir, 'secret.ts'), 'export const secret = true;\n');
       await writeFile(join(tmpDir, 'public.ts'), 'export const pub = true;\n');
 
-      const config = makeConfig(tmpDir, {
+      const config = makeConfig({
         segments: [{ name: 'src', root: tmpDir, include: ['**/*.ts'] }],
       });
 

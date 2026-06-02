@@ -72,7 +72,7 @@ async function* walkSegment(
   const relativePaths = await globby(segment.include, {
     cwd: segmentRoot,
     absolute: false,
-    dot: false,
+    dot: true,
     gitignore: true,
     ignore: [...ALWAYS_EXCLUDE, ...globalExclude],
     onlyFiles: true,
