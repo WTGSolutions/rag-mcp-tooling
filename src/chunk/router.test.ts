@@ -8,9 +8,10 @@ import type { RagChunkConfig } from '../config.js';
 const FIXTURES = join(import.meta.dirname, '../__fixtures__/mini-repo');
 
 function makeFile(language: WalkedFile['language'], overrides: Partial<WalkedFile> = {}): WalkedFile {
+  const ext = language === 'typescript' ? 'ts' : language === 'javascript' ? 'js' : language === 'markdown' ? 'md' : 'txt';
   return {
-    absolutePath: `/proj/src/file.${language === 'typescript' ? 'ts' : language === 'javascript' ? 'js' : language === 'markdown' ? 'md' : 'txt'}`,
-    relativePath: `src/file.${language === 'typescript' ? 'ts' : 'txt'}`,
+    absolutePath: `/proj/src/file.${ext}`,
+    relativePath: `src/file.${ext}`,
     segment: 'web',
     language,
     ...overrides,
@@ -36,7 +37,7 @@ describe('dispatchChunker', () => {
     expect(chunks[0]!.text).toBe(text);
   });
 
-  it('routes javascript files and returns chunk array', () => {
+  it('routes javascript files and returns chunk array with correct filePath', () => {
     // Arrange
     const file = makeFile('javascript');
 
@@ -46,6 +47,7 @@ describe('dispatchChunker', () => {
     // Assert
     expect(chunks).toHaveLength(1);
     expect(chunks[0]!.language).toBe('javascript');
+    expect(chunks[0]!.filePath).toBe('src/file.js');
   });
 
   it('routes markdown files and returns chunk array', () => {
@@ -87,6 +89,21 @@ describe('dispatchChunker', () => {
 });
 
 describe('chunkFile', () => {
+  it('throws a descriptive error when the file does not exist', async () => {
+    // Arrange
+    const file: WalkedFile = {
+      absolutePath: '/nonexistent/path/missing.ts',
+      relativePath: 'missing.ts',
+      segment: 'web',
+      language: 'typescript',
+    };
+
+    // Act + Assert
+    await expect(chunkFile(file, DEFAULT_CONFIG)).rejects.toThrow(
+      'Failed to read file for chunking: /nonexistent/path/missing.ts',
+    );
+  });
+
   it('reads file from disk and produces chunks with correct metadata', async () => {
     // Arrange
     const absolutePath = join(FIXTURES, 'alpha.ts');

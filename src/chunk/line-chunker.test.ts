@@ -144,7 +144,8 @@ describe('chunkLines', () => {
   describe('overlap', () => {
     it('adjacent chunks share exactly overlapLines lines', () => {
       // Arrange
-      const text = makeLines(30, 8);
+      const totalLines = 30;
+      const text = makeLines(totalLines, 8);
       const config = makeConfig({ maxTokens: 40, overlapLines: 3 });
 
       // Act
@@ -158,6 +159,8 @@ describe('chunkLines', () => {
         expect(overlap).toBeGreaterThanOrEqual(0);
         expect(overlap).toBeLessThanOrEqual(config.overlapLines);
       }
+      // Last chunk must reach the final line even with overlap
+      expect(chunks[chunks.length - 1]!.endLine).toBe(totalLines);
     });
 
     it('with overlapLines=0 chunks are non-overlapping and cover everything', () => {
@@ -279,6 +282,35 @@ describe('chunkLines', () => {
       // Assert — trailing \n should not create an extra empty chunk
       expect(chunks).toHaveLength(1);
       expect(chunks[0]!.endLine).toBe(2);
+    });
+
+    it('multiple trailing newlines do not produce phantom blank-line chunks', () => {
+      // Arrange — file ends with \n\n\n (three newlines)
+      const text = 'const a = 1;\nconst b = 2;\n\n\n';
+      const config = makeConfig({ maxTokens: 512 });
+
+      // Act
+      const chunks = chunkLines(text, file, config, fileHash(text));
+
+      // Assert — only real content lines; phantom '' entries are stripped
+      expect(chunks).toHaveLength(1);
+      expect(chunks[0]!.endLine).toBe(2);
+      expect(chunks[0]!.text).toBe('const a = 1;\nconst b = 2;');
+    });
+
+    it('file containing only a newline is treated as empty (no content lines)', () => {
+      // Arrange — one-byte file: just \n
+      const text = '\n';
+      const config = makeConfig();
+
+      // Act
+      const chunks = chunkLines(text, file, config, fileHash(text));
+
+      // Assert — all trailing empties stripped → same result as truly empty file
+      expect(chunks).toHaveLength(1);
+      expect(chunks[0]!.text).toBe('');
+      expect(chunks[0]!.startLine).toBe(1);
+      expect(chunks[0]!.endLine).toBe(1);
     });
   });
 });

@@ -40,8 +40,8 @@ export function chunkLines(
 ): Chunk[] {
   const lines = text.split('\n');
 
-  // Remove the trailing empty string produced by a file ending with \n
-  if (lines.length > 0 && lines[lines.length - 1] === '') {
+  // Strip all trailing empty strings produced by files ending with \n, \n\n, etc.
+  while (lines.length > 0 && lines[lines.length - 1] === '') {
     lines.pop();
   }
 

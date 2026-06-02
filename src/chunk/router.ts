@@ -23,7 +23,12 @@ export function dispatchChunker(
 }
 
 export async function chunkFile(file: WalkedFile, config: RagChunkConfig): Promise<Chunk[]> {
-  const text = await readFile(file.absolutePath, 'utf-8');
+  let text: string;
+  try {
+    text = await readFile(file.absolutePath, 'utf-8');
+  } catch (e) {
+    throw new Error(`Failed to read file for chunking: ${file.absolutePath}`, { cause: e });
+  }
   const fileHash = createHash('sha1').update(text).digest('hex');
   return dispatchChunker(text, file, config, fileHash);
 }
