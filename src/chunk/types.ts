@@ -1,6 +1,13 @@
 import type { FileLanguage } from '../walker.js';
 
-export type ChunkKind = 'function' | 'class' | 'method' | 'section' | 'block';
+export type ChunkKind =
+  | 'function'
+  | 'class'
+  | 'method'
+  | 'interface'
+  | 'type'
+  | 'section'
+  | 'block';
 
 export type Chunk = {
   id: string;

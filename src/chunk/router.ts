@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { sha1 } from '../hash.js';
 import type { RagChunkConfig } from '../config.js';
 import type { WalkedFile } from '../walker.js';
+import { chunkAst } from './ast-chunker.js';
 import { chunkLines } from './line-chunker.js';
 import type { Chunk } from './types.js';
 
@@ -14,7 +15,7 @@ export function dispatchChunker(
   switch (file.language) {
     case 'typescript':
     case 'javascript':
-      return chunkLines(text, file, config, fileHash); // replaced by AST chunker in TASK-004
+      return chunkAst(text, file, config, fileHash);
     case 'markdown':
       return chunkLines(text, file, config, fileHash); // replaced by MD chunker in TASK-005
     default:
