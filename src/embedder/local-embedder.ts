@@ -1,4 +1,5 @@
 import { resolve } from 'node:path';
+import { homedir } from 'node:os';
 import type { RagEmbedderConfig } from '../config.js';
 import type { Embedder, Pooling } from './types.js';
 
@@ -39,13 +40,20 @@ function resolveModel(model: string): { id: string } & ModelInfo {
   return { id, ...info };
 }
 
+// Stable, cwd-independent model cache. The model is identical across every
+// project and invocation, so a single shared user cache means it downloads once
+// and then works fully offline everywhere — unlike a cwd-relative path, which
+// re-downloads whenever the tool is run from a different directory. Override
+// with RAG_MODEL_CACHE for sandboxed/CI environments.
+function modelCacheDir(): string {
+  return process.env['RAG_MODEL_CACHE'] ?? resolve(homedir(), '.cache', 'rag-mcp', 'models');
+}
+
 // Default factory — lazily imports transformers.js so unit tests that inject a
 // fake never pull the heavy ONNX runtime.
 const defaultPipelineFactory: PipelineFactory = async (modelId) => {
   const { pipeline, env } = await import('@huggingface/transformers');
-  // Project-local, gitignored cache so models persist across reinstalls and the
-  // tool works fully offline after the first download.
-  env.cacheDir = resolve(process.cwd(), '.cache', 'transformers');
+  env.cacheDir = modelCacheDir();
   env.allowLocalModels = true;
   env.allowRemoteModels = true; // needed only for the one-time download
 

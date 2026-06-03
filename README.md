@@ -98,10 +98,12 @@ Supported models (each 384-dim):
 Pooling is pinned per model (it's a modeling choice and can't be auto-detected);
 picking the wrong one silently degrades quality.
 
-**Model cache.** Models are cached in `.cache/transformers/` (gitignored).
-The path is resolved from the **current working directory**, so run indexing from
-the project root for a stable cache. After the first download the tool works with
-no network — verify with `HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1`.
+**Model cache.** Models are cached in `~/.cache/rag-mcp/models/` — a single
+user-wide location, so the model downloads once and is shared across every
+project and invocation (the model is identical everywhere). After the first
+download the tool works with no network — verify with
+`HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1`. Override the location with the
+`RAG_MODEL_CACHE` env var (useful in CI or sandboxes).
 
 > Inputs longer than the model's 512-token limit are silently truncated. Very
 > large chunks (e.g. a big class) embed only their first 512 tokens; method-level
