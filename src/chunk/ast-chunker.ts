@@ -8,6 +8,18 @@ import type { Chunk, ChunkKind } from './types.js';
 
 type LineRange = { start: number; end: number };
 
+type LineSpanNode = {
+  getStartLineNumber(includeJsDoc?: boolean): number;
+  getEndLineNumber(): number;
+};
+
+type EmitFn = (
+  node: LineSpanNode,
+  kind: ChunkKind,
+  symbol: string | undefined,
+  countAsTopLevel: boolean,
+) => void;
+
 function scriptKindExtension(relativePath: string): string {
   const ext = extname(relativePath).toLowerCase();
   // .tsx/.jsx must keep their extension so JSX parses; everything else → .ts/.js
@@ -63,7 +75,7 @@ function extractAstChunks(
 ): Chunk[] {
   const project = new Project({
     useInMemoryFileSystem: true,
-    skipFileDependencyResolution: true,
+    skipLoadingLibFiles: true, // syntax-only parsing — never type-check, so skip lib.d.ts loading
     compilerOptions: { allowJs: true },
   });
   const sourceFile = project.createSourceFile(`source${scriptKindExtension(file.relativePath)}`, text);
@@ -75,12 +87,7 @@ function extractAstChunks(
   const sliceText = (start: number, end: number): string =>
     fileLines.slice(start - 1, end).join('\n');
 
-  const emit = (
-    node: { getStartLineNumber(includeJsDoc?: boolean): number; getEndLineNumber(): number },
-    kind: ChunkKind,
-    symbol: string | undefined,
-    countAsTopLevel: boolean,
-  ): void => {
+  const emit: EmitFn = (node, kind, symbol, countAsTopLevel): void => {
     const start = node.getStartLineNumber(true); // include leading JSDoc
     const end = node.getEndLineNumber();
     chunks.push(createChunk({
@@ -108,28 +115,31 @@ function extractAstChunks(
   return chunks;
 }
 
-function emitStatement(
-  stmt: Statement,
-  emit: (
-    node: { getStartLineNumber(includeJsDoc?: boolean): number; getEndLineNumber(): number },
-    kind: ChunkKind,
-    symbol: string | undefined,
-    countAsTopLevel: boolean,
-  ) => void,
-): void {
+function emitStatement(stmt: Statement, emit: EmitFn): void {
   if (Node.isFunctionDeclaration(stmt)) {
+    // Overload signatures have no body; only the implementation should be a
+    // chunk, otherwise we emit duplicate same-symbol signature-only stubs.
+    if (!stmt.hasBody()) return;
     emit(stmt, 'function', stmt.getName(), true);
     return;
   }
 
   if (Node.isClassDeclaration(stmt)) {
-    const className = stmt.getName() ?? 'default';
-    emit(stmt, 'class', stmt.getName(), true);
+    const name = stmt.getName();
+    const className = name ?? 'default';
+    emit(stmt, 'class', name, true);
     // Each member is also its own chunk (overlaps the class chunk by design)
     for (const m of stmt.getMethods()) emit(m, 'method', `${className}.${m.getName()}`, false);
     for (const c of stmt.getConstructors()) emit(c, 'method', `${className}.constructor`, false);
     for (const a of stmt.getGetAccessors()) emit(a, 'method', `${className}.${a.getName()}`, false);
     for (const a of stmt.getSetAccessors()) emit(a, 'method', `${className}.${a.getName()}`, false);
+    // Arrow/function-expression class fields (`handle = () => {}`) are methods too
+    for (const p of stmt.getProperties()) {
+      const init = p.getInitializer();
+      if (init !== undefined && (Node.isArrowFunction(init) || Node.isFunctionExpression(init))) {
+        emit(p, 'method', `${className}.${p.getName()}`, false);
+      }
+    }
     return;
   }
 

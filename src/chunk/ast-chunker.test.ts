@@ -241,6 +241,102 @@ describe('chunkAst', () => {
     });
   });
 
+  describe('JSX / file extensions', () => {
+    it('parses a .tsx file with JSX (would fail to parse as .ts)', () => {
+      // Arrange — relativePath ends in .tsx so scriptKindExtension keeps JSX parseable
+      const file = makeFile({ relativePath: 'src/Button.tsx', absolutePath: '/proj/web/src/Button.tsx' });
+      const text = [
+        'export const Button = (): JSX.Element => {',
+        '  return <button>click</button>;',
+        '};',
+      ].join('\n');
+
+      // Act
+      const chunks = chunkAst(text, file, CONFIG, sha1(text));
+
+      // Assert — semantic chunk, not a line-chunker fallback
+      const fn = bySymbol(chunks, 'Button');
+      expect(fn).toBeDefined();
+      expect(fn!.kind).toBe('function');
+    });
+  });
+
+  describe('overloads', () => {
+    it('emits a single chunk for an overloaded function (implementation only)', () => {
+      // Arrange — two overload signatures + one implementation
+      const text = [
+        'export function parse(x: string): number;',
+        'export function parse(x: number): string;',
+        'export function parse(x: string | number): string | number {',
+        '  return x;',
+        '}',
+      ].join('\n');
+
+      // Act
+      const chunks = chunkAst(text, makeFile(), CONFIG, sha1(text));
+
+      // Assert — exactly one 'parse' chunk, and it has a body
+      const parseChunks = chunks.filter((c) => c.symbol === 'parse');
+      expect(parseChunks).toHaveLength(1);
+      expect(parseChunks[0]!.text).toContain('return x;');
+    });
+  });
+
+  describe('class arrow-function fields', () => {
+    it('emits a method chunk for an arrow-function class field', () => {
+      // Arrange
+      const text = [
+        'export class Widget {',
+        '  handleClick = (e: Event): void => {',
+        '    e.preventDefault();',
+        '  };',
+        '}',
+      ].join('\n');
+
+      // Act
+      const chunks = chunkAst(text, makeFile(), CONFIG, sha1(text));
+
+      // Assert
+      const field = bySymbol(chunks, 'Widget.handleClick');
+      expect(field).toBeDefined();
+      expect(field!.kind).toBe('method');
+    });
+  });
+
+  describe('non-exported and constants-only files', () => {
+    it('chunks non-exported top-level functions', () => {
+      // Arrange — no export keyword
+      const text = ['function internalHelper(): number {', '  return 42;', '}'].join('\n');
+
+      // Act
+      const chunks = chunkAst(text, makeFile(), CONFIG, sha1(text));
+
+      // Assert
+      const fn = bySymbol(chunks, 'internalHelper');
+      expect(fn).toBeDefined();
+      expect(fn!.kind).toBe('function');
+    });
+
+    it('produces block chunks for a file that is pure module code (zero symbols)', () => {
+      // Arrange — only imports and a non-function const
+      const text = [
+        "import { a } from './a';",
+        "import { b } from './b';",
+        'const CONFIG_TABLE = { a, b };',
+      ].join('\n');
+
+      // Act
+      const chunks = chunkAst(text, makeFile(), CONFIG, sha1(text));
+
+      // Assert — everything captured as block chunk(s), nothing dropped
+      expect(chunks.length).toBeGreaterThan(0);
+      expect(chunks.every((c) => c.kind === 'block')).toBe(true);
+      const joined = chunks.map((c) => c.text).join('\n');
+      expect(joined).toContain('import { a }');
+      expect(joined).toContain('const CONFIG_TABLE');
+    });
+  });
+
   describe('fallback', () => {
     it('falls back to the line chunker when ts-morph throws', () => {
       // Arrange — force a parse failure
