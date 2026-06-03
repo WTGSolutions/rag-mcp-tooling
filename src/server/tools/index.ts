@@ -3,6 +3,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { RagConfig } from '../../config.js';
 import type { Embedder } from '../../embedder/types.js';
 import type { VectorStore } from '../../store/vector-store.js';
+import { makeSearchCodebase, DEFAULT_K } from './search-codebase.js';
 
 /**
  * Everything the tools need to do their work: the parsed config, the open
@@ -29,7 +30,7 @@ function stub(tool: string, task: string) {
  * stub handlers; the real handlers replace the stubs in TASK-011 (search),
  * TASK-012 (get_chunk + index_status) and TASK-013 (reindex).
  */
-export function registerTools(server: McpServer, _deps: ServerDeps): void {
+export function registerTools(server: McpServer, deps: ServerDeps): void {
   server.registerTool(
     'search_codebase',
     {
@@ -38,11 +39,13 @@ export function registerTools(server: McpServer, _deps: ServerDeps): void {
         'chunks (file path, line range, text) for a natural-language query.',
       inputSchema: {
         query: z.string().min(1).describe('Natural-language search query'),
-        k: z.number().int().positive().max(100).optional().describe('Max results (default 8)'),
+        k: z
+          .number().int().positive().max(100).optional()
+          .describe(`Max results (default ${DEFAULT_K})`),
         segment: z.string().optional().describe('Restrict to a named segment (e.g. "web")'),
       },
     },
-    stub('search_codebase', 'TASK-011'),
+    makeSearchCodebase(deps),
   );
 
   server.registerTool(
