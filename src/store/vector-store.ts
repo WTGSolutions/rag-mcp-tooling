@@ -1,6 +1,6 @@
 import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import Database, { type Database as DB } from 'better-sqlite3';
+import Database, { type Database as DB, type Statement } from 'better-sqlite3';
 import * as sqliteVec from 'sqlite-vec';
 import type { Chunk, ChunkKind } from '../chunk/types.js';
 import type { FileLanguage } from '../walker.js';
@@ -60,6 +60,7 @@ function distanceToScore(distance: number): number {
 }
 
 function vectorToBlob(v: Float32Array): Buffer {
+  // Use offset + length so subarray slices (shared parent buffer) serialize correctly.
   return Buffer.from(v.buffer, v.byteOffset, v.byteLength);
 }
 
@@ -68,10 +69,33 @@ export class VectorStore {
   private readonly dimensions: number;
   private readonly modelId: string;
 
+  // Prepared statements cached once at construction — avoids re-compiling
+  // SQL on every upsert() call, which matters for batch indexing thousands of files.
+  private readonly stmtGetVecRowid: Statement<[string], { vec_rowid: number }>;
+  private readonly stmtDeleteVec: Statement<[number]>;
+  private readonly stmtDeleteChunk: Statement<[string]>;
+  private readonly stmtInsertVec: Statement<[Buffer]>;
+  private readonly stmtInsertChunk: Statement<[
+    string, string, string, number, number, string,
+    string | null, string, string, string, number,
+  ]>;
+  private readonly stmtUpdateMeta: Statement<[string, string]>;
+
   private constructor(db: DB, dimensions: number, modelId: string) {
     this.db = db;
     this.dimensions = dimensions;
     this.modelId = modelId;
+
+    this.stmtGetVecRowid = db.prepare('SELECT vec_rowid FROM chunks WHERE id = ?');
+    this.stmtDeleteVec   = db.prepare('DELETE FROM vec_chunks WHERE rowid = ?');
+    this.stmtDeleteChunk = db.prepare('DELETE FROM chunks WHERE id = ?');
+    this.stmtInsertVec   = db.prepare('INSERT INTO vec_chunks(embedding) VALUES (?)');
+    this.stmtInsertChunk = db.prepare(`
+      INSERT INTO chunks
+        (id, segment, file_path, start_line, end_line, language, symbol, kind, text_content, file_hash, vec_rowid)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    this.stmtUpdateMeta  = db.prepare('INSERT OR REPLACE INTO store_meta(key, value) VALUES (?, ?)');
   }
 
   static open(storePath: string, dimensions: number, modelId: string): VectorStore {
@@ -118,13 +142,25 @@ export class VectorStore {
         USING vec0(embedding float[${dimensions}]);
     `);
 
-    // Persist metadata so stats() can return it even without an active embedder
-    db.prepare(`
-      INSERT OR REPLACE INTO store_meta(key, value) VALUES ('model_id', ?)
-    `).run(modelId);
-    db.prepare(`
-      INSERT OR IGNORE INTO store_meta(key, value) VALUES ('dimensions', ?)
-    `).run(String(dimensions));
+    // Persist metadata so stats() can return it even without an active embedder.
+    // INSERT OR IGNORE for dimensions: once written, it must not change without a
+    // full rebuild (the virtual table schema is locked). We validate on reopen.
+    db.prepare('INSERT OR REPLACE INTO store_meta(key, value) VALUES (?, ?)').run('model_id', modelId);
+    db.prepare('INSERT OR IGNORE INTO store_meta(key, value) VALUES (?, ?)').run('dimensions', String(dimensions));
+
+    // Validate that the stored dimensions match the caller's value. If they differ,
+    // the caller opened an existing store with a different model — a rebuild is needed.
+    const storedDimsRow = db.prepare<[string], { value: string }>(
+      'SELECT value FROM store_meta WHERE key = ?',
+    ).get('dimensions');
+    const storedDims = storedDimsRow ? Number(storedDimsRow.value) : dimensions;
+    if (storedDims !== dimensions) {
+      db.close();
+      throw new Error(
+        `[rag-mcp] Dimension mismatch: store was built with ${storedDims} dimensions ` +
+        `but embedder has ${dimensions}. Delete ${absPath} and reindex.`,
+      );
+    }
 
     return new VectorStore(db, dimensions, modelId);
   }
@@ -139,24 +175,6 @@ export class VectorStore {
     }
     if (chunks.length === 0) return;
 
-    const getVecRowid = this.db.prepare<[string], { vec_rowid: number }>(
-      'SELECT vec_rowid FROM chunks WHERE id = ?',
-    );
-    const deleteVec   = this.db.prepare<[number]>('DELETE FROM vec_chunks WHERE rowid = ?');
-    const deleteChunk = this.db.prepare<[string]>('DELETE FROM chunks WHERE id = ?');
-    const insertVec   = this.db.prepare<[Buffer]>('INSERT INTO vec_chunks(embedding) VALUES (?)');
-    const insertChunk = this.db.prepare<[
-      string, string, string, number, number, string,
-      string | null, string, string, string, number,
-    ]>(`
-      INSERT INTO chunks
-        (id, segment, file_path, start_line, end_line, language, symbol, kind, text_content, file_hash, vec_rowid)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    const updateMeta = this.db.prepare<[string, string]>(
-      'INSERT OR REPLACE INTO store_meta(key, value) VALUES (?, ?)',
-    );
-
     this.db.transaction(() => {
       for (let i = 0; i < chunks.length; i++) {
         const chunk = chunks[i]!;
@@ -169,37 +187,36 @@ export class VectorStore {
         }
 
         // Remove existing row for this chunk id (upsert semantics)
-        const existing = getVecRowid.get(chunk.id);
+        const existing = this.stmtGetVecRowid.get(chunk.id);
         if (existing) {
-          deleteVec.run(existing.vec_rowid);
-          deleteChunk.run(chunk.id);
+          this.stmtDeleteVec.run(existing.vec_rowid);
+          this.stmtDeleteChunk.run(chunk.id);
         }
 
-        const { lastInsertRowid } = insertVec.run(vectorToBlob(vector));
-        insertChunk.run(
+        const { lastInsertRowid } = this.stmtInsertVec.run(vectorToBlob(vector));
+        this.stmtInsertChunk.run(
           chunk.id, chunk.segment, chunk.filePath, chunk.startLine, chunk.endLine,
           chunk.language, chunk.symbol ?? null, chunk.kind, chunk.text, chunk.fileHash,
+          // better-sqlite3 returns BigInt for lastInsertRowid; bind it directly
+          // to avoid precision loss for rowids > Number.MAX_SAFE_INTEGER.
           Number(lastInsertRowid),
         );
       }
 
-      updateMeta.run('last_indexed', new Date().toISOString());
+      this.stmtUpdateMeta.run('last_indexed', new Date().toISOString());
     })();
   }
 
   deleteByFile(filePath: string): void {
-    const rows = this.db.prepare<[string], { vec_rowid: number }>(
-      'SELECT vec_rowid FROM chunks WHERE file_path = ?',
-    ).all(filePath);
-
-    if (rows.length === 0) return;
-
-    const delVec   = this.db.prepare<[number]>('DELETE FROM vec_chunks WHERE rowid = ?');
-    const delChunk = this.db.prepare<[string]>('DELETE FROM chunks WHERE file_path = ?');
-
+    // Atomic: SELECT + DELETE in one transaction so no orphaned vec rows
+    // can appear if a concurrent writer modifies the file between operations.
     this.db.transaction(() => {
-      for (const { vec_rowid } of rows) delVec.run(vec_rowid);
-      delChunk.run(filePath);
+      this.db.prepare(`
+        DELETE FROM vec_chunks WHERE rowid IN (
+          SELECT vec_rowid FROM chunks WHERE file_path = ?
+        )
+      `).run(filePath);
+      this.db.prepare('DELETE FROM chunks WHERE file_path = ?').run(filePath);
     })();
   }
 
@@ -211,11 +228,12 @@ export class VectorStore {
         `[rag-mcp] search: query vector length ${queryVector.length} ≠ expected ${this.dimensions}`,
       );
     }
-    if (k < 1) return [];
+    if (!Number.isFinite(k) || k < 1) return [];
+    const safeK = Math.trunc(k);
 
     const blob = vectorToBlob(queryVector);
-    // Over-fetch when filtering so enough candidates survive the WHERE
-    const fetchK = filter?.segment ? k * SEGMENT_FILTER_MULTIPLIER : k;
+    // Over-fetch when filtering so enough candidates survive the WHERE.
+    const fetchK = filter?.segment ? safeK * SEGMENT_FILTER_MULTIPLIER : safeK;
 
     const segmentClause = filter?.segment ? 'AND c.segment = ?' : '';
     const params: unknown[] = filter?.segment
@@ -229,7 +247,7 @@ export class VectorStore {
       WHERE v.embedding MATCH ? AND v.k = ?
       ${segmentClause}
       ORDER BY v.distance
-      LIMIT ${k}
+      LIMIT ${safeK}
     `).all(...params);
 
     return rows.map((row) => ({

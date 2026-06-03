@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { join } from 'node:path';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { VectorStore } from './vector-store.js';
 import type { Chunk } from '../chunk/types.js';
@@ -53,8 +53,30 @@ describe('VectorStore.open', () => {
     store.close();
 
     // Assert — file should exist (non-empty)
-    const { statSync } = require('node:fs');
     expect(statSync(storePath).size).toBeGreaterThan(0);
+  });
+
+  it('throws with a descriptive error when reopened with wrong dimensions', () => {
+    // Arrange — first open creates schema with DIM=4
+    const store = VectorStore.open(storePath, DIM, MODEL);
+    store.close();
+
+    // Act + Assert — reopen with wrong dimensions must fail early, not silently
+    expect(() => VectorStore.open(storePath, 8, MODEL)).toThrow('Dimension mismatch');
+    expect(() => VectorStore.open(storePath, 8, MODEL)).toThrow('4');
+    expect(() => VectorStore.open(storePath, 8, MODEL)).toThrow('8');
+  });
+
+  it('reopens successfully with matching dimensions', () => {
+    // Arrange
+    const s1 = VectorStore.open(storePath, DIM, MODEL);
+    s1.upsert([makeChunk('c1')], [normalise(makeVec(1, 0, 0, 0))]);
+    s1.close();
+
+    // Act + Assert — same dimensions → no error
+    const s2 = VectorStore.open(storePath, DIM, MODEL);
+    expect(s2.stats().chunks).toBe(1);
+    s2.close();
   });
 });
 
@@ -117,6 +139,27 @@ describe('upsert', () => {
     ).toThrow('length');
 
     store.close();
+  });
+
+  it('handles duplicate chunk id within a single batch (last entry wins)', () => {
+    // Arrange
+    const store = VectorStore.open(storePath, DIM, MODEL);
+    const v1 = normalise(makeVec(1, 0, 0, 0));
+    const v2 = normalise(makeVec(0, 1, 0, 0));
+    const v3 = normalise(makeVec(0, 0, 1, 0));
+
+    // Act — 'c1' appears twice; second entry should win
+    store.upsert([
+      makeChunk('c1', { text: 'first' }),
+      makeChunk('c2', { text: 'other' }),
+      makeChunk('c1', { text: 'second' }),
+    ], [v1, v2, v3]);
+
+    const s = store.stats();
+    store.close();
+
+    // Assert — exactly 2 unique chunks, not 3
+    expect(s.chunks).toBe(2);
   });
 
   it('no-ops for empty input', () => {
@@ -209,6 +252,16 @@ describe('search', () => {
 
   it('returns [] for k < 1', () => {
     expect(store.search(vecs.alpha, 0)).toEqual([]);
+  });
+
+  it('returns [] for non-finite k values (Infinity, NaN) without throwing', () => {
+    expect(store.search(vecs.alpha, Infinity)).toEqual([]);
+    expect(store.search(vecs.alpha, NaN)).toEqual([]);
+  });
+
+  it('truncates fractional k to integer (k=1.9 returns 1 result)', () => {
+    const results = store.search(vecs.alpha, 1.9);
+    expect(results).toHaveLength(1);
   });
 
   it('throws when query vector has wrong dimension', () => {
