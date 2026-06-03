@@ -56,6 +56,9 @@ function chunkFromRow(row: ChunkRow): Chunk {
 
 // L2-normalized vectors: cosine_similarity = 1 - distance²/2
 function distanceToScore(distance: number): number {
+  // Math.max(0, NaN) returns NaN, so guard explicitly against a non-finite
+  // distance (degenerate/zero-norm vector) leaking a "NaN" score into output.
+  if (!Number.isFinite(distance)) return 0;
   return Math.max(0, 1 - (distance * distance) / 2);
 }
 

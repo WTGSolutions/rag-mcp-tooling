@@ -3,7 +3,13 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { RagConfig } from '../../config.js';
 import type { Embedder } from '../../embedder/types.js';
 import type { VectorStore } from '../../store/vector-store.js';
-import { makeSearchCodebase, DEFAULT_K } from './search-codebase.js';
+import {
+  makeSearchCodebase,
+  searchOutputShape,
+  DEFAULT_K,
+  MAX_K,
+  MAX_QUERY_CHARS,
+} from './search-codebase.js';
 
 /**
  * Everything the tools need to do their work: the parsed config, the open
@@ -38,12 +44,13 @@ export function registerTools(server: McpServer, deps: ServerDeps): void {
         'Semantic search over the indexed codebase. Returns the most relevant code/doc ' +
         'chunks (file path, line range, text) for a natural-language query.',
       inputSchema: {
-        query: z.string().min(1).describe('Natural-language search query'),
+        query: z.string().min(1).max(MAX_QUERY_CHARS).describe('Natural-language search query'),
         k: z
-          .number().int().positive().max(100).optional()
+          .number().int().positive().max(MAX_K).optional()
           .describe(`Max results (default ${DEFAULT_K})`),
         segment: z.string().optional().describe('Restrict to a named segment (e.g. "web")'),
       },
+      outputSchema: searchOutputShape,
     },
     makeSearchCodebase(deps),
   );

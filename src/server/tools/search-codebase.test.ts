@@ -106,6 +106,27 @@ describe('formatResults', () => {
     const text = formatResults(results, 'q');
     expect(text).toContain('[block ·');
   });
+
+  it('formats a perfect score as 1.00', () => {
+    const results: SearchResult[] = [{ chunk: makeChunk('id1'), score: 1 }];
+    expect(formatResults(results, 'q')).toContain('score 1.00');
+  });
+
+  it('does not slice a surrogate pair (emoji) mid-character', () => {
+    // 279 ASCII + a 2-code-unit emoji: the cut at 280 would split the emoji.
+    const results: SearchResult[] = [{ chunk: makeChunk('id1', { text: 'a'.repeat(279) + '🎯 trailing' }), score: 0.5 }];
+    const text = formatResults(results, 'q');
+    // No lone high surrogate left dangling before the ellipsis.
+    expect(/[\uD800-\uDBFF] …/.test(text)).toBe(false);
+  });
+
+  it('omits the snippet line for an empty-text chunk (no whitespace-only line)', () => {
+    const results: SearchResult[] = [{ chunk: makeChunk('id1', { text: '' }), score: 0.5 }];
+    const text = formatResults(results, 'q');
+    // Ends right after the id line — no trailing indented blank line.
+    expect(text).toContain('id=id1');
+    expect(text).not.toMatch(/id=id1\n {3}\n/);
+  });
 });
 
 describe('makeSearchCodebase — pipeline', () => {
@@ -124,6 +145,69 @@ describe('makeSearchCodebase — pipeline', () => {
     expect(searchCalls[0]!.filter).toBeUndefined();         // no segment → no filter
     expect(searchCalls[0]!.vector).toEqual(new Float32Array([1, 0, 0, 0]));
     expect((result.content[0] as { text: string }).text).toContain('id=id1');
+  });
+
+  it('returns machine-readable structuredContent matching the chunks', async () => {
+    // Arrange
+    const { embedder } = spyEmbedder();
+    const chunk = makeChunk('id-abc', { filePath: 'web/x.ts', startLine: 3, endLine: 7, segment: 'web', kind: 'function', symbol: 'foo' });
+    const { store } = spyStore([{ chunk, score: 0.77 }]);
+    const handler = makeSearchCodebase(deps(embedder, store));
+
+    // Act
+    const result = await handler({ query: 'q' });
+
+    // Assert — agent reads structuredContent (not the prose) to chain into get_chunk
+    const structured = (result as { structuredContent: { results: Array<Record<string, unknown>> } }).structuredContent;
+    expect(structured.results).toHaveLength(1);
+    expect(structured.results[0]).toEqual({
+      id: 'id-abc', filePath: 'web/x.ts', startLine: 3, endLine: 7,
+      segment: 'web', kind: 'function', symbol: 'foo', score: 0.77,
+    });
+  });
+
+  it('omits symbol in structuredContent when the chunk has none', async () => {
+    const { embedder } = spyEmbedder();
+    const { store } = spyStore([{ chunk: makeChunk('id1', { symbol: undefined }), score: 0.5 }]);
+    const handler = makeSearchCodebase(deps(embedder, store));
+    const result = await handler({ query: 'q' });
+    const structured = (result as { structuredContent: { results: Array<Record<string, unknown>> } }).structuredContent;
+    expect('symbol' in structured.results[0]!).toBe(false);
+  });
+
+  it('preserves store ordering in both text and structuredContent (no re-sort)', async () => {
+    // Arrange — store returns a, b, c in that order
+    const { embedder } = spyEmbedder();
+    const { store } = spyStore([
+      { chunk: makeChunk('a', { filePath: 'a.ts' }), score: 0.9 },
+      { chunk: makeChunk('b', { filePath: 'b.ts' }), score: 0.8 },
+      { chunk: makeChunk('c', { filePath: 'c.ts' }), score: 0.7 },
+    ]);
+    const handler = makeSearchCodebase(deps(embedder, store));
+
+    // Act
+    const result = await handler({ query: 'q' });
+    const text = (result.content[0] as { text: string }).text;
+    const structured = (result as { structuredContent: { results: Array<{ id: string }> } }).structuredContent;
+
+    // Assert — order matches store output exactly
+    expect(structured.results.map((r) => r.id)).toEqual(['a', 'b', 'c']);
+    expect(text.indexOf('1. a.ts')).toBeLessThan(text.indexOf('2. b.ts'));
+    expect(text.indexOf('2. b.ts')).toBeLessThan(text.indexOf('3. c.ts'));
+  });
+
+  it('wraps an embedder failure in a branded, actionable error', async () => {
+    // Arrange — embedder rejects (e.g. model load failure)
+    const embedder: Embedder = {
+      modelId: 'bge-x',
+      dimensions: DIM,
+      embed: async () => { throw new Error('onnxruntime: file not found'); },
+    };
+    const { store } = spyStore([]);
+    const handler = makeSearchCodebase(deps(embedder, store));
+
+    // Act + Assert — agent gets a [rag-mcp] message naming the model, not a raw stack
+    await expect(handler({ query: 'q' })).rejects.toThrow('[rag-mcp] search_codebase: embedding failed for model bge-x');
   });
 
   it('passes k and segment through to the store', async () => {
