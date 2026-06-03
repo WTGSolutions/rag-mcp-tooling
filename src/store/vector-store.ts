@@ -220,6 +220,34 @@ export class VectorStore {
     })();
   }
 
+  /** Segment-scoped delete — safe when two segments share the same relative path. */
+  deleteFileFromSegment(filePath: string, segment: string): void {
+    this.db.transaction(() => {
+      this.db.prepare(`
+        DELETE FROM vec_chunks WHERE rowid IN (
+          SELECT vec_rowid FROM chunks WHERE file_path = ? AND segment = ?
+        )
+      `).run(filePath, segment);
+      this.db.prepare('DELETE FROM chunks WHERE file_path = ? AND segment = ?').run(filePath, segment);
+    })();
+  }
+
+  /**
+   * Returns a map of filePath → fileHash for all files in the given segment
+   * (or all segments when omitted). Used by the incremental reindexer to detect
+   * unchanged files and deleted files.
+   */
+  getFileHashes(segment?: string): Map<string, string> {
+    const rows: Array<{ file_path: string; file_hash: string }> = segment
+      ? this.db.prepare<[string], { file_path: string; file_hash: string }>(
+          'SELECT DISTINCT file_path, file_hash FROM chunks WHERE segment = ?',
+        ).all(segment)
+      : this.db.prepare<[], { file_path: string; file_hash: string }>(
+          'SELECT DISTINCT file_path, file_hash FROM chunks',
+        ).all();
+    return new Map(rows.map((r) => [r.file_path, r.file_hash]));
+  }
+
   // ── Read ──────────────────────────────────────────────────────────────────
 
   search(queryVector: Float32Array, k: number, filter?: { segment?: string }): SearchResult[] {
