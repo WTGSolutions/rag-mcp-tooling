@@ -25,7 +25,8 @@ The embedding model only **finds** relevant chunks; the agent then reads the
 
 ## Status
 
-Phase 1 (indexing pipeline) is in progress. Built and tested so far:
+**Phase 1 (indexing pipeline) is complete and tested.** The `rag-index` CLI
+builds a searchable vector store from any repo.
 
 | Component | Status |
 |---|---|
@@ -33,13 +34,14 @@ Phase 1 (indexing pipeline) is in progress. Built and tested so far:
 | File walker (`.gitignore`, segments, binaries) | ✅ |
 | Chunkers: line (fallback), TS/JS (AST via ts-morph), Markdown (headings) | ✅ |
 | Local embedder (transformers.js, offline) | ✅ |
-| Vector store (SQLite + sqlite-vec) | ⏳ TASK-007 |
-| Incremental reindex (file hash) | ⏳ TASK-008 |
-| `rag-index` CLI | ⏳ TASK-009 |
+| Vector store (SQLite + sqlite-vec, kNN) | ✅ |
+| Incremental reindex (file-hash change detection) | ✅ |
+| `rag-index` CLI | ✅ |
 | MCP server (`search_codebase`, …) | ⏳ Phase 2 (TASK-010–014) |
 
-The `rag-index` command and `.mcp.json` wiring below describe the **target**
-usage; they land with TASK-009 / TASK-014.
+Acceptance: a full index of GuideTrackee (`web` + `mobile` + `wiki`) processes
+**1,249 files → 5,713 chunks** with no errors. Querying is Phase 2 (MCP server);
+the index it produces is already on disk and ready for it.
 
 ## Install & build
 
@@ -109,18 +111,51 @@ download the tool works with no network — verify with
 > large chunks (e.g. a big class) embed only their first 512 tokens; method-level
 > chunks mitigate this for code.
 
-## Target usage (forthcoming)
+## Usage — indexing
 
-Index a project, then expose it to Claude Code via MCP:
+After `npm run build`, run the indexer against a config:
 
 ```bash
-# TASK-009
-node dist/cli/rag-index.js --config rag.config.json          # full index
-node dist/cli/rag-index.js --config rag.config.json --changed # incremental
+node dist/cli/rag-index.js --config rag.config.json            # incremental (default)
+node dist/cli/rag-index.js --config rag.config.json --full     # rebuild everything
+node dist/cli/rag-index.js --config rag.config.json --segment mobile  # one segment
 ```
 
+| Flag | Meaning |
+|---|---|
+| `-c, --config <path>` | Config file (default `rag.config.json`). Relative `segment.root` and `store.path` resolve against the config file's directory, not the shell's cwd. |
+| `--changed` | Only re-index files whose content hash changed (default). |
+| `--full` | Re-index everything, ignoring stored hashes (e.g. after a model change). |
+| `-s, --segment <name>` | Process only the named segment. |
+| `-h, --help` | Usage. |
+
+Progress and the summary (`added / skipped / removed / total-chunks / time`) go to
+**stderr**; exit code is `0` on success, `1` on error — suitable for CI or a
+git hook. Incremental runs after a small edit re-embed only the changed files.
+
+## Usage — programmatic (Phase 2 building blocks)
+
+The package exposes its pipeline as a library (the MCP server will consume the
+same API):
+
+```ts
+import { loadConfig, createEmbedder, reindex, VectorStore } from '@guidetrackee/rag-mcp';
+
+const config = loadConfig('rag.config.json');
+const embedder = createEmbedder(config.embedder);
+await reindex({ config, embedder, mode: 'incremental' });
+
+const store = VectorStore.open(config.store.path, embedder.dimensions, embedder.modelId);
+const [queryVec] = await embedder.embed(['where is auth handled?']);
+const hits = store.search(queryVec, 8);          // [{ chunk, score }]
+store.close();
+```
+
+## MCP server (Phase 2, forthcoming)
+
+Once built (TASK-010–014), the server is wired into Claude Code via `.mcp.json`:
+
 ```jsonc
-// .mcp.json (TASK-014)
 {
   "mcpServers": {
     "rag": {
@@ -131,8 +166,9 @@ node dist/cli/rag-index.js --config rag.config.json --changed # incremental
 }
 ```
 
-The server will expose `search_codebase(query, k?, segment?)`, `get_chunk(id)`,
-`index_status()` and `reindex(paths?)`.
+It will expose `search_codebase(query, k?, segment?)`, `get_chunk(id)`,
+`index_status()` and `reindex(paths?)` — reading the same vector store the CLI
+writes.
 
 ## Development
 
