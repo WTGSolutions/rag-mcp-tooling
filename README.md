@@ -23,6 +23,9 @@ INDEXING (CLI)                          QUERY (MCP server)
 The embedding model only **finds** relevant chunks; the agent then reads the
 **original source text** of those chunks. Vectors never reach the agent.
 
+> For the concepts behind this — embeddings, the two-model relationship, what the
+>384-d vector actually is, and how to support other languages — see [THEORY.md](THEORY.md).
+
 ## Status
 
 **Phase 1 (indexing pipeline) is complete and tested.** The `rag-index` CLI
