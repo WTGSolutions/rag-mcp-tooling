@@ -8,6 +8,44 @@ export function estimateTokens(text: string): number {
 }
 
 /**
+ * Splits an array of lines into windows by token budget with overlap, returning
+ * index ranges [startIdx, endIdx) (endIdx exclusive). The pure windowing core,
+ * reused by windowLines (block chunks) and the markdown chunker (TASK-005,
+ * splitting long sections while repeating the heading).
+ */
+export function windowLineRanges(
+  lines: string[],
+  maxTokens: number,
+  overlapLines: number,
+): Array<{ startIdx: number; endIdx: number }> {
+  const ranges: Array<{ startIdx: number; endIdx: number }> = [];
+  let startIdx = 0;
+
+  while (startIdx < lines.length) {
+    let tokens = 0;
+    let endIdx = startIdx;
+
+    while (endIdx < lines.length) {
+      const lineTokens = estimateTokens((lines[endIdx] ?? '') + '\n');
+      // Always include at least one line per window even if it exceeds maxTokens
+      if (tokens + lineTokens > maxTokens && endIdx > startIdx) break;
+      tokens += lineTokens;
+      endIdx++;
+    }
+
+    ranges.push({ startIdx, endIdx });
+
+    // If we consumed all remaining lines there is nothing left to overlap into
+    if (endIdx >= lines.length) break;
+
+    // Advance with overlap: back up overlapLines from end, but always progress
+    startIdx = Math.max(startIdx + 1, endIdx - overlapLines);
+  }
+
+  return ranges;
+}
+
+/**
  * Windows an array of lines into block chunks by maxTokens with overlap.
  * Reused by the AST chunker (TASK-004) to chunk module-level "loose" code
  * spans, which is why it takes an explicit baseLine offset (the 1-based line
@@ -24,38 +62,16 @@ export function windowLines(
     return [createChunk({ file, fileHash, startLine: baseLine, endLine: baseLine, text: '', kind: 'block' })];
   }
 
-  const chunks: Chunk[] = [];
-  let startIdx = 0;
-
-  while (startIdx < lines.length) {
-    let tokens = 0;
-    let endIdx = startIdx;
-
-    while (endIdx < lines.length) {
-      const lineTokens = estimateTokens((lines[endIdx] ?? '') + '\n');
-      // Always include at least one line per chunk even if it exceeds maxTokens
-      if (tokens + lineTokens > config.maxTokens && endIdx > startIdx) break;
-      tokens += lineTokens;
-      endIdx++;
-    }
-
-    chunks.push(createChunk({
+  return windowLineRanges(lines, config.maxTokens, config.overlapLines).map(({ startIdx, endIdx }) =>
+    createChunk({
       file,
       fileHash,
       startLine: baseLine + startIdx,    // 1-based, offset by base
       endLine: baseLine + endIdx - 1,    // inclusive
       text: lines.slice(startIdx, endIdx).join('\n'),
       kind: 'block',
-    }));
-
-    // If we consumed all remaining lines there is nothing left to overlap into
-    if (endIdx >= lines.length) break;
-
-    // Advance with overlap: back up overlapLines from end, but always progress
-    startIdx = Math.max(startIdx + 1, endIdx - config.overlapLines);
-  }
-
-  return chunks;
+    }),
+  );
 }
 
 export function chunkLines(

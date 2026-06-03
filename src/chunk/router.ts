@@ -4,6 +4,7 @@ import type { RagChunkConfig } from '../config.js';
 import type { WalkedFile } from '../walker.js';
 import { chunkAst } from './ast-chunker.js';
 import { chunkLines } from './line-chunker.js';
+import { chunkMarkdown } from './markdown-chunker.js';
 import type { Chunk } from './types.js';
 
 export function dispatchChunker(
@@ -17,7 +18,7 @@ export function dispatchChunker(
     case 'javascript':
       return chunkAst(text, file, config, fileHash);
     case 'markdown':
-      return chunkLines(text, file, config, fileHash); // replaced by MD chunker in TASK-005
+      return chunkMarkdown(text, file, config, fileHash);
     default:
       return chunkLines(text, file, config, fileHash);
   }
