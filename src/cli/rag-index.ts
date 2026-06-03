@@ -2,7 +2,7 @@
 import { parseArgs } from 'node:util';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadConfig, ConfigError } from '../config.js';
+import { loadConfig, ConfigError, resolveStorePath } from '../config.js';
 import { createEmbedder } from '../embedder/local-embedder.js';
 import { reindex } from '../indexer/reindex.js';
 import type { ReindexMode } from '../indexer/reindex.js';
@@ -74,10 +74,9 @@ function elapsed(startMs: number): string {
 export async function run(args: CliArgs): Promise<void> {
   const config = loadConfig(args.configPath);
 
-  // Resolve store.path relative to the config file's directory so that
-  // `rag-index -c /project/rag.config.json` from any shell directory always
-  // writes to /project/.rag/index.db, not to wherever the shell is.
-  const resolvedStorePath = resolve(args.cwd, config.store.path);
+  // Resolve store.path relative to the config file's directory (shared with the
+  // MCP server) so the same config always points at the same database.
+  const resolvedStorePath = resolveStorePath(args.configPath, config);
   const resolvedConfig = { ...config, store: { ...config.store, path: resolvedStorePath } };
 
   const embedder = createEmbedder(resolvedConfig.embedder);

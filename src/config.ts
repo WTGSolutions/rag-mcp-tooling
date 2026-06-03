@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { resolve, dirname } from 'node:path';
 
 export type RagSegment = {
   name: string;
@@ -82,6 +82,16 @@ function validateSegment(seg: unknown, index: number): RagSegment {
     root: s['root'] as string,
     include: s['include'] as string[],
   };
+}
+
+/**
+ * Resolves the store path to an absolute path, anchored at the config file's
+ * directory (not the shell cwd). Shared by the CLI and the MCP server so a
+ * relative `store.path` always points at the same database regardless of where
+ * the command was invoked.
+ */
+export function resolveStorePath(configPath: string, config: RagConfig): string {
+  return resolve(dirname(resolve(configPath)), config.store.path);
 }
 
 export function loadConfig(configPath: string): RagConfig {

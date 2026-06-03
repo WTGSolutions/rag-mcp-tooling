@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 import { existsSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { loadConfig } from '../config.js';
+import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
+import { loadConfig, resolveStorePath } from '../config.js';
 import { createEmbedder } from '../embedder/local-embedder.js';
 import { VectorStore } from '../store/vector-store.js';
 import { registerTools, type ServerDeps } from './tools/index.js';
@@ -32,23 +33,26 @@ export function createMcpServer(deps: ServerDeps): McpServer {
 
 export type StartedServer = {
   server: McpServer;
-  /** Disconnects the transport and closes the store. Idempotent-safe to await once. */
+  /** Disconnects the transport and closes the store. Idempotent. */
   close: () => Promise<void>;
 };
 
 /**
- * Wires the server to its dependencies and connects it over stdio:
+ * Wires the server to its dependencies and connects it over a transport:
  *   loadConfig → verify index exists → open store (same model → dim check) →
  *   create embedder → register tools → connect transport.
  *
  * Throws a clear error (for a non-zero exit) when the index has not been built.
+ * The transport is injectable so tests can drive the full path in-memory.
  */
-export async function startServer(configPath: string): Promise<StartedServer> {
+export async function startServer(
+  configPath: string,
+  createTransport: () => Transport = () => new StdioServerTransport(),
+): Promise<StartedServer> {
   const absConfigPath = resolve(configPath);
   const config = loadConfig(absConfigPath);
 
-  // Resolve store path relative to the config file's directory (matches the CLI).
-  const storePath = resolve(dirname(absConfigPath), config.store.path);
+  const storePath = resolveStorePath(absConfigPath, config);
   if (!existsSync(storePath)) {
     throw new Error(
       `[rag-mcp] Index not found at ${storePath}. Build it first: rag-index --config ${absConfigPath}`,
@@ -60,27 +64,37 @@ export async function startServer(configPath: string): Promise<StartedServer> {
   // (throws "Dimension mismatch" if the index was built with a different model).
   const store = VectorStore.open(storePath, embedder.dimensions, embedder.modelId);
 
-  const server = createMcpServer({ config, store, embedder });
+  // From here the store is open; close it if any wiring step throws so the
+  // SQLite handle (and WAL/SHM files) are not leaked on a failed start.
+  try {
+    const server = createMcpServer({ config, store, embedder });
 
-  const stats = store.stats();
-  logStderr(
-    `[rag-mcp] server ${SERVER_VERSION} ready — model ${embedder.modelId} ` +
-      `(${embedder.dimensions}d), ${stats.chunks} chunks across ${stats.files} files`,
-  );
+    const stats = store.stats();
+    logStderr(
+      `[rag-mcp] server ${SERVER_VERSION} ready — model ${embedder.modelId} ` +
+        `(${embedder.dimensions}d), ${stats.chunks} chunks across ${stats.files} files`,
+    );
 
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
+    await server.connect(createTransport());
 
-  let closed = false;
-  return {
-    server,
-    close: async () => {
-      if (closed) return;
-      closed = true;
-      await server.close();
-      store.close();
-    },
-  };
+    let closed = false;
+    return {
+      server,
+      close: async () => {
+        if (closed) return;
+        closed = true;
+        // store.close() must run even if the transport disconnect throws.
+        try {
+          await server.close();
+        } finally {
+          store.close();
+        }
+      },
+    };
+  } catch (e) {
+    store.close();
+    throw e;
+  }
 }
 
 // ── Entry point ───────────────────────────────────────────────────────────────
@@ -109,16 +123,34 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  // Graceful shutdown on signals so the store/transport close cleanly.
-  const shutdown = async () => {
-    await started.close();
-    process.exit(0);
+  // Single-shot graceful shutdown — re-entrancy guard so a second signal (or
+  // stdin EOF arriving alongside SIGTERM) can't call process.exit mid-teardown.
+  let shuttingDown = false;
+  const shutdown = async (code: number): Promise<void> => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    try {
+      await started.close();
+    } catch (e) {
+      logStderr(`[rag-mcp] error during shutdown — ${(e as Error).message}`);
+    } finally {
+      process.exit(code);
+    }
   };
-  process.on('SIGINT', shutdown);
-  process.on('SIGTERM', shutdown);
+
+  process.on('SIGINT', () => void shutdown(0));
+  process.on('SIGTERM', () => void shutdown(0));
+  // When the parent (Claude Code) dies, stdin reaches EOF. The stdio transport
+  // does not react to that, so detect it here and exit instead of lingering as
+  // an orphaned process that keeps the index locked open.
+  process.stdin.on('close', () => void shutdown(0));
 }
 
-// Only run when invoked directly (not when imported by tests).
+// Only run when invoked directly (not when imported by tests). A bare main()
+// would drop an unhandled rejection for any throw outside its inner try/catch.
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  main();
+  main().catch((e) => {
+    logStderr(`[rag-mcp] fatal — ${(e as Error)?.message ?? String(e)}`);
+    process.exit(1);
+  });
 }

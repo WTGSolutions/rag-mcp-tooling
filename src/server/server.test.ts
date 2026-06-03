@@ -153,6 +153,66 @@ describe('createMcpServer — lifecycle', () => {
   });
 });
 
+describe('startServer — happy path (injected transport)', () => {
+  // Build a real on-disk index with bge-small's 384 dims, but never load the
+  // model: createEmbedder is lazy, and the scaffold's stub handlers never embed.
+  const REAL_MODEL = 'Xenova/bge-small-en-v1.5';
+  const REAL_DIM = 384;
+
+  function buildIndex(): string {
+    const storePath = join(tmpDir, 'index.db');
+    const store = VectorStore.open(storePath, REAL_DIM, REAL_MODEL);
+    store.upsert(
+      [{
+        id: 'c1', segment: 'src', filePath: 'a.ts', startLine: 1, endLine: 1,
+        language: 'typescript', symbol: undefined, kind: 'block', text: 'x', fileHash: 'h',
+      }],
+      [new Float32Array(REAL_DIM).fill(1 / Math.sqrt(REAL_DIM))],
+    );
+    store.close();
+    return storePath;
+  }
+
+  function writeRealConfig(storePath: string): string {
+    const configPath = join(tmpDir, 'rag.config.json');
+    const config = makeConfig(storePath);
+    config.embedder = { provider: 'local', model: REAL_MODEL };
+    writeFileSync(configPath, JSON.stringify(config));
+    return configPath;
+  }
+
+  it('wires the full pipeline and serves tools/list over the injected transport', async () => {
+    // Arrange
+    const configPath = writeRealConfig(buildIndex());
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+    // Act — drive startServer end-to-end (loadConfig → store → embedder → connect)
+    const started = await startServer(configPath, () => serverTransport);
+    const client = new Client({ name: 'test-client', version: '1.0.0' });
+    await client.connect(clientTransport);
+
+    try {
+      const { tools } = await client.listTools();
+      // Assert
+      expect(tools.map((t) => t.name).sort()).toEqual([...TOOL_NAMES].sort());
+    } finally {
+      await client.close();
+      await started.close();
+    }
+  });
+
+  it('close() is idempotent and releases the store', async () => {
+    // Arrange
+    const configPath = writeRealConfig(buildIndex());
+    const [, serverTransport] = InMemoryTransport.createLinkedPair();
+    const started = await startServer(configPath, () => serverTransport);
+
+    // Act + Assert — closing twice does not throw
+    await expect(started.close()).resolves.toBeUndefined();
+    await expect(started.close()).resolves.toBeUndefined();
+  });
+});
+
 describe('startServer — preconditions', () => {
   it('throws a clear error when the index does not exist yet', async () => {
     // Arrange — config points at a store path that was never built
