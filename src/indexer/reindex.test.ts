@@ -94,16 +94,33 @@ describe('reindex — full mode', () => {
   });
 
   it('re-indexes everything on second full run (no skips)', async () => {
-    // Arrange — first run
+    // Arrange — first run creates one file
     write('src/a.ts', 'export const a = 1;');
     await reindex(makeOpts());
 
     // Act — second full run, same files
     const result2 = await reindex(makeOpts());
 
-    // Assert — full mode never skips
+    // Assert — full mode never skips; exactly the 1 file present is re-indexed
     expect(result2.added).toBe(1);
     expect(result2.skipped).toBe(0);
+  });
+
+  it('cleans up stale entries on full run after file deletion', async () => {
+    // Arrange — first full index, then delete a file
+    write('src/a.ts', 'export const a = 1;');
+    write('src/b.ts', 'export const b = 2;');
+    const r1 = await reindex(makeOpts());
+    expect(r1.totalChunks).toBeGreaterThan(0);
+
+    remove('src/b.ts');
+
+    // Act — full run should remove stale chunks for b.ts even in full mode
+    const r2 = await reindex(makeOpts({ mode: 'full' }));
+
+    // Assert
+    expect(r2.removed).toBe(1);
+    expect(r2.totalChunks).toBeLessThan(r1.totalChunks);
   });
 });
 
@@ -155,16 +172,44 @@ describe('reindex — incremental mode', () => {
     expect(result2.totalChunks).toBeLessThan(chunksBefore);
   });
 
-  it('handles a file that disappears between walk and read (race condition)', async () => {
+  it('does not delete store chunks when readFile fails with a transient error (non-ENOENT)', async () => {
+    // Arrange — first full index
+    write('src/a.ts', 'export const a = 1;');
+    write('src/b.ts', 'export const b = 2;');
+    await reindex(makeOpts({ mode: 'full' }));
+    const { totalChunks: chunksBefore } = await reindex(makeOpts({ mode: 'incremental' }));
+
+    // Inject a readFile that throws EACCES for a.ts (simulates transient permission error)
+    const { readFile } = await import('node:fs/promises');
+    const eaccesReadFile = async (p: string) => {
+      if (p.endsWith('a.ts')) {
+        const err = Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' });
+        throw err;
+      }
+      return readFile(p, 'utf-8');
+    };
+
+    // Act
+    const result = await reindex(makeOpts({ mode: 'incremental', _readFile: eaccesReadFile }));
+
+    // Assert — transient EACCES on a.ts must NOT remove its chunks from the store
+    expect(result.removed).toBe(0);
+    expect(result.totalChunks).toBe(chunksBefore);
+  });
+
+  it('treats a file removed before the run as deleted (counts as removed, not error)', async () => {
     // Arrange — first full index
     write('src/a.ts', 'export const a = 1;');
     await reindex(makeOpts({ mode: 'full' }));
 
-    // Simulate race: file disappears before next incremental run
+    // File is removed before the incremental run starts (ENOENT during walk,
+    // not a mid-walk race; walkSegments simply does not yield the file).
     remove('src/a.ts');
 
-    // Act — should not throw
-    await expect(reindex(makeOpts({ mode: 'incremental' }))).resolves.toBeDefined();
+    // Act — should not throw; file counts as removed
+    const result = await reindex(makeOpts({ mode: 'incremental' }));
+    expect(result.removed).toBe(1);
+    expect(result.totalChunks).toBe(0);
   });
 
   it('leaves no orphaned chunks after mixed changes', async () => {

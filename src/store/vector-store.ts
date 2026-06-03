@@ -238,12 +238,17 @@ export class VectorStore {
    * unchanged files and deleted files.
    */
   getFileHashes(segment?: string): Map<string, string> {
+    // GROUP BY file_path (not DISTINCT on the pair) so we always get exactly one
+    // row per file. DISTINCT on (file_path, file_hash) would return two rows if
+    // a crash left old chunks (hash H1) and new chunks (hash H2) for the same
+    // file, causing Map to silently keep only the last hash and perpetuating
+    // the corruption through incremental runs.
     const rows: Array<{ file_path: string; file_hash: string }> = segment
       ? this.db.prepare<[string], { file_path: string; file_hash: string }>(
-          'SELECT DISTINCT file_path, file_hash FROM chunks WHERE segment = ?',
+          'SELECT file_path, MAX(file_hash) as file_hash FROM chunks WHERE segment = ? GROUP BY file_path',
         ).all(segment)
       : this.db.prepare<[], { file_path: string; file_hash: string }>(
-          'SELECT DISTINCT file_path, file_hash FROM chunks',
+          'SELECT file_path, MAX(file_hash) as file_hash FROM chunks GROUP BY file_path',
         ).all();
     return new Map(rows.map((r) => [r.file_path, r.file_hash]));
   }
