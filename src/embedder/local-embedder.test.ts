@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { LocalEmbedder, type PipelineFactory } from './local-embedder.js';
+import { LocalEmbedder, createEmbedder, type PipelineFactory } from './local-embedder.js';
 
 const DIM = 384;
 
@@ -138,6 +138,25 @@ describe('LocalEmbedder', () => {
       // Assert — 2 + 2 + 1
       expect(calls.batchSizes).toEqual([2, 2, 1]);
     });
+
+    it('handles a batchSize of 1 (one forward pass per text)', async () => {
+      // Arrange
+      const { factory, calls } = fakeFactory();
+      const e = new LocalEmbedder({ model: 'bge-small', batchSize: 1, pipelineFactory: factory });
+
+      // Act
+      await e.embed(['a', 'b', 'c']);
+
+      // Assert
+      expect(calls.batchSizes).toEqual([1, 1, 1]);
+    });
+
+    it('rejects a non-positive or non-integer batchSize at construction', () => {
+      // Act + Assert — would otherwise make `i += batchSize` loop forever
+      expect(() => new LocalEmbedder({ model: 'bge-small', batchSize: 0 })).toThrow('batchSize');
+      expect(() => new LocalEmbedder({ model: 'bge-small', batchSize: -1 })).toThrow('batchSize');
+      expect(() => new LocalEmbedder({ model: 'bge-small', batchSize: 1.5 })).toThrow('batchSize');
+    });
   });
 
   describe('model loading', () => {
@@ -166,6 +185,23 @@ describe('LocalEmbedder', () => {
       // Assert
       expect(calls.factoryInvocations).toBe(1);
     });
+
+    it('retries the load after a failed first attempt (transient failure not cached)', async () => {
+      // Arrange — first load rejects, second succeeds
+      let attempt = 0;
+      const factory: PipelineFactory = async () => {
+        attempt++;
+        if (attempt === 1) throw new Error('network blip during download');
+        return async (texts) => ({ tolist: () => texts.map(() => new Array<number>(DIM).fill(0.1)) });
+      };
+      const e = new LocalEmbedder({ model: 'bge-small', pipelineFactory: factory });
+
+      // Act + Assert — first call fails, second call recovers
+      await expect(e.embed(['x'])).rejects.toThrow('network blip');
+      const vectors = await e.embed(['x']);
+      expect(vectors).toHaveLength(1);
+      expect(attempt).toBe(2);
+    });
   });
 
   describe('dimension guard', () => {
@@ -179,6 +215,17 @@ describe('LocalEmbedder', () => {
       // Act + Assert
       await expect(e.embed(['x'])).rejects.toThrow('dimension mismatch');
     });
+  });
+});
+
+describe('createEmbedder', () => {
+  it('constructs a local embedder from RagConfig.embedder, flowing model through to modelId', () => {
+    // Arrange + Act
+    const e = createEmbedder({ provider: 'local', model: 'Xenova/all-MiniLM-L6-v2' });
+
+    // Assert — no model load happens (lazy), so this stays offline
+    expect(e.modelId).toBe('Xenova/all-MiniLM-L6-v2');
+    expect(e.dimensions).toBe(384);
   });
 });
 
@@ -200,5 +247,17 @@ describe.skipIf(process.env['RAG_RUN_MODEL_TESTS'] !== '1')('LocalEmbedder (real
     // Semantic sanity: cat~kitten should be closer than cat~physics
     const dot = (a: Float32Array, b: Float32Array) => a.reduce((s, x, i) => s + x * b[i]!, 0);
     expect(dot(cat!, kitten!)).toBeGreaterThan(dot(cat!, physics!));
+  }, 120_000);
+
+  it('truncates an over-long input to model max length without crashing', async () => {
+    // Arrange — ~2000 tokens, well over bge-small's 512 limit
+    const e = new LocalEmbedder({ model: 'Xenova/bge-small-en-v1.5' });
+    const long = 'word '.repeat(2000);
+
+    // Act
+    const [vector] = await e.embed([long]);
+
+    // Assert — silently truncated to 512 tokens, still a valid 384-dim vector
+    expect(vector!.length).toBe(384);
   }, 120_000);
 });

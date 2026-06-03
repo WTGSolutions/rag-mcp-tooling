@@ -1,4 +1,5 @@
 import { resolve } from 'node:path';
+import type { RagEmbedderConfig } from '../config.js';
 import type { Embedder, Pooling } from './types.js';
 
 // A loaded feature-extraction pipeline: callable, returns a tensor with tolist().
@@ -76,7 +77,13 @@ export class LocalEmbedder implements Embedder {
     this.modelId = resolved.id;
     this.dimensions = options.dimensions ?? resolved.dimensions;
     this.pooling = options.pooling ?? resolved.pooling;
-    this.batchSize = options.batchSize ?? 32;
+
+    const batchSize = options.batchSize ?? 32;
+    if (!Number.isInteger(batchSize) || batchSize < 1) {
+      // A non-positive batchSize would make embed()'s `i += batchSize` loop forever.
+      throw new Error(`[rag-mcp] batchSize must be a positive integer, got ${batchSize}`);
+    }
+    this.batchSize = batchSize;
     this.createPipeline = options.pipelineFactory ?? defaultPipelineFactory;
   }
 
@@ -84,7 +91,14 @@ export class LocalEmbedder implements Embedder {
   private async ready(): Promise<FeatureExtractor> {
     if (this.extractor) return this.extractor;
     if (!this.loading) this.loading = this.createPipeline(this.modelId);
-    this.extractor = await this.loading;
+    try {
+      this.extractor = await this.loading;
+    } catch (e) {
+      // Don't cache a rejected load — a transient failure (e.g. network blip on
+      // first download) must not poison the instance; let a later call retry.
+      this.loading = undefined;
+      throw e;
+    }
     return this.extractor;
   }
 
@@ -111,6 +125,16 @@ export class LocalEmbedder implements Embedder {
   }
 }
 
-export function createLocalEmbedder(options: LocalEmbedderOptions): Embedder {
-  return new LocalEmbedder(options);
+/**
+ * Constructs an Embedder from the parsed config. Switches on `provider` so the
+ * CLI (TASK-009) and MCP server have a single config-driven entry point; only
+ * `local` is implemented in the MVP (cloud providers are out of scope).
+ */
+export function createEmbedder(config: RagEmbedderConfig): Embedder {
+  switch (config.provider) {
+    case 'local':
+      return new LocalEmbedder({ model: config.model });
+    default:
+      throw new Error(`[rag-mcp] Unsupported embedder provider: ${(config as { provider: string }).provider}`);
+  }
 }
