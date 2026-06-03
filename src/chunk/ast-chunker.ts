@@ -3,7 +3,7 @@ import { Project, Node, type Statement } from 'ts-morph';
 import type { RagChunkConfig } from '../config.js';
 import type { WalkedFile } from '../walker.js';
 import { createChunk } from './chunk-factory.js';
-import { chunkLines, windowLines } from './line-chunker.js';
+import { chunkLines, windowTrimmedSpan } from './line-chunker.js';
 import type { Chunk, ChunkKind } from './types.js';
 
 type LineRange = { start: number; end: number };
@@ -109,7 +109,7 @@ function extractAstChunks(
   // Module-level loose code (imports, top-level constants, expressions) →
   // block chunks filling the gaps between top-level symbols.
   for (const gap of computeGaps(topLevelRanges, fileLines.length)) {
-    appendGapChunks(gap, fileLines, file, config, fileHash, chunks);
+    chunks.push(...windowTrimmedSpan(fileLines.slice(gap.start - 1, gap.end), gap.start, file, config, fileHash));
   }
 
   return chunks;
@@ -181,25 +181,4 @@ function computeGaps(ranges: LineRange[], totalLines: number): LineRange[] {
   if (cursor <= totalLines) gaps.push({ start: cursor, end: totalLines });
 
   return gaps;
-}
-
-function appendGapChunks(
-  gap: LineRange,
-  fileLines: string[],
-  file: WalkedFile,
-  config: RagChunkConfig,
-  fileHash: string,
-  out: Chunk[],
-): void {
-  let start = gap.start;
-  let end = gap.end;
-
-  // Trim leading and trailing blank lines so a gap that is only whitespace
-  // (or trailing newline) produces no chunk.
-  while (start <= end && (fileLines[start - 1] ?? '').trim() === '') start++;
-  while (end >= start && (fileLines[end - 1] ?? '').trim() === '') end--;
-  if (start > end) return;
-
-  const gapLines = fileLines.slice(start - 1, end);
-  out.push(...windowLines(gapLines, start, file, config, fileHash));
 }

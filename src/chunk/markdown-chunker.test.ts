@@ -138,6 +138,68 @@ describe('chunkMarkdown', () => {
       expect(bySymbol(chunks, 'H > Sub')).toBeDefined();
       expect(chunks.some((c) => c.symbol === 'not a heading')).toBe(false);
     });
+
+    it('does not close a fence on a line carrying an info string (no false close)', () => {
+      // Arrange — a ```python line inside an open ``` fence is NOT a close
+      // (CommonMark forbids info strings on closing fences), so the # after it
+      // must stay code, not become a heading.
+      const text = [
+        '# Doc',
+        '```',
+        '```python',
+        '# comment inside the fence',
+        '```',
+        '## After',
+      ].join('\n');
+
+      // Act
+      const chunks = chunk(text);
+
+      // Assert
+      expect(bySymbol(chunks, 'Doc')).toBeDefined();
+      expect(bySymbol(chunks, 'Doc > After')).toBeDefined();
+      expect(chunks.some((c) => c.symbol === 'comment inside the fence')).toBe(false);
+    });
+  });
+
+  describe('CommonMark indentation rules', () => {
+    it('detects headings in a CRLF (\\r\\n) file', () => {
+      // Arrange — Windows line endings must not defeat the heading regex
+      const text = ['# Title', 'body', '## Sub', 'more'].join('\r\n');
+
+      // Act
+      const chunks = chunk(text);
+
+      // Assert
+      expect(bySymbol(chunks, 'Title')).toBeDefined();
+      expect(bySymbol(chunks, 'Title > Sub')).toBeDefined();
+      // \r must not leak into the symbol
+      expect(chunks.every((c) => !(c.symbol ?? '').includes('\r'))).toBe(true);
+    });
+
+    it('does not treat a tab-indented # as a heading (tab is a code indent)', () => {
+      // Arrange
+      const text = ['# Real', '\t# tab indented, not a heading', 'body'].join('\n');
+
+      // Act
+      const chunks = chunk(text);
+
+      // Assert
+      expect(bySymbol(chunks, 'Real')).toBeDefined();
+      expect(chunks.some((c) => c.symbol === 'tab indented, not a heading')).toBe(false);
+      expect(bySymbol(chunks, 'Real')!.text).toContain('\t# tab indented');
+    });
+
+    it('allows up to 3 spaces of indentation before a heading', () => {
+      // Arrange
+      const text = ['   ### Indented', 'body'].join('\n');
+
+      // Act
+      const chunks = chunk(text);
+
+      // Assert
+      expect(bySymbol(chunks, 'Indented')).toBeDefined();
+    });
   });
 
   describe('long section splitting', () => {

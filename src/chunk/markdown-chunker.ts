@@ -1,14 +1,19 @@
 import type { RagChunkConfig } from '../config.js';
 import type { WalkedFile } from '../walker.js';
 import { createChunk } from './chunk-factory.js';
-import { chunkLines, estimateTokens, windowLines, windowLineRanges } from './line-chunker.js';
+import { chunkLines, estimateTokens, windowLineRanges, windowTrimmedSpan } from './line-chunker.js';
 import type { Chunk } from './types.js';
 
 type Heading = { lineIndex: number; level: number; title: string }; // lineIndex is 0-based
 
-// Up to 3 leading spaces are allowed before a fence/heading in CommonMark.
-const FENCE_RE = /^\s{0,3}(`{3,}|~{3,})/;
-const HEADING_RE = /^\s{0,3}(#{1,6})(?:\s+(.*))?$/;
+// CommonMark allows up to 3 leading SPACES (not tabs — a tab is a code indent)
+// before a fence or ATX heading.
+const FENCE_RE = /^ {0,3}(`{3,}|~{3,})/;
+const HEADING_RE = /^ {0,3}(#{1,6})(?:\s+(.*))?$/;
+// A closing fence is the marker run followed by whitespace only — NO info
+// string (which would make it an opening fence instead).
+const CLOSE_BACKTICK_RE = /^ {0,3}(`{3,})\s*$/;
+const CLOSE_TILDE_RE = /^ {0,3}(~{3,})\s*$/;
 
 /**
  * Scans markdown lines for ATX headings, ignoring `#` that appear inside fenced
@@ -24,23 +29,26 @@ function parseHeadings(lines: string[]): Heading[] {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i] ?? '';
 
-    const fence = FENCE_RE.exec(line);
-    if (fence) {
-      const marker = fence[1]!;
-      const char = marker[0]!;
-      if (!inFence) {
-        inFence = true;
-        fenceChar = char;
-        fenceLen = marker.length;
-      } else if (char === fenceChar && marker.length >= fenceLen) {
+    if (inFence) {
+      // Only a same-char marker of >= opening length, with nothing but
+      // whitespace after it, closes the fence.
+      const closeRe = fenceChar === '`' ? CLOSE_BACKTICK_RE : CLOSE_TILDE_RE;
+      const close = closeRe.exec(line);
+      if (close && close[1]!.length >= fenceLen) {
         inFence = false;
         fenceChar = '';
         fenceLen = 0;
       }
-      continue;
+      continue; // lines inside a fence are never headings
     }
 
-    if (inFence) continue;
+    const open = FENCE_RE.exec(line);
+    if (open) {
+      inFence = true;
+      fenceChar = open[1]![0]!;
+      fenceLen = open[1]!.length;
+      continue;
+    }
 
     const h = HEADING_RE.exec(line);
     if (h) {
@@ -60,7 +68,9 @@ export function chunkMarkdown(
   config: RagChunkConfig,
   fileHash: string,
 ): Chunk[] {
-  const lines = text.split('\n');
+  // Normalize CRLF → LF so heading/fence regexes (anchored with $) are not
+  // defeated by a trailing \r, which would drop every heading in a CRLF file.
+  const lines = text.split(/\r?\n/);
   while (lines.length > 0 && lines[lines.length - 1] === '') {
     lines.pop();
   }
@@ -81,7 +91,7 @@ export function chunkMarkdown(
   // Content before the first heading → block chunk(s), like module-level code.
   const firstIndex = headings[0]!.lineIndex;
   if (firstIndex > 0) {
-    appendPreamble(lines.slice(0, firstIndex), file, config, fileHash, chunks);
+    chunks.push(...windowTrimmedSpan(lines.slice(0, firstIndex), 1, file, config, fileHash));
   }
 
   const pathStack: Array<{ level: number; title: string }> = [];
@@ -100,10 +110,12 @@ export function chunkMarkdown(
     const symbol = breadcrumb || undefined;
 
     const headingLine = lines[sectionStart]!;
-    const sectionLines = lines.slice(sectionStart, sectionEnd + 1);
-    const sectionText = sectionLines.join('\n');
+    const bodyLines = lines.slice(sectionStart + 1, sectionEnd + 1);
+    const sectionText = lines.slice(sectionStart, sectionEnd + 1).join('\n');
 
-    if (estimateTokens(sectionText) <= config.maxTokens) {
+    // Emit the whole section as one chunk when it fits, or when there is no
+    // body to split (a heading-only section can't be windowed).
+    if (bodyLines.length === 0 || estimateTokens(sectionText) <= config.maxTokens) {
       chunks.push(createChunk({
         file,
         fileHash,
@@ -119,15 +131,6 @@ export function chunkMarkdown(
     // Long section → split the body, repeating the heading as context in each
     // sub-chunk. Line ranges point at the body window; the heading text is extra
     // context (so a sub-chunk's text spans one more line than its range).
-    const bodyLines = lines.slice(sectionStart + 1, sectionEnd + 1);
-    if (bodyLines.length === 0) {
-      // Pathological heading-only section over budget — keep it whole.
-      chunks.push(createChunk({
-        file, fileHash, startLine: sectionStart + 1, endLine: sectionEnd + 1, text: sectionText, kind: 'section', symbol,
-      }));
-      continue;
-    }
-
     const headingTokens = estimateTokens(headingLine + '\n');
     const budget = Math.max(1, config.maxTokens - headingTokens);
     const bodyBase0 = sectionStart + 1; // 0-based index of the first body line
@@ -147,20 +150,4 @@ export function chunkMarkdown(
   }
 
   return chunks;
-}
-
-function appendPreamble(
-  spanLines: string[],
-  file: WalkedFile,
-  config: RagChunkConfig,
-  fileHash: string,
-  out: Chunk[],
-): void {
-  let start = 0;
-  let end = spanLines.length - 1;
-  while (start <= end && (spanLines[start] ?? '').trim() === '') start++;
-  while (end >= start && (spanLines[end] ?? '').trim() === '') end--;
-  if (start > end) return;
-
-  out.push(...windowLines(spanLines.slice(start, end + 1), start + 1, file, config, fileHash));
 }

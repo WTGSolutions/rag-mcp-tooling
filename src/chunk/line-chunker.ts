@@ -89,3 +89,26 @@ export function chunkLines(
 
   return windowLines(lines, 1, file, config, fileHash);
 }
+
+/**
+ * Trims leading/trailing blank lines from a span, then windows the remainder
+ * into block chunks. Shared by the AST chunker (module-level gaps) and the
+ * markdown chunker (preamble before the first heading). `baseLine` is the
+ * 1-based line number of lines[0] in the original file. Returns [] if the span
+ * is entirely blank.
+ */
+export function windowTrimmedSpan(
+  lines: string[],
+  baseLine: number,
+  file: WalkedFile,
+  config: RagChunkConfig,
+  fileHash: string,
+): Chunk[] {
+  let start = 0;
+  let end = lines.length - 1;
+  while (start <= end && (lines[start] ?? '').trim() === '') start++;
+  while (end >= start && (lines[end] ?? '').trim() === '') end--;
+  if (start > end) return [];
+
+  return windowLines(lines.slice(start, end + 1), baseLine + start, file, config, fileHash);
+}
