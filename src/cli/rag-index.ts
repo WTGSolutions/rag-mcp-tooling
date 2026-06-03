@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
-import { resolve } from 'node:path';
+import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig, ConfigError } from '../config.js';
 import { createEmbedder } from '../embedder/local-embedder.js';
@@ -25,12 +25,12 @@ Exit codes:
   1   Error (bad config, I/O failure, etc.)
 `.trim();
 
-export interface CliArgs {
+export type CliArgs = {
   configPath: string;
   mode: ReindexMode;
   segment: string | undefined;
   cwd: string;
-}
+};
 
 export function parseCliArgs(argv: string[]): CliArgs | null {
   const { values } = parseArgs({
@@ -50,11 +50,15 @@ export function parseCliArgs(argv: string[]): CliArgs | null {
     return null;
   }
 
+  // Resolve configPath first so cwd can be derived from it.
+  const configPath = resolve(values.config as string);
   return {
-    configPath: resolve(values.config as string),
+    configPath,
     mode: values.full ? 'full' : 'incremental',
     segment: values.segment as string | undefined,
-    cwd: process.cwd(),
+    // Use the config file's directory as cwd so relative segment roots in the
+    // config resolve against the project, not the shell's working directory.
+    cwd: dirname(configPath),
   };
 }
 
@@ -69,17 +73,24 @@ function elapsed(startMs: number): string {
 
 export async function run(args: CliArgs): Promise<void> {
   const config = loadConfig(args.configPath);
-  const embedder = createEmbedder(config.embedder);
+
+  // Resolve store.path relative to the config file's directory so that
+  // `rag-index -c /project/rag.config.json` from any shell directory always
+  // writes to /project/.rag/index.db, not to wherever the shell is.
+  const resolvedStorePath = resolve(args.cwd, config.store.path);
+  const resolvedConfig = { ...config, store: { ...config.store, path: resolvedStorePath } };
+
+  const embedder = createEmbedder(resolvedConfig.embedder);
 
   const segmentDesc = args.segment ? `segment "${args.segment}"` : 'all segments';
   process.stderr.write(`rag-index: ${args.mode} — ${segmentDesc} — model ${embedder.modelId}\n`);
   process.stderr.write(`           config: ${args.configPath}\n`);
-  process.stderr.write(`           store:  ${resolve(config.store.path)}\n`);
+  process.stderr.write(`           store:  ${resolvedStorePath}\n`);
 
   const t0 = Date.now();
 
   const reindexOpts: Parameters<typeof reindex>[0] = {
-    config,
+    config: resolvedConfig,
     embedder,
     mode: args.mode,
     cwd: args.cwd,

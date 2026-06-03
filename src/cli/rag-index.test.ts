@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { join, resolve } from 'node:path';
+import { join, resolve, dirname } from 'node:path';
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { parseCliArgs, run } from './rag-index.js';
@@ -37,6 +37,11 @@ describe('parseCliArgs', () => {
   it('-c short form resolves the path', () => {
     const args = parseCliArgs(['-c', 'custom/rag.config.json']);
     expect(args!.configPath).toBe(resolve('custom/rag.config.json'));
+  });
+
+  it('--full and --changed together: --full wins (full mode)', () => {
+    const args = parseCliArgs(['--full', '--changed']);
+    expect(args!.mode).toBe('full');
   });
 
   it('--segment sets the segment filter', () => {
@@ -100,7 +105,8 @@ function makeArgs(overrides: Partial<CliArgs> = {}): CliArgs {
     configPath,
     mode: 'full',
     segment: undefined,
-    cwd: '/',
+    // Match parseCliArgs behaviour: cwd = dirname(configPath)
+    cwd: dirname(configPath),
     ...overrides,
   };
 }
