@@ -163,7 +163,7 @@ Once built (TASK-010–014), the server is wired into Claude Code via `.mcp.json
   "mcpServers": {
     "rag": {
       "command": "node",
-      "args": ["tools/rag-mcp/dist/server.js", "--config", "rag.config.json"]
+      "args": ["tools/rag-mcp/dist/server/server.js", "--config", "rag.config.json"]
     }
   }
 }
