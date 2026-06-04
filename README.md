@@ -154,35 +154,171 @@ const hits = store.search(queryVec, 8);          // [{ chunk, score }]
 store.close();
 ```
 
-## MCP server (Phase 2, forthcoming)
+## MCP server
 
-Once built (TASK-010–014), the server is wired into Claude Code via `.mcp.json`:
+After building the index, wire the server into Claude Code via `.mcp.json` at
+the repository root:
 
 ```jsonc
+// .mcp.json (place alongside rag.config.json)
 {
   "mcpServers": {
     "rag": {
       "command": "node",
-      "args": ["tools/rag-mcp/dist/server/server.js", "--config", "rag.config.json"]
+      "args": [
+        "tools/rag-mcp/dist/server/server.js",
+        "--config", "rag.config.json"
+      ]
     }
   }
 }
 ```
 
-It will expose `search_codebase(query, k?, segment?)`, `get_chunk(id)`,
-`index_status()` and `reindex(paths?)` — reading the same vector store the CLI
-writes.
+The server flag:
+
+| Flag | Meaning |
+|---|---|
+| `-c, --config <path>` | Config file (same `rag.config.json` used by `rag-index`). Relative paths inside it resolve from the config file's directory. |
+
+On startup the server reads `store_meta` from the database to verify that
+the configured embedding model matches the one the index was built with. A
+mismatch produces a clear `Dimension mismatch → rebuild` error.
+
+### Tools
+
+The server exposes four tools over the MCP protocol:
+
+---
+
+#### `search_codebase`
+
+Semantic search: embeds the query with the same model the index was built
+with, runs kNN in the vector store, and returns the most relevant chunks.
+
+```jsonc
+{ "query": "lost participant detection",   // required
+  "k": 8,                                   // optional, default 8, max 100
+  "segment": "mobile"                       // optional, restrict to one segment
+}
+```
+
+**Returns** (structuredContent):
+```jsonc
+{ "results": [
+    { "id": "<sha1>", "filePath": "...", "startLine": 5, "endLine": 42,
+      "segment": "web", "kind": "function", "symbol": "isLost",
+      "score": 0.83 }
+  ]
+}
+```
+
+Each result also appears as a clickable `path:line` reference in the text
+content. `score` is cosine similarity (0–1; higher is more relevant). `id`
+can be passed directly to `get_chunk`.
+
+---
+
+#### `get_chunk`
+
+Fetches the **full, untruncated** text of a single chunk by its id. Use it
+to expand a `search_codebase` hit when the snippet is not enough.
+
+```jsonc
+{ "id": "<sha1 from search_codebase>" }   // required
+```
+
+**Returns** (structuredContent):
+```jsonc
+{ "id": "...", "filePath": "...", "startLine": 5, "endLine": 42,
+  "segment": "web", "kind": "function", "symbol": "isLost",
+  "language": "typescript", "fileHash": "...", "text": "<full source>" }
+```
+
+Unknown `id` → `isError: true` with a clear message.
+
+---
+
+#### `index_status`
+
+Reports index health without requiring any arguments.
+
+```jsonc
+{}
+```
+
+**Returns** (structuredContent):
+```jsonc
+{ "chunks": 5713, "files": 1238, "modelId": "Xenova/bge-small-en-v1.5",
+  "dimensions": 384, "lastIndexed": "2026-06-04T12:00:00.000Z",
+  "segments": [
+    { "segment": "mobile", "chunks": 773,  "files": 304 },
+    { "segment": "web",    "chunks": 3421, "files": 894 },
+    { "segment": "wiki",   "chunks": 1519, "files": 51  }
+  ]
+}
+```
+
+Use this to check whether the index is built and roughly current before
+starting a session.
+
+---
+
+#### `reindex`
+
+Refreshes the index without leaving the agent session. Runs incrementally
+(only changed/deleted files) unless the underlying files have all been
+re-written.
+
+```jsonc
+{ "paths": ["/abs/or/rel/path/to/file.ts"],  // optional — restrict to files
+  "segment": "mobile"                          // optional — restrict to segment
+}
+```
+
+Without arguments, re-indexes **all segments** incrementally (unchanged files
+are skipped by content hash).
+
+**Returns** (structuredContent):
+```jsonc
+{ "added": 1, "skipped": 4, "removed": 0,
+  "totalChunks": 5714, "durationMs": 320,
+  "unmatchedPaths": []   // paths that matched no indexed file
+}
+```
+
+Only one `reindex` call runs at a time; a concurrent call is rejected with
+`already in progress`.
+
+> ⚠️ **Model change requires a full rebuild.** The vector dimensions are
+> fixed in the database schema at index creation time. After switching
+> `embedder.model` in the config, delete `.rag/index.db` and run
+> `rag-index --full` before restarting the server.
+
+---
+
+### Typical session flow
+
+```
+1. rag-index --config rag.config.json --full   # first-time index (one-off)
+2. Start Claude Code with .mcp.json pointing at this server
+3. Agent calls search_codebase("your question") → gets ids
+4. Agent calls get_chunk(id) for the most promising hits
+5. Agent calls reindex() after you edit files → index stays current
+```
 
 ## Development
 
 - Tests use **Vitest** with the AAA pattern; unit tests run offline.
-- Real-model integration tests are opt-in (they download/run the model):
+- E2E and real-model integration tests are opt-in:
 
   ```bash
   RAG_RUN_MODEL_TESTS=1 npm test
   ```
 
 - Reindexing after a model change requires rebuilding the index (vector
-  dimensions are fixed in the store schema).
+  dimensions are fixed in the store schema — see the warning above).
+- The e2e test (`src/server/server.e2e.test.ts`) spawns the real server binary
+  via `StdioClientTransport` to catch stdout leaks and protocol issues that
+  unit tests cannot detect.
 
 Tasks live in `tools/rag-mcp/.tasks/`.
