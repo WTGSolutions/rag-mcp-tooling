@@ -13,14 +13,20 @@ export const reindexOutputShape = {
   removed: z.number().int(),
   totalChunks: z.number().int(),
   durationMs: z.number().int(),
+  unmatchedPaths: z.array(z.string()),
 };
 
 export function formatReindex(result: ReindexResult, durationMs: number): string {
-  return (
-    `Reindex done in ${durationMs}ms:\n` +
-    `  added=${result.added}  skipped=${result.skipped}  removed=${result.removed}\n` +
-    `  total chunks: ${result.totalChunks}`
-  );
+  const lines = [
+    `Reindex done in ${durationMs}ms:`,
+    `  added=${result.added}  skipped=${result.skipped}  removed=${result.removed}`,
+    `  total chunks: ${result.totalChunks}`,
+  ];
+  if (result.unmatchedPaths.length > 0) {
+    lines.push(`  WARNING — ${result.unmatchedPaths.length} requested path(s) matched no indexed file:`);
+    for (const p of result.unmatchedPaths) lines.push(`    ${p}`);
+  }
+  return lines.join('\n');
 }
 
 /**
@@ -42,14 +48,22 @@ export function makeReindex(deps: ServerDeps) {
     running = true;
     try {
       const t0 = Date.now();
-      const result = await reindexWithStore(deps.store, {
-        config: deps.config,
-        embedder: deps.embedder,
-        mode: 'incremental',
-        cwd: deps.cwd,
-        ...(args.segment !== undefined ? { segment: args.segment } : {}),
-        ...(args.paths !== undefined ? { paths: args.paths } : {}),
-      });
+      let result: ReindexResult;
+      try {
+        result = await reindexWithStore(deps.store, {
+          config: deps.config,
+          embedder: deps.embedder,
+          mode: 'incremental',
+          cwd: deps.cwd,
+          ...(args.segment !== undefined ? { segment: args.segment } : {}),
+          ...(args.paths !== undefined ? { paths: args.paths } : {}),
+        });
+      } catch (e) {
+        // Brand non-[rag-mcp] errors (e.g. a raw transformers.js model error)
+        // so the agent gets an attributable message.
+        const message = (e as Error).message ?? String(e);
+        throw new Error(message.startsWith('[rag-mcp]') ? message : `[rag-mcp] reindex: ${message}`);
+      }
       const durationMs = Date.now() - t0;
 
       return {

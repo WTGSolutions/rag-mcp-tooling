@@ -41,20 +41,21 @@ export type ReindexResult = {
   removed: number;
   /** Total chunks in the store after the run. */
   totalChunks: number;
+  /**
+   * In `paths` mode, requested paths that matched no indexed file (outside any
+   * segment, excluded by include globs, or a typo). Empty otherwise. Lets the
+   * caller distinguish "nothing changed" from "your path was bogus".
+   */
+  unmatchedPaths: string[];
 };
 
-/**
- * Indexes or incrementally updates the vector store for all (or one) segment.
- *
- * Opens the store, walks files, computes sha1 of each file's content and
- * compares to the stored hash. Unchanged files are skipped (incremental mode).
- * Changed files are deleted then re-indexed. Files no longer on disk are
- * cleaned from the store (both modes).
- *
- * Note: `deleteFileFromSegment` and the subsequent `upsert` are not wrapped in
- * a single transaction because the `embed()` call is async. A crash between
- * them leaves the file chunk-less until the next run re-processes it.
- */
+// macOS/Windows filesystems are case-insensitive: compare requested paths to
+// walked paths case-insensitively there so a mis-cased path still matches.
+const CASE_INSENSITIVE_FS = process.platform === 'darwin' || process.platform === 'win32';
+function normPath(p: string): string {
+  return CASE_INSENSITIVE_FS ? p.toLowerCase() : p;
+}
+
 /**
  * Opens the store, runs reindexWithStore, and closes it. The one-shot entry
  * for the CLI. Long-running callers (the MCP server) that hold the store open
@@ -93,27 +94,77 @@ export async function reindexWithStore(
     throw new Error(`[rag-mcp] No segment named "${segmentFilter}" in config`);
   }
 
-  // Normalize requested paths to absolute for matching against walked files.
-  const pathFilter = paths
-    ? new Set(paths.map((p) => resolve(cwd ?? process.cwd(), p)))
+  // Map normalized-absolute → original requested path, so matching is
+  // case-insensitive where the FS is, while unmatched reporting keeps the
+  // path exactly as the caller wrote it.
+  const pathMap = paths
+    ? new Map(paths.map((p) => {
+        const abs = resolve(cwd ?? process.cwd(), p);
+        return [normPath(abs), abs] as const;
+      }))
     : undefined;
+  const matched = new Set<string>(); // original requested paths that were handled
 
   let added = 0;
   let skipped = 0;
   let removed = 0;
 
   for (const seg of segments) {
-    const result = await reindexSegment(store, config, embedder, mode, seg, cwd, readFileFn, pathFilter);
+    const result = await reindexSegment(store, config, embedder, mode, seg, cwd, readFileFn, pathMap, matched);
     added += result.added;
     skipped += result.skipped;
     removed += result.removed;
   }
 
-  return { added, skipped, removed, totalChunks: store.stats().chunks };
+  const unmatchedPaths = pathMap
+    ? [...pathMap.values()].filter((abs) => !matched.has(abs))
+    : [];
+
+  return { added, skipped, removed, totalChunks: store.stats().chunks, unmatchedPaths };
 }
 
 function isUnder(root: string, absPath: string): boolean {
   return absPath === root || absPath.startsWith(root + sep);
+}
+
+/** Full-walk stale cleanup: store files not seen in the walk are deleted. */
+function removeStaleAfterWalk(
+  store: VectorStore,
+  segment: RagSegment,
+  knownHashes: Map<string, string>,
+  seenPaths: Set<string>,
+): string[] {
+  const removed = [...knownHashes.keys()].filter((p) => !seenPaths.has(p));
+  for (const filePath of removed) store.deleteFileFromSegment(filePath, segment.name);
+  return removed;
+}
+
+/**
+ * paths-mode stale cleanup: only a requested path under this segment that no
+ * longer exists on disk is removed — files outside the requested set are never
+ * touched.
+ */
+function removeStaleInPaths(
+  store: VectorStore,
+  segment: RagSegment,
+  cwd: string | undefined,
+  knownHashes: Map<string, string>,
+  seenPaths: Set<string>,
+  pathMap: Map<string, string>,
+  matched: Set<string>,
+): string[] {
+  const removed: string[] = [];
+  const segmentRoot = resolve(cwd ?? process.cwd(), segment.root);
+  for (const absPath of pathMap.values()) {
+    if (!isUnder(segmentRoot, absPath)) continue;
+    const rel = relative(segmentRoot, absPath);
+    if (knownHashes.has(rel) && !seenPaths.has(rel) && !existsSync(absPath)) {
+      store.deleteFileFromSegment(rel, segment.name);
+      removed.push(rel);
+      matched.add(absPath); // a deleted requested path counts as handled
+    }
+  }
+  return removed;
 }
 
 async function reindexSegment(
@@ -124,7 +175,8 @@ async function reindexSegment(
   segment: RagSegment,
   cwd: string | undefined,
   readFileFn: (path: string) => Promise<string>,
-  pathFilter: Set<string> | undefined,
+  pathMap: Map<string, string> | undefined,
+  matched: Set<string>,
 ): Promise<{ added: number; skipped: number; removed: number }> {
   // Always fetch known hashes — needed for stale-entry cleanup in both modes.
   // In incremental mode they are also used to skip unchanged files.
@@ -141,7 +193,11 @@ async function reindexSegment(
 
   for await (const file of walkSegments(segConfig, cwd)) {
     // paths mode: only process the requested files (still respects include/.gitignore).
-    if (pathFilter && !pathFilter.has(file.absolutePath)) continue;
+    if (pathMap) {
+      const requested = pathMap.get(normPath(file.absolutePath));
+      if (requested === undefined) continue;
+      matched.add(requested);
+    }
     seenPaths.add(file.relativePath);
 
     // Read file content once — used for both hash comparison and chunking.
@@ -167,43 +223,28 @@ async function reindexSegment(
       continue;
     }
 
-    // File is new or changed — replace stored chunks for this file.
-    store.deleteFileFromSegment(file.relativePath, segment.name);
-
+    // Embed FIRST so the file's old chunks stay visible during the (async)
+    // embed; then delete + upsert run back-to-back synchronously. better-sqlite3
+    // operations can't interleave without an await, so a concurrent
+    // search_codebase sharing this store sees either the complete old version
+    // or the complete new one — never the file momentarily absent. A failure
+    // during embed leaves the old chunks intact (nothing was deleted yet).
     const chunks = dispatchChunker(text, file, config.chunk, currentHash);
     if (chunks.length > 0) {
       const vectors = await embedder.embed(chunks.map((c) => c.text));
+      store.deleteFileFromSegment(file.relativePath, segment.name);
       store.upsert(chunks, vectors);
+    } else {
+      // Empty file: remove any old chunks, nothing to add. (No hash recorded, so
+      // it is re-processed on each run — acceptable for empty files.)
+      store.deleteFileFromSegment(file.relativePath, segment.name);
     }
-    // Files that produce 0 chunks (e.g., empty files) are deleted from the store
-    // but have no hash recorded. They will be re-processed on every subsequent run
-    // (no stored hash to match). This is acceptable for empty files.
     added++;
   }
 
-  // Remove stale entries.
-  let removed: string[];
-  if (pathFilter) {
-    // paths mode: only a requested path under this segment that no longer exists
-    // on disk gets removed — never touch files outside the requested set.
-    removed = [];
-    const segmentRoot = resolve(cwd ?? process.cwd(), segment.root);
-    for (const absPath of pathFilter) {
-      if (!isUnder(segmentRoot, absPath)) continue;
-      const rel = relative(segmentRoot, absPath);
-      if (knownHashes.has(rel) && !seenPaths.has(rel) && !existsSync(absPath)) {
-        store.deleteFileFromSegment(rel, segment.name);
-        removed.push(rel);
-      }
-    }
-  } else {
-    // Full walk: files known to the store but absent from the walk are stale.
-    // Runs in BOTH modes so full-mode runs also clean up deleted files.
-    removed = [...knownHashes.keys()].filter((p) => !seenPaths.has(p));
-    for (const filePath of removed) {
-      store.deleteFileFromSegment(filePath, segment.name);
-    }
-  }
+  const removed = pathMap
+    ? removeStaleInPaths(store, segment, cwd, knownHashes, seenPaths, pathMap, matched)
+    : removeStaleAfterWalk(store, segment, knownHashes, seenPaths);
 
   return { added, skipped, removed: removed.length };
 }

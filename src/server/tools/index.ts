@@ -79,7 +79,7 @@ export function registerTools(server: McpServer, deps: ServerDeps): void {
       description:
         'Refresh the index incrementally. Optionally limit to specific paths or a segment.',
       inputSchema: {
-        paths: z.array(z.string()).optional().describe('Specific file paths to reindex'),
+        paths: z.array(z.string().min(1)).optional().describe('Specific file paths to reindex'),
         segment: z.string().optional().describe('Restrict to a named segment'),
       },
       outputSchema: reindexOutputShape,
