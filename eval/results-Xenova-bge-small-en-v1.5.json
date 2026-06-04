@@ -1,24 +1,24 @@
 {
   "model": "Xenova/bge-small-en-v1.5",
   "k": 5,
-  "generatedAt": "2026-06-04T15:16:10.732Z",
-  "groundTruthStatus": "VALIDATED 2026-06-04 PO (szymonwal) — ground truth proposed by the agent from reading the codebase (anti-bias: NOT derived from embedder results), reviewed and approved by the product owner. Safe to freeze TASK-017 numbers.",
+  "generatedAt": "2026-06-04T20:42:45.287Z",
+  "groundTruthStatus": "VALIDATED 2026-06-04 PO (szymonwal) — 50-query acceptance set. q01–q15 frozen in TASK-017; q16–q50 proposed by the agent from reading the codebase (anti-bias: NOT derived from embedder results), reviewed and approved by the PO incl. round-1 ground-truth widening of q18/q34/q35/q39. Safe to freeze.",
   "rag": {
-    "count": 15,
-    "hits": 13,
-    "hitRate": 0.8666666666666667,
-    "mrr": 0.711111111111111
+    "count": 50,
+    "hits": 42,
+    "hitRate": 0.84,
+    "mrr": 0.6883333333333332
   },
   "grep": {
-    "count": 15,
-    "hits": 12,
-    "hitRate": 0.8,
-    "mrr": 0.5933333333333334
+    "count": 50,
+    "hits": 39,
+    "hitRate": 0.78,
+    "mrr": 0.5176666666666666
   },
   "tokenCost": {
-    "ragTotal": 4498,
-    "broadTotal": 208689,
-    "ratio": 46.395953757225435
+    "ragTotal": 14278,
+    "broadTotal": 773272,
+    "ratio": 54.158285474156045
   },
   "perQuery": [
     {
@@ -502,9 +502,9 @@
       "rag": {
         "top": [
           "tools/rag-mcp/src/server/tools/reindex.ts",
+          "tools/rag-mcp/src/indexer/reindex.ts",
+          "tools/rag-mcp/src/indexer/reindex.ts",
           "tools/rag-mcp/README.md",
-          "tools/rag-mcp/src/indexer/reindex.ts",
-          "tools/rag-mcp/src/indexer/reindex.ts",
           "tools/rag-mcp/src/indexer/reindex.ts"
         ],
         "outcome": {
@@ -527,7 +527,7 @@
           "position": 1,
           "reciprocalRank": 1
         },
-        "tokens": 14747
+        "tokens": 15193
       }
     },
     {
@@ -566,7 +566,7 @@
           "position": 1,
           "reciprocalRank": 1
         },
-        "tokens": 11044
+        "tokens": 11489
       }
     },
     {
@@ -605,7 +605,1377 @@
           "position": null,
           "reciprocalRank": 0
         },
-        "tokens": 8282
+        "tokens": 8727
+      }
+    },
+    {
+      "id": "q16-deep-link-navigation",
+      "concept": "nawigacja przez deep link (otwarcie aplikacji z URL)",
+      "query": "open the app from a deep link URL and navigate to a tour",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/lib/deep-link/index.ts"
+      ],
+      "rag": {
+        "top": [
+          "mobile/src/lib/deep-link/listeners/app-url-open.ts",
+          "wiki/.epics/EPIC-002-deep-link-notification-navigation.md",
+          "mobile/src/lib/deep-link/listeners/app-url-open.ts",
+          "mobile/src/lib/deep-link/index.ts",
+          "mobile/src/lib/deep-link/listeners/app-url-open.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 4,
+          "reciprocalRank": 0.25
+        },
+        "tokens": 336
+      },
+      "grep": {
+        "top": [
+          "mobile/src/lib/deep-link/listeners/app-url-open.ts",
+          "mobile/src/views/tours/:token/map/index.tsx",
+          "wiki/.epics/BUGS-001-found-in-mobile-app-version-1.99.1.md",
+          "wiki/.epics/EPIC-002-deep-link-notification-navigation.md",
+          "wiki/.epics/EPIC-005-route-navigation-to-guide.md"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 33835
+      }
+    },
+    {
+      "id": "q17-local-notifications-schedule",
+      "concept": "planowanie powiadomień lokalnych",
+      "query": "schedule local notifications on the device",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/lib/local-notifications/index.ts"
+      ],
+      "rag": {
+        "top": [
+          "mobile/src/lib/local-notifications/index.ts",
+          "mobile/src/utils/permissions/local-notifications.ts",
+          "wiki/.epics/EPIC-002-deep-link-notification-navigation.md",
+          "mobile/src/lib/deep-link/listeners/local-notification.ts",
+          "mobile/src/lib/deep-link/listeners/local-notification.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 265
+      },
+      "grep": {
+        "top": [
+          "mobile/src/components/tour/tour-actions/handlers/on-tour-start/index.ts",
+          "wiki/.epics/EPIC-001-user-lost-self-notification.md",
+          "mobile/src/App.tsx",
+          "mobile/src/components/tour/tour-actions/handlers/on-tour-leave/index.ts",
+          "mobile/src/components/tour/tour-actions/handlers/on-tour-stop/index.ts"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 13087
+      }
+    },
+    {
+      "id": "q18-persistent-storage",
+      "concept": "trwałe przechowywanie danych na urządzeniu",
+      "query": "persist and read key-value data on device storage",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/lib/storage/index.ts",
+        "mobile/src/lib/storage/index.model.ts"
+      ],
+      "rag": {
+        "top": [
+          "mobile/src/lib/storage/index.model.ts",
+          "web/src/lib/auth/device-token.ts",
+          "web/src/lib/storage/dynamodb-storage/index.ts",
+          "mobile/src/utils/device-platform/index.ts",
+          "mobile/src/utils/device-id/index.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 165
+      },
+      "grep": {
+        "top": [
+          "wiki/.epics/EPIC-008-mobile-e2e-cypress-to-playwright.md",
+          "mobile/src/components/tour/tour-actions/handlers/on-tour-join/index.ts",
+          "mobile/src/lib/background-geolocation-service/handlers/on-http.ts",
+          "mobile/src/utils/app/archive-finished-tokens/index.ts",
+          "mobile/src/utils/map/get-aed/index.ts"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 9127
+      }
+    },
+    {
+      "id": "q19-route-navigation",
+      "concept": "nawigacja po trasie do przewodnika",
+      "query": "turn-by-turn route navigation to the guide",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/hooks/map/use-route-navigation/index.ts"
+      ],
+      "rag": {
+        "top": [
+          "wiki/.epics/EPIC-005-route-navigation-to-guide.md",
+          "mobile/src/components/tour/tour-navigation/index.tsx",
+          "mobile/src/hooks/map/use-auto-navigate/index.ts",
+          "web/src/components/views/tours/tours-filters/index.tsx",
+          "wiki/.epics/EPIC-005-route-navigation-to-guide.md"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 288
+      },
+      "grep": {
+        "top": [
+          "mobile/src/hooks/map/use-route-navigation/index.model.ts",
+          "mobile/src/hooks/map/use-route-navigation/index.ts",
+          "mobile/src/utils/map/fetch-route/index.ts",
+          "mobile/src/utils/map/route-target/index.ts",
+          "mobile/src/views/tours/:token/map/index.tsx"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 2,
+          "reciprocalRank": 0.5
+        },
+        "tokens": 11395
+      }
+    },
+    {
+      "id": "q20-auto-navigate-on-lost",
+      "concept": "automatyczna nawigacja po otrzymaniu powiadomienia o zgubieniu",
+      "query": "automatically start navigation when opened from a lost notification",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/hooks/map/use-auto-navigate/index.ts"
+      ],
+      "rag": {
+        "top": [
+          "mobile/src/hooks/map/use-auto-navigate/index.ts",
+          "wiki/.epics/EPIC-005-route-navigation-to-guide.md",
+          "wiki/.epics/EPIC-002-deep-link-notification-navigation.md",
+          "wiki/.epics/EPIC-005-route-navigation-to-guide.md",
+          "mobile/src/lib/deep-link/listeners/local-notification.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 350
+      },
+      "grep": {
+        "top": [
+          "mobile/src/views/tours/:token/map/index.tsx",
+          "wiki/.epics/EPIC-014-custom-background-geolocation-poc.md",
+          "wiki/.epics/EPIC-005-route-navigation-to-guide.md",
+          "wiki/README.md",
+          "mobile/src/hooks/map/use-auto-navigate/index.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 5,
+          "reciprocalRank": 0.2
+        },
+        "tokens": 29657
+      }
+    },
+    {
+      "id": "q21-fetch-walking-route",
+      "concept": "pobranie pieszej trasy z silnika routingu",
+      "query": "fetch a walking route from the routing engine with distance and duration",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/utils/map/fetch-route/index.ts"
+      ],
+      "rag": {
+        "top": [
+          "wiki/.epics/EPIC-005-route-navigation-to-guide.md",
+          "wiki/.epics/EPIC-005-route-navigation-to-guide.md",
+          "wiki/.epics/EPIC-005-route-navigation-to-guide.md",
+          "mobile/src/utils/map/fetch-route/index.ts",
+          "mobile/src/utils/map/fetch-route/index.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 4,
+          "reciprocalRank": 0.25
+        },
+        "tokens": 333
+      },
+      "grep": {
+        "top": [
+          "wiki/.epics/EPIC-005-route-navigation-to-guide.md",
+          "mobile/src/utils/map/fetch-route/index.ts",
+          "wiki/.epics/BUGS-001-found-in-mobile-app-version-1.99.1.md",
+          "mobile/src/components/tour/route-info-panel/index.tsx",
+          "mobile/src/views/tours/:token/map/index.tsx"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 2,
+          "reciprocalRank": 0.5
+        },
+        "tokens": 30457
+      }
+    },
+    {
+      "id": "q22-nearest-aed",
+      "concept": "znajdowanie najbliższego defibrylatora AED",
+      "query": "find nearest AED defibrillator around the user",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/utils/map/get-aed/index.ts"
+      ],
+      "rag": {
+        "top": [
+          "web/src/app/api/aed/route.ts",
+          "mobile/src/utils/map/route-target/index.ts",
+          "mobile/src/utils/map/get-aed/index.ts",
+          "wiki/.epics/EPIC-005-route-navigation-to-guide.md",
+          "mobile/src/utils/item-modal/configurators/configure-aed.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 3,
+          "reciprocalRank": 0.3333333333333333
+        },
+        "tokens": 350
+      },
+      "grep": {
+        "top": [
+          "wiki/.epics/EPIC-005-route-navigation-to-guide.md",
+          "mobile/src/utils/map/route-target/index.ts",
+          "mobile/src/utils/item-modal/configurators/configure-aed.ts",
+          "mobile/src/utils/map/get-aed/index.ts",
+          "mobile/src/views/tours/:token/map/index.tsx"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 4,
+          "reciprocalRank": 0.25
+        },
+        "tokens": 23155
+      }
+    },
+    {
+      "id": "q23-safety-circle-area",
+      "concept": "rysowanie strefy bezpieczeństwa wokół wycieczki",
+      "query": "draw the tour safety sensitivity circle area on the map",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/utils/map/tour-sensitivity-area/index.ts"
+      ],
+      "rag": {
+        "top": [
+          "mobile/src/utils/map/tour-sensitivity-area/index.ts",
+          "wiki/.epics/EPIC-040-lost-detection-hysteresis.md",
+          "wiki/.epics/EPIC-040-lost-detection-hysteresis.md",
+          "wiki/standards/CSS-iOS-Guidelines.md",
+          "wiki/.epics/EPIC-001-user-lost-self-notification.md"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 260
+      },
+      "grep": {
+        "top": [
+          "mobile/src/lib/background-geolocation-service/handlers/on-http.ts",
+          "mobile/src/models/tour.model.ts",
+          "mobile/src/utils/map/tour-sensitivity-area/index.ts",
+          "mobile/src/views/tours/:token/map/index.tsx",
+          "mobile/src/utils/map/generate-layers/index.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 3,
+          "reciprocalRank": 0.3333333333333333
+        },
+        "tokens": 10132
+      }
+    },
+    {
+      "id": "q24-watch-gps-position",
+      "concept": "śledzenie pozycji GPS użytkownika z wygładzaniem",
+      "query": "watch the user GPS position with heading smoothing",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/utils/map/watch-position/index.ts"
+      ],
+      "rag": {
+        "top": [
+          "mobile/src/utils/map/watch-position/index.ts",
+          "mobile/src/utils/map/watch-position/index.ts",
+          "wiki/.epics/EPIC-018-adaptive-distance-filter.md",
+          "wiki/.epics/EPIC-013-snap-to-road-position-accuracy.md",
+          "wiki/.epics/EPIC-014-custom-background-geolocation-poc.md"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 297
+      },
+      "grep": {
+        "top": [
+          "wiki/.epics/BUGS-001-found-in-mobile-app-version-1.99.1.md",
+          "mobile/src/utils/map/watch-position/index.ts",
+          "mobile/src/views/tours/:token/map/index.tsx",
+          "wiki/.epics/EPIC-014-custom-background-geolocation-poc.md",
+          "mobile/src/models/user-gps-position.model.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 2,
+          "reciprocalRank": 0.5
+        },
+        "tokens": 20665
+      }
+    },
+    {
+      "id": "q25-api-db-key-conversion",
+      "concept": "konwersja kluczy camelCase ↔ snake_case między API a DB",
+      "query": "convert object keys between camelCase and snake_case for API and DB",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/utils/db-api-converter/index.ts"
+      ],
+      "rag": {
+        "top": [
+          "mobile/src/utils/db-api-converter/index.ts",
+          "mobile/src/utils/db-api-converter/index.ts",
+          "mobile/src/utils/db-api-converter/index.ts",
+          "mobile/src/lib/gt-fetch/index.ts",
+          "mobile/src/utils/key-converters/index.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 240
+      },
+      "grep": {
+        "top": [
+          "mobile/src/utils/db-api-converter/index.ts",
+          "mobile/src/lib/background-geolocation-service/handlers/on-http.ts",
+          "mobile/src/utils/key-converters/index.ts",
+          "tools/rag-mcp/src/indexer/reindex.ts",
+          "web/src/lib/ksef-invoice-builder/validators/eu-vat.validator.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 7038
+      }
+    },
+    {
+      "id": "q26-device-identifier",
+      "concept": "pobranie identyfikatora urządzenia",
+      "query": "get the unique device identifier",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/utils/device-id/index.ts"
+      ],
+      "rag": {
+        "top": [
+          "mobile/src/utils/device-id/index.ts",
+          "web/src/lib/auth/device-token.ts",
+          "web/src/lib/auth/index.ts",
+          "mobile/src/utils/device-platform/index.ts",
+          "mobile/src/utils/device-id/index.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 204
+      },
+      "grep": {
+        "top": [
+          "mobile/src/utils/device-id/index.ts",
+          "web/src/actions/tours/new-tour.ts",
+          "web/src/actions/tours/new-tours-batch.ts",
+          "web/src/app/[locale]/(public)/mobile-privacy-policy/page.tsx",
+          "web/src/lib/ksef-invoice-builder/builders/buyer.builder.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 9911
+      }
+    },
+    {
+      "id": "q27-archive-finished-tours",
+      "concept": "archiwizacja zakończonych wycieczek po okresie karencji",
+      "query": "archive finished tour tokens after the grace period expires",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/utils/app/archive-finished-tokens/index.ts"
+      ],
+      "rag": {
+        "top": [
+          "mobile/src/utils/app/archive-finished-tokens/index.ts",
+          "mobile/src/utils/app/tour-grace-period/index.ts",
+          "mobile/src/views/archive/index.tsx",
+          "mobile/src/views/archive/index.model.ts",
+          "wiki/.epics/EPIC-003-tour-archive.md"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 300
+      },
+      "grep": {
+        "top": [
+          "mobile/src/utils/app/archive-finished-tokens/index.ts",
+          "mobile/src/utils/app/update-app-data/index.ts",
+          "mobile/src/utils/app/tour-grace-period/index.ts",
+          "mobile/src/views/tours/:token/map/index.tsx",
+          "wiki/.epics/EPIC-003-tour-archive.md"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 14078
+      }
+    },
+    {
+      "id": "q28-schedule-tour-reminders",
+      "concept": "planowanie przypomnień o nadchodzącej wycieczce",
+      "query": "schedule reminder notifications before an upcoming tour",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/utils/registration/schedule-reminders/index.ts"
+      ],
+      "rag": {
+        "top": [
+          "mobile/src/utils/registration/schedule-reminders/index.ts",
+          "mobile/src/lib/tour-events/index.ts",
+          "web/src/models/log.model.ts",
+          "web/src/models/tour.model.ts",
+          "mobile/src/models/tour.model.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 181
+      },
+      "grep": {
+        "top": [
+          "mobile/src/components/tour/tour-actions/handlers/on-tour-start/index.ts",
+          "mobile/src/utils/registration/schedule-reminders/index.ts",
+          "mobile/src/views/register/index.tsx",
+          "mobile/src/lib/background-geolocation-service/handlers/on-http.ts",
+          "mobile/src/lib/deep-link/index.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 2,
+          "reciprocalRank": 0.5
+        },
+        "tokens": 7263
+      }
+    },
+    {
+      "id": "q29-weather-forecast",
+      "concept": "pobieranie prognozy pogody dla wycieczki",
+      "query": "fetch current and hourly weather forecast for a location",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/lib/weather/index.ts"
+      ],
+      "rag": {
+        "top": [
+          "mobile/src/lib/weather/index.ts",
+          "mobile/src/lib/weather/index.ts",
+          "mobile/src/lib/weather/index.ts",
+          "wiki/.epics/EPIC-034-weather-forecast-tour-view.md",
+          "mobile/src/lib/weather/index.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 257
+      },
+      "grep": {
+        "top": [
+          "mobile/src/hooks/tour/use-tour-weather/index.ts",
+          "mobile/src/lib/weather/index.ts",
+          "wiki/.epics/EPIC-034-weather-forecast-tour-view.md",
+          "mobile/src/views/tours/:token/index.tsx",
+          "mobile/src/components/tour/tour-actions/handlers/on-tour-join/index.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 2,
+          "reciprocalRank": 0.5
+        },
+        "tokens": 7803
+      }
+    },
+    {
+      "id": "q30-http-fetch-wrapper",
+      "concept": "wrapper na zapytania HTTP z konwersją danych",
+      "query": "http fetch wrapper that converts the response payload",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/lib/gt-fetch/index.ts"
+      ],
+      "rag": {
+        "top": [
+          "mobile/src/lib/gt-fetch/index.ts",
+          "mobile/src/lib/gt-fetch/utils/index.ts",
+          "tools/rag-mcp/README.md",
+          "web/src/app/api/push-services/route.ts",
+          "web/src/app/api/plugin-test/route.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 237
+      },
+      "grep": {
+        "top": [
+          "mobile/src/lib/gt-fetch/index.ts",
+          "web/src/lib/ksef/services/invoice-orchestrator.service.ts",
+          "mobile/src/utils/map/update-tokens-location/index.ts",
+          "mobile/src/views/tours/:token/map/index.tsx",
+          "web/src/lib/ksef-invoice-builder/validators/eu-vat.validator.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 18167
+      }
+    },
+    {
+      "id": "q31-tour-events-bus",
+      "concept": "magistrala zdarzeń aktualizacji danych wycieczki",
+      "query": "event bus to publish and subscribe to tour data updates",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/lib/tour-events/index.ts"
+      ],
+      "rag": {
+        "top": [
+          "mobile/src/lib/tour-events/index.ts",
+          "mobile/src/lib/tour-events/index.ts",
+          "mobile/src/lib/tour-events/index.ts",
+          "mobile/src/lib/tour-events/index.ts",
+          "mobile/src/hooks/tour/use-tour-data-update/index.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 292
+      },
+      "grep": {
+        "top": [
+          "mobile/src/hooks/tour/use-tour-data-update/index.ts",
+          "mobile/src/lib/tour-events/index.ts",
+          "wiki/.epics/EPIC-019-plugin-commercialization.md",
+          "mobile/src/lib/push-notifications/listeners/handlers/on-token-data-reload.ts",
+          "mobile/src/views/tours/:token/map/index.tsx"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 2,
+          "reciprocalRank": 0.5
+        },
+        "tokens": 14209
+      }
+    },
+    {
+      "id": "q32-subscribe-tour-updates",
+      "concept": "hook subskrybujący aktualizacje danych wycieczki",
+      "query": "react hook that subscribes to tour data update events",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/hooks/tour/use-tour-data-update/index.ts"
+      ],
+      "rag": {
+        "top": [
+          "mobile/src/hooks/tour/use-tour-data-update/index.ts",
+          "mobile/src/lib/tour-events/index.ts",
+          "mobile/src/hooks/tour/use-tour-data-update/index.ts",
+          "web/src/components/views/tours/tours-filters/index.model.ts",
+          "mobile/src/lib/tour-events/index.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 283
+      },
+      "grep": {
+        "top": [
+          "mobile/src/hooks/tour/use-tour-data-update/index.ts",
+          "mobile/src/views/tours/:token/map/index.tsx",
+          "mobile/src/lib/tour-events/index.ts",
+          "wiki/.epics/EPIC-014-custom-background-geolocation-poc.md",
+          "mobile/src/hooks/map/use-route-navigation/index.model.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 14202
+      }
+    },
+    {
+      "id": "q33-token-role",
+      "concept": "ustalanie roli z tokenu (przewodnik/opiekun/uczestnik/bus)",
+      "query": "determine the user role from a token string",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/utils/token-role/index.ts"
+      ],
+      "rag": {
+        "top": [
+          "mobile/src/utils/token-role/index.ts",
+          "web/src/utils/token/token-role/index.ts",
+          "mobile/src/utils/map/token-pointer/index.ts",
+          "wiki/standards/Testing.md",
+          "wiki/models/Token.md"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 341
+      },
+      "grep": {
+        "top": [
+          "mobile/src/components/tour/predefined-messages/index.tsx",
+          "mobile/src/lib/background-geolocation-service/handlers/on-http.ts",
+          "mobile/src/utils/map/route-target/index.ts",
+          "mobile/src/views/tours/:token/map/index.tsx",
+          "wiki/.epics/EPIC-001-user-lost-self-notification.md"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 20105
+      }
+    },
+    {
+      "id": "q34-message-inbox",
+      "concept": "skrzynka wiadomości na wycieczce",
+      "query": "display the inbox of received tour messages",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/components/tour/message-inbox/index.tsx",
+        "mobile/src/components/tour/message-item/index.tsx",
+        "mobile/src/views/tours/:token/messages/index.tsx"
+      ],
+      "rag": {
+        "top": [
+          "web/src/models/message.model.ts",
+          "mobile/src/models/message.model.ts",
+          "web/src/utils/tours/get-message-template/index.model.ts",
+          "mobile/src/views/tours/:token/messages/:template/index.tsx",
+          "web/src/models/log.model.ts"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 252
+      },
+      "grep": {
+        "top": [
+          "mobile/src/views/tours/:token/messages/index.tsx",
+          "mobile/src/components/tour/message-inbox/index.model.ts",
+          "mobile/src/components/tour/message-item/index.tsx",
+          "mobile/src/components/tour/predefined-messages/index.tsx",
+          "mobile/src/lib/push-notifications/listeners/notification-action-performed.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 3589
+      }
+    },
+    {
+      "id": "q35-predefined-messages",
+      "concept": "predefiniowane szybkie wiadomości",
+      "query": "send a predefined quick message to participants",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/components/tour/predefined-messages/index.tsx",
+        "mobile/src/views/tours/:token/messages/index.tsx"
+      ],
+      "rag": {
+        "top": [
+          "web/src/models/message.model.ts",
+          "mobile/src/models/message.model.ts",
+          "web/src/components/assistant/use-assistant-chat.ts",
+          "mobile/src/models/message.model.ts",
+          "mobile/src/views/tours/:token/messages/:template/index.tsx"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 159
+      },
+      "grep": {
+        "top": [
+          "mobile/src/components/tour/predefined-messages/index.tsx",
+          "mobile/src/lib/background-geolocation-service/handlers/on-http.ts",
+          "mobile/src/views/tours/:token/messages/index.tsx",
+          "wiki/.epics/BUGS-001-found-in-mobile-app-version-1.99.1.md",
+          "wiki/.epics/EPIC-001-user-lost-self-notification.md"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 20711
+      }
+    },
+    {
+      "id": "q36-token-qr-code",
+      "concept": "kod QR tokenu do udostępnienia",
+      "query": "show a shareable QR code for a tour token",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/components/tour/token-qr-code/index.tsx"
+      ],
+      "rag": {
+        "top": [
+          "web/src/actions/token/send-token.ts",
+          "web/src/components/modal/components/content-factory/contents/modal-new-token/index.tsx",
+          "web/src/components/views/tours/token-details/index.tsx",
+          "mobile/src/views/tours/:token/tokens/index.tsx",
+          "web/src/components/views/tours/tour-edit/index.tsx"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 350
+      },
+      "grep": {
+        "top": [
+          "web/src/constants.ts",
+          "wiki/.epics/EPIC-001-user-lost-self-notification.md",
+          "wiki/.epics/EPIC-005-route-navigation-to-guide.md",
+          "wiki/.epics/EPIC-010-tours-list-pagination.md",
+          "wiki/.epics/EPIC-014-custom-background-geolocation-poc.md"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 40142
+      }
+    },
+    {
+      "id": "q37-push-notification-tap",
+      "concept": "obsługa tapnięcia w powiadomienie push",
+      "query": "handle the user tapping a push notification action",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/lib/push-notifications/listeners/notification-action-performed.ts"
+      ],
+      "rag": {
+        "top": [
+          "mobile/src/lib/push-notifications/listeners/handlers/on-token-data-reload.ts",
+          "mobile/src/lib/deep-link/listeners/local-notification.ts",
+          "mobile/src/lib/push-notifications/listeners/notification-received.ts",
+          "mobile/src/lib/push-notifications/listeners/notification-action-performed.ts",
+          "mobile/src/lib/push-notifications/listeners/notification-registration-error.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 4,
+          "reciprocalRank": 0.25
+        },
+        "tokens": 284
+      },
+      "grep": {
+        "top": [
+          "mobile/src/lib/push-notifications/index.ts",
+          "mobile/src/lib/push-notifications/listeners/notification-action-performed.ts",
+          "mobile/src/views/tours/index.tsx",
+          "wiki/.epics/BUGS-001-found-in-mobile-app-version-1.99.1.md",
+          "wiki/.epics/EPIC-002-deep-link-notification-navigation.md"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 2,
+          "reciprocalRank": 0.5
+        },
+        "tokens": 15152
+      }
+    },
+    {
+      "id": "q38-refresh-app-data",
+      "concept": "odświeżanie danych aplikacji z API",
+      "query": "refresh the app data from the backend API",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/utils/app/update-app-data/index.ts"
+      ],
+      "rag": {
+        "top": [
+          "mobile/src/utils/map/refresh-location-data/index.model.ts",
+          "mobile/src/utils/map/refresh-location-data/index.ts",
+          "wiki/.epics/EPIC-003-tour-archive.md",
+          "wiki/models/Message.md",
+          "mobile/src/components/views/view-content/index.model.ts"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 187
+      },
+      "grep": {
+        "top": [
+          "mobile/src/utils/map/refresh-location-data/index.ts",
+          "wiki/.epics/EPIC-003-tour-archive.md",
+          "wiki/.epics/EPIC-005-route-navigation-to-guide.md",
+          "wiki/.epics/EPIC-014-custom-background-geolocation-poc.md",
+          "wiki/.epics/EPIC-034-weather-forecast-tour-view.md"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 29878
+      }
+    },
+    {
+      "id": "q39-app-logger",
+      "concept": "logowanie zdarzeń aplikacji (dev/prod)",
+      "query": "application logger with development and production modes",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/lib/logger/index.ts",
+        "mobile/src/lib/logger/index.model.ts"
+      ],
+      "rag": {
+        "top": [
+          "mobile/src/lib/logger/index.ts",
+          "mobile/src/lib/logger/dev-logger/index.ts",
+          "mobile/src/lib/logger/prod-logger/index.ts",
+          "web/src/app/api/assistant/chat/route.ts",
+          "mobile/src/lib/logger/dev-logger/index.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 290
+      },
+      "grep": {
+        "top": [
+          "mobile/src/config/app.ts",
+          "mobile/src/lib/logger/index.ts",
+          "wiki/workflow/AI-Development.en.md",
+          "mobile/src/lib/logger/dev-logger/index.ts",
+          "mobile/src/lib/logger/prod-logger/index.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 2,
+          "reciprocalRank": 0.5
+        },
+        "tokens": 3229
+      }
+    },
+    {
+      "id": "q40-file-walker",
+      "concept": "przechodzenie plików repo z respektowaniem .gitignore i segmentów",
+      "query": "walk repository files respecting gitignore and segment globs",
+      "segment": "tools",
+      "expectedFiles": [
+        "tools/rag-mcp/src/walker.ts"
+      ],
+      "rag": {
+        "top": [
+          "tools/rag-mcp/src/walker.ts",
+          "tools/rag-mcp/src/eval/run-eval.ts",
+          "tools/rag-mcp/src/walker.ts",
+          "tools/rag-mcp/src/walker.ts",
+          "tools/rag-mcp/src/eval/metrics.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 295
+      },
+      "grep": {
+        "top": [
+          "tools/rag-mcp/README.md",
+          "tools/rag-mcp/src/indexer/reindex.ts",
+          "tools/rag-mcp/src/walker.ts",
+          "wiki/.epics/EPIC-041-mcp-rag-semantic-code-index.md",
+          "tools/rag-mcp/src/eval/run-eval.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 3,
+          "reciprocalRank": 0.3333333333333333
+        },
+        "tokens": 12044
+      }
+    },
+    {
+      "id": "q41-ast-chunker",
+      "concept": "dzielenie TS/JS na chunki po AST (funkcje/klasy)",
+      "query": "split TypeScript and JavaScript into chunks by AST functions and classes",
+      "segment": "tools",
+      "expectedFiles": [
+        "tools/rag-mcp/src/chunk/ast-chunker.ts"
+      ],
+      "rag": {
+        "top": [
+          "tools/rag-mcp/src/chunk/ast-chunker.ts",
+          "tools/rag-mcp/src/chunk/types.ts",
+          "web/src/components/ui/dialog.tsx",
+          "web/src/components/layout/advanced-table/SearchBar.tsx",
+          "web/src/components/ui/toggle.tsx"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 183
+      },
+      "grep": {
+        "top": [
+          "tools/rag-mcp/src/chunk/ast-chunker.ts",
+          "wiki/.epics/EPIC-014-custom-background-geolocation-poc.md",
+          "tools/rag-mcp/README.md",
+          "tools/rag-mcp/src/chunk/line-chunker.ts",
+          "tools/rag-mcp/src/chunk/router.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 12447
+      }
+    },
+    {
+      "id": "q42-line-fallback-chunker",
+      "concept": "fallbackowy chunker okien liniowych z zakładką",
+      "query": "fallback line-window chunking with overlap for unknown file types",
+      "segment": "tools",
+      "expectedFiles": [
+        "tools/rag-mcp/src/chunk/line-chunker.ts"
+      ],
+      "rag": {
+        "top": [
+          "tools/rag-mcp/src/chunk/line-chunker.ts",
+          "tools/rag-mcp/src/chunk/ast-chunker.ts",
+          "tools/rag-mcp/src/chunk/line-chunker.ts",
+          "tools/rag-mcp/README.md",
+          "tools/rag-mcp/THEORY.md"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 350
+      },
+      "grep": {
+        "top": [
+          "tools/rag-mcp/README.md",
+          "tools/rag-mcp/src/chunk/ast-chunker.ts",
+          "tools/rag-mcp/src/chunk/markdown-chunker.ts",
+          "tools/rag-mcp/THEORY.md",
+          "wiki/.epics/EPIC-041-mcp-rag-semantic-code-index.md"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 12860
+      }
+    },
+    {
+      "id": "q43-chunker-router",
+      "concept": "router chunkera dobierający strategię po typie pliku",
+      "query": "dispatch a file to the right chunker based on its language",
+      "segment": "tools",
+      "expectedFiles": [
+        "tools/rag-mcp/src/chunk/router.ts"
+      ],
+      "rag": {
+        "top": [
+          "tools/rag-mcp/src/chunk/router.ts",
+          "tools/rag-mcp/src/chunk/router.ts",
+          "tools/rag-mcp/src/chunk/types.ts",
+          "tools/rag-mcp/THEORY.md",
+          "tools/rag-mcp/src/server/tools/get-chunk.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 326
+      },
+      "grep": {
+        "top": [
+          "tools/rag-mcp/THEORY.md",
+          "tools/rag-mcp/README.md",
+          "tools/rag-mcp/src/chunk/line-chunker.ts",
+          "tools/rag-mcp/src/chunk/markdown-chunker.ts",
+          "tools/rag-mcp/src/chunk/router.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 5,
+          "reciprocalRank": 0.2
+        },
+        "tokens": 8440
+      }
+    },
+    {
+      "id": "q44-local-embedder",
+      "concept": "lokalny offline embedder (transformers.js)",
+      "query": "generate text embeddings locally offline with a transformer model",
+      "segment": "tools",
+      "expectedFiles": [
+        "tools/rag-mcp/src/embedder/local-embedder.ts"
+      ],
+      "rag": {
+        "top": [
+          "tools/rag-mcp/THEORY.md",
+          "tools/rag-mcp/THEORY.md",
+          "tools/rag-mcp/src/embedder/local-embedder.ts",
+          "tools/rag-mcp/README.md",
+          "tools/rag-mcp/THEORY.md"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 3,
+          "reciprocalRank": 0.3333333333333333
+        },
+        "tokens": 290
+      },
+      "grep": {
+        "top": [
+          "tools/rag-mcp/README.md",
+          "mobile/src/views/tours/:token/map/index.tsx",
+          "tools/rag-mcp/src/embedder/local-embedder.ts",
+          "tools/rag-mcp/src/eval/run-eval.ts",
+          "tools/rag-mcp/src/server/tools/search-codebase.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 3,
+          "reciprocalRank": 0.3333333333333333
+        },
+        "tokens": 14100
+      }
+    },
+    {
+      "id": "q45-sqlite-vector-store",
+      "concept": "wektorowa baza SQLite z kNN (sqlite-vec)",
+      "query": "store and nearest-neighbour search vectors in SQLite with sqlite-vec",
+      "segment": "tools",
+      "expectedFiles": [
+        "tools/rag-mcp/src/store/vector-store.ts"
+      ],
+      "rag": {
+        "top": [
+          "tools/rag-mcp/src/store/vector-store.ts",
+          "tools/rag-mcp/README.md",
+          "tools/rag-mcp/src/store/vector-store.ts",
+          "tools/rag-mcp/README.md",
+          "tools/rag-mcp/README.md"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 350
+      },
+      "grep": {
+        "top": [
+          "tools/rag-mcp/README.md",
+          "tools/rag-mcp/src/indexer/reindex.ts",
+          "tools/rag-mcp/src/store/vector-store.ts",
+          "tools/rag-mcp/THEORY.md",
+          "wiki/.epics/EPIC-041-mcp-rag-semantic-code-index.md"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 3,
+          "reciprocalRank": 0.3333333333333333
+        },
+        "tokens": 15525
+      }
+    },
+    {
+      "id": "q46-incremental-reindex",
+      "concept": "inkrementalny reindeks po hashu treści pliku",
+      "query": "incrementally reindex only files whose content hash changed",
+      "segment": "tools",
+      "expectedFiles": [
+        "tools/rag-mcp/src/indexer/reindex.ts"
+      ],
+      "rag": {
+        "top": [
+          "tools/rag-mcp/src/indexer/reindex.ts",
+          "tools/rag-mcp/README.md",
+          "tools/rag-mcp/src/indexer/reindex.ts",
+          "tools/rag-mcp/src/indexer/reindex.ts",
+          "tools/rag-mcp/src/indexer/reindex.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 293
+      },
+      "grep": {
+        "top": [
+          "tools/rag-mcp/README.md",
+          "tools/rag-mcp/src/indexer/reindex.ts",
+          "tools/rag-mcp/src/store/vector-store.ts",
+          "tools/rag-mcp/src/cli/rag-index.ts",
+          "tools/rag-mcp/THEORY.md"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 2,
+          "reciprocalRank": 0.5
+        },
+        "tokens": 12892
+      }
+    },
+    {
+      "id": "q47-content-hashing",
+      "concept": "hashowanie treści (sha1) dla chunków i plików",
+      "query": "content hashing helper for chunk ids and file change detection",
+      "segment": "tools",
+      "expectedFiles": [
+        "tools/rag-mcp/src/hash.ts"
+      ],
+      "rag": {
+        "top": [
+          "tools/rag-mcp/README.md",
+          "tools/rag-mcp/src/store/vector-store.ts",
+          "tools/rag-mcp/src/chunk/chunk-factory.ts",
+          "tools/rag-mcp/src/chunk/ast-chunker.ts",
+          "tools/rag-mcp/src/chunk/chunk-factory.ts"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 327
+      },
+      "grep": {
+        "top": [
+          "tools/rag-mcp/README.md",
+          "tools/rag-mcp/src/hash.ts",
+          "tools/rag-mcp/src/store/vector-store.ts",
+          "web/src/lib/ksef-invoice-builder/xml/xml-serializer.ts",
+          "tools/rag-mcp/src/eval/metrics.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 2,
+          "reciprocalRank": 0.5
+        },
+        "tokens": 25248
+      }
+    },
+    {
+      "id": "q48-get-chunk-tool",
+      "concept": "narzędzie MCP zwracające pełną treść chunku po id",
+      "query": "fetch the full untruncated text of a chunk by its id",
+      "segment": "tools",
+      "expectedFiles": [
+        "tools/rag-mcp/src/server/tools/get-chunk.ts"
+      ],
+      "rag": {
+        "top": [
+          "tools/rag-mcp/README.md",
+          "tools/rag-mcp/src/store/vector-store.ts",
+          "tools/rag-mcp/src/server/tools/get-chunk.ts",
+          "tools/rag-mcp/src/server/tools/get-chunk.ts",
+          "tools/rag-mcp/src/store/vector-store.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 3,
+          "reciprocalRank": 0.3333333333333333
+        },
+        "tokens": 314
+      },
+      "grep": {
+        "top": [
+          "tools/rag-mcp/README.md",
+          "tools/rag-mcp/src/indexer/reindex.ts",
+          "tools/rag-mcp/src/store/vector-store.ts",
+          "mobile/src/views/tours/:token/map/index.tsx",
+          "tools/rag-mcp/src/server/server.ts"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 16847
+      }
+    },
+    {
+      "id": "q49-index-status-tool",
+      "concept": "narzędzie MCP raportujące stan indeksu",
+      "query": "report index health: chunk count, model and last indexed date",
+      "segment": "tools",
+      "expectedFiles": [
+        "tools/rag-mcp/src/server/tools/index-status.ts"
+      ],
+      "rag": {
+        "top": [
+          "tools/rag-mcp/README.md",
+          "tools/rag-mcp/src/server/tools/index-status.ts",
+          "tools/rag-mcp/README.md",
+          "tools/rag-mcp/src/store/vector-store.ts",
+          "wiki/.epics/EPIC-037-recurring-tours.md"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 2,
+          "reciprocalRank": 0.5
+        },
+        "tokens": 285
+      },
+      "grep": {
+        "top": [
+          "tools/rag-mcp/src/server/tools/index-status.ts",
+          "tools/rag-mcp/src/server/tools/index.ts",
+          "tools/rag-mcp/README.md",
+          "tools/rag-mcp/src/indexer/reindex.ts",
+          "tools/rag-mcp/src/store/vector-store.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 10026
+      }
+    },
+    {
+      "id": "q50-mcp-server-bootstrap",
+      "concept": "uruchomienie serwera MCP po stdio",
+      "query": "start the MCP server over stdio and register the tools",
+      "segment": "tools",
+      "expectedFiles": [
+        "tools/rag-mcp/src/server/server.ts"
+      ],
+      "rag": {
+        "top": [
+          "tools/rag-mcp/README.md",
+          "tools/rag-mcp/src/server/server.ts",
+          "tools/rag-mcp/src/server/server.ts",
+          "tools/rag-mcp/src/server/server.ts",
+          "tools/rag-mcp/src/server/tools/index.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 2,
+          "reciprocalRank": 0.5
+        },
+        "tokens": 266
+      },
+      "grep": {
+        "top": [
+          "tools/rag-mcp/src/server/server.ts",
+          "tools/rag-mcp/README.md",
+          "tools/rag-mcp/src/server/tools/index.ts",
+          "wiki/.epics/EPIC-041-mcp-rag-semantic-code-index.md",
+          "wiki/.epics/EPIC-019-plugin-commercialization.md"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 15831
       }
     }
   ]
