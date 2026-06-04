@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { join } from 'node:path';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { makeSearchCodebase, formatResults, DEFAULT_K } from './search-codebase.js';
+import { z } from 'zod';
+import { makeSearchCodebase, formatResults, DEFAULT_K, searchOutputShape } from './search-codebase.js';
 import { VectorStore, type SearchResult } from '../../store/vector-store.js';
 import type { Embedder } from '../../embedder/types.js';
 import type { RagConfig } from '../../config.js';
@@ -164,6 +165,9 @@ describe('makeSearchCodebase — pipeline', () => {
       id: 'id-abc', filePath: 'web/x.ts', startLine: 3, endLine: 7,
       segment: 'web', kind: 'function', symbol: 'foo', score: 0.77,
     });
+    // The structured payload must satisfy the declared output schema, or the
+    // MCP SDK silently strips the offending fields.
+    expect(() => z.object(searchOutputShape).parse(structured)).not.toThrow();
   });
 
   it('omits symbol in structuredContent when the chunk has none', async () => {

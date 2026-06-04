@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { SearchResult } from '../../store/vector-store.js';
 import type { ServerDeps } from './index.js';
-import { chunkRef, chunkToStructured } from './format.js';
+import { chunkBaseShape, chunkRef, chunkToStructured } from './format.js';
 
 export const DEFAULT_K = 8;
 export const MAX_K = 100;
@@ -19,18 +19,7 @@ export type SearchArgs = {
 // Machine-readable output: agents read structuredContent (stable fields) to
 // chain into get_chunk(id) reliably, instead of regexing the prose snippet.
 export const searchOutputShape = {
-  results: z.array(
-    z.object({
-      id: z.string(),
-      filePath: z.string(),
-      startLine: z.number().int(),
-      endLine: z.number().int(),
-      segment: z.string(),
-      kind: z.string(),
-      symbol: z.string().optional(),
-      score: z.number(),
-    }),
-  ),
+  results: z.array(z.object({ ...chunkBaseShape, score: z.number() })),
 };
 
 function truncate(text: string, max: number): string {

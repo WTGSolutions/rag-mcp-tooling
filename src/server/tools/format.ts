@@ -1,4 +1,22 @@
+import { z } from 'zod';
 import type { Chunk } from '../../chunk/types.js';
+
+/**
+ * Zod shape for the chunk fields shared by search_codebase and get_chunk tool
+ * output — the schema counterpart of chunkToStructured below. Keeping both in
+ * one place stops the output schema and the runtime object from drifting (a
+ * missing field would be silently stripped by the MCP SDK). Each tool spreads
+ * this and adds its own fields (search → score; get_chunk → language/text/…).
+ */
+export const chunkBaseShape = {
+  id: z.string(),
+  filePath: z.string(),
+  startLine: z.number().int(),
+  endLine: z.number().int(),
+  segment: z.string(),
+  kind: z.string(),
+  symbol: z.string().optional(),
+};
 
 /**
  * Shared one-line chunk reference used by both search_codebase hits and

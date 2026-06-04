@@ -1,19 +1,13 @@
 import { z } from 'zod';
 import type { Chunk } from '../../chunk/types.js';
 import type { ServerDeps } from './index.js';
-import { chunkRef, chunkToStructured } from './format.js';
+import { chunkBaseShape, chunkRef, chunkToStructured } from './format.js';
 
 export type GetChunkArgs = { id: string };
 
 // Full chunk metadata + text — the complement to search_codebase's snippets.
 export const getChunkOutputShape = {
-  id: z.string(),
-  filePath: z.string(),
-  startLine: z.number().int(),
-  endLine: z.number().int(),
-  segment: z.string(),
-  kind: z.string(),
-  symbol: z.string().optional(),
+  ...chunkBaseShape,
   language: z.string(),
   fileHash: z.string(),
   text: z.string(),

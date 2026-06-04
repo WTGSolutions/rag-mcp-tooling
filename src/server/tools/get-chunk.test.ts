@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { join } from 'node:path';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { makeGetChunk, formatChunk } from './get-chunk.js';
+import { z } from 'zod';
+import { makeGetChunk, formatChunk, getChunkOutputShape } from './get-chunk.js';
 import { makeSearchCodebase } from './search-codebase.js';
 import { VectorStore } from '../../store/vector-store.js';
 import type { Embedder } from '../../embedder/types.js';
@@ -86,6 +87,9 @@ describe('makeGetChunk', () => {
       id: 'abc', filePath: 'src/a.ts', startLine: 10, endLine: 20,
       segment: 'web', kind: 'function', symbol: 'doThing', language: 'typescript', text: 'hello world',
     });
+    // The structured payload must satisfy the declared output schema, or the
+    // MCP SDK silently strips the offending fields.
+    expect(() => z.object(getChunkOutputShape).parse(structured)).not.toThrow();
   });
 
   it('omits symbol in structuredContent when the chunk has none', async () => {

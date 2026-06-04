@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { chunkRef, chunkToStructured } from './format.js';
+import { z } from 'zod';
+import { chunkBaseShape, chunkRef, chunkToStructured } from './format.js';
 import type { Chunk } from '../../chunk/types.js';
 
 function makeChunk(overrides: Partial<Chunk> = {}): Chunk {
@@ -41,5 +42,22 @@ describe('chunkToStructured', () => {
   it('omits symbol when the chunk has none', () => {
     const structured = chunkToStructured(makeChunk({ symbol: undefined }));
     expect('symbol' in structured).toBe(false);
+  });
+});
+
+describe('chunkBaseShape ↔ chunkToStructured contract', () => {
+  // The output schema (chunkBaseShape) and the runtime mapping
+  // (chunkToStructured) must stay in lock-step: the MCP SDK silently strips
+  // any structured field absent from the declared schema, so a drift would
+  // drop data without an error. These tests fail fast if they diverge.
+  const base = z.object(chunkBaseShape);
+
+  it('validates a structured chunk with a symbol', () => {
+    expect(() => base.parse(chunkToStructured(makeChunk()))).not.toThrow();
+  });
+
+  it('validates a structured chunk without a symbol', () => {
+    const structured = chunkToStructured(makeChunk({ symbol: undefined }));
+    expect(() => base.parse(structured)).not.toThrow();
   });
 });
