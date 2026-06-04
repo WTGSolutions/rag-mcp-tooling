@@ -118,13 +118,13 @@ describe('createMcpServer — tool registration', () => {
     }
   });
 
-  it('stub handlers return a graceful "not implemented" error result', async () => {
+  it('the remaining stub (reindex) returns a graceful "not implemented" error result', async () => {
     // Arrange
     const { client, cleanup } = await connectClient();
 
     try {
-      // Act
-      const result = await client.callTool({ name: 'index_status', arguments: {} });
+      // Act — reindex is still a stub (TASK-013); search/get_chunk/index_status are real
+      const result = await client.callTool({ name: 'reindex', arguments: {} });
 
       // Assert — error flagged, but the call itself does not throw
       expect(result.isError).toBe(true);

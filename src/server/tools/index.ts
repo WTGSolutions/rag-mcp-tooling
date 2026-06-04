@@ -10,6 +10,8 @@ import {
   MAX_K,
   MAX_QUERY_CHARS,
 } from './search-codebase.js';
+import { makeGetChunk, getChunkOutputShape } from './get-chunk.js';
+import { makeIndexStatus, indexStatusOutputShape } from './index-status.js';
 
 /**
  * Everything the tools need to do their work: the parsed config, the open
@@ -62,8 +64,9 @@ export function registerTools(server: McpServer, deps: ServerDeps): void {
       inputSchema: {
         id: z.string().min(1).describe('Chunk id from a search_codebase result'),
       },
+      outputSchema: getChunkOutputShape,
     },
-    stub('get_chunk', 'TASK-012'),
+    makeGetChunk(deps),
   );
 
   server.registerTool(
@@ -72,8 +75,9 @@ export function registerTools(server: McpServer, deps: ServerDeps): void {
       description:
         'Report index health: chunk/file counts, segments, embedding model, dimensions, last indexed time.',
       inputSchema: {},
+      outputSchema: indexStatusOutputShape,
     },
-    stub('index_status', 'TASK-012'),
+    makeIndexStatus(deps),
   );
 
   server.registerTool(

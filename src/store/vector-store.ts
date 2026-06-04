@@ -20,6 +20,12 @@ export type StoreStats = {
   lastIndexed: string | null;
 };
 
+export type SegmentStat = {
+  segment: string;
+  chunks: number;
+  files: number;
+};
+
 type ChunkRow = {
   id: string;
   segment: string;
@@ -257,6 +263,24 @@ export class VectorStore {
   }
 
   // ── Read ──────────────────────────────────────────────────────────────────
+
+  /** Returns a single chunk by its id, or undefined if not found. Read-only. */
+  getChunkById(id: string): Chunk | undefined {
+    const row = this.db.prepare<[string], ChunkRow>(
+      'SELECT * FROM chunks WHERE id = ?',
+    ).get(id);
+    return row ? chunkFromRow(row) : undefined;
+  }
+
+  /** Per-segment chunk and file counts, for index_status. Read-only. */
+  segmentStats(): SegmentStat[] {
+    return this.db.prepare<[], SegmentStat>(`
+      SELECT segment, COUNT(*) as chunks, COUNT(DISTINCT file_path) as files
+      FROM chunks
+      GROUP BY segment
+      ORDER BY segment
+    `).all();
+  }
 
   search(queryVector: Float32Array, k: number, filter?: { segment?: string }): SearchResult[] {
     if (queryVector.length !== this.dimensions) {
