@@ -63,7 +63,7 @@ function spyStore(results: SearchResult[]) {
 }
 
 function deps(embedder: Embedder, store: VectorStore) {
-  return { config: makeConfig(), store, embedder };
+  return { config: makeConfig(), store, embedder, cwd: '/' };
 }
 
 describe('formatResults', () => {
@@ -295,7 +295,7 @@ describe('makeSearchCodebase — real mini-index', () => {
       dimensions: DIM,
       embed: async (texts) => texts.map(() => new Float32Array([0, 1, 0, 0])),
     };
-    const handler = makeSearchCodebase({ config: makeConfig(), store, embedder });
+    const handler = makeSearchCodebase({ config: makeConfig(), store, embedder, cwd: '/' });
 
     // Act
     const result = await handler({ query: 'whatever', k: 1 });
@@ -322,7 +322,7 @@ describe('makeSearchCodebase — real mini-index', () => {
       dimensions: DIM,
       embed: async (texts) => texts.map(() => new Float32Array([1, 0, 0, 0])),
     };
-    const handler = makeSearchCodebase({ config: makeConfig(), store, embedder });
+    const handler = makeSearchCodebase({ config: makeConfig(), store, embedder, cwd: '/' });
 
     // Act
     const result = await handler({ query: 'q', k: 5, segment: 'mobile' });

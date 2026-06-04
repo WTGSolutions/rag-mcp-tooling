@@ -44,7 +44,7 @@ afterEach(() => {
 async function connectClient() {
   const storePath = join(tmpDir, 'index.db');
   const store = VectorStore.open(storePath, DIM, 'fake-model');
-  const server = createMcpServer({ config: makeConfig(storePath), store, embedder: fakeEmbedder() });
+  const server = createMcpServer({ config: makeConfig(storePath), store, embedder: fakeEmbedder(), cwd: '/' });
 
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: 'test-client', version: '1.0.0' });
@@ -118,18 +118,18 @@ describe('createMcpServer — tool registration', () => {
     }
   });
 
-  it('the remaining stub (reindex) returns a graceful "not implemented" error result', async () => {
+  it('all four tools are real handlers (no stubs) and callable over the protocol', async () => {
     // Arrange
     const { client, cleanup } = await connectClient();
 
     try {
-      // Act — reindex is still a stub (TASK-013); search/get_chunk/index_status are real
-      const result = await client.callTool({ name: 'reindex', arguments: {} });
+      // Act — index_status on the empty test store should succeed (not isError)
+      const result = await client.callTool({ name: 'index_status', arguments: {} });
 
-      // Assert — error flagged, but the call itself does not throw
-      expect(result.isError).toBe(true);
-      const text = (result.content as Array<{ type: string; text: string }>)[0]!.text;
-      expect(text).toContain('not implemented');
+      // Assert
+      expect(result.isError).toBeFalsy();
+      const structured = result.structuredContent as { chunks: number };
+      expect(structured.chunks).toBe(0);
     } finally {
       await cleanup();
     }
@@ -141,7 +141,7 @@ describe('createMcpServer — lifecycle', () => {
     // Arrange
     const storePath = join(tmpDir, 'index.db');
     const store = VectorStore.open(storePath, DIM, 'fake-model');
-    const server = createMcpServer({ config: makeConfig(storePath), store, embedder: fakeEmbedder() });
+    const server = createMcpServer({ config: makeConfig(storePath), store, embedder: fakeEmbedder(), cwd: '/' });
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     const client = new Client({ name: 'test-client', version: '1.0.0' });
 

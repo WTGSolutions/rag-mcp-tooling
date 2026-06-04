@@ -1,4 +1,6 @@
 import { readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { resolve, relative, sep } from 'node:path';
 import type { RagConfig, RagSegment } from '../config.js';
 import type { Embedder } from '../embedder/types.js';
 import { sha1 } from '../hash.js';
@@ -15,6 +17,12 @@ export type ReindexOptions = {
   mode?: ReindexMode;
   /** Process only this named segment. Undefined = all segments in config. */
   segment?: string;
+  /**
+   * Restrict to specific files (absolute or cwd-relative). Within the filter,
+   * unchanged files are still skipped by hash; a listed path that no longer
+   * exists on disk has its chunks removed.
+   */
+  paths?: string[];
   /** Working directory for resolving segment roots. Default: process.cwd() */
   cwd?: string;
   /**
@@ -47,27 +55,36 @@ export type ReindexResult = {
  * a single transaction because the `embed()` call is async. A crash between
  * them leaves the file chunk-less until the next run re-processes it.
  */
+/**
+ * Opens the store, runs reindexWithStore, and closes it. The one-shot entry
+ * for the CLI. Long-running callers (the MCP server) that hold the store open
+ * should call reindexWithStore directly so reindex and search share one handle.
+ */
 export async function reindex(options: ReindexOptions): Promise<ReindexResult> {
-  const { config, embedder, mode = 'incremental', segment, cwd, _readFile } = options;
-  const readFileFn = _readFile ?? ((p: string) => readFile(p, 'utf-8'));
-
-  const store = VectorStore.open(config.store.path, embedder.dimensions, embedder.modelId);
+  const store = VectorStore.open(
+    options.config.store.path,
+    options.embedder.dimensions,
+    options.embedder.modelId,
+  );
   try {
-    return await runReindex(store, config, embedder, mode, segment, cwd, readFileFn);
+    return await reindexWithStore(store, options);
   } finally {
     store.close();
   }
 }
 
-async function runReindex(
+/**
+ * Reindex against an already-open store — the orchestration core, decoupled
+ * from the store's lifecycle (so the MCP server can reindex through the same
+ * handle search_codebase reads from, seeing updates immediately).
+ */
+export async function reindexWithStore(
   store: VectorStore,
-  config: RagConfig,
-  embedder: Embedder,
-  mode: ReindexMode,
-  segmentFilter: string | undefined,
-  cwd: string | undefined,
-  readFileFn: (path: string) => Promise<string>,
+  options: ReindexOptions,
 ): Promise<ReindexResult> {
+  const { config, embedder, mode = 'incremental', segment: segmentFilter, paths, cwd, _readFile } = options;
+  const readFileFn = _readFile ?? ((p: string) => readFile(p, 'utf-8'));
+
   const segments = segmentFilter
     ? config.segments.filter((s) => s.name === segmentFilter)
     : config.segments;
@@ -76,18 +93,27 @@ async function runReindex(
     throw new Error(`[rag-mcp] No segment named "${segmentFilter}" in config`);
   }
 
+  // Normalize requested paths to absolute for matching against walked files.
+  const pathFilter = paths
+    ? new Set(paths.map((p) => resolve(cwd ?? process.cwd(), p)))
+    : undefined;
+
   let added = 0;
   let skipped = 0;
   let removed = 0;
 
   for (const seg of segments) {
-    const result = await reindexSegment(store, config, embedder, mode, seg, cwd, readFileFn);
+    const result = await reindexSegment(store, config, embedder, mode, seg, cwd, readFileFn, pathFilter);
     added += result.added;
     skipped += result.skipped;
     removed += result.removed;
   }
 
   return { added, skipped, removed, totalChunks: store.stats().chunks };
+}
+
+function isUnder(root: string, absPath: string): boolean {
+  return absPath === root || absPath.startsWith(root + sep);
 }
 
 async function reindexSegment(
@@ -98,6 +124,7 @@ async function reindexSegment(
   segment: RagSegment,
   cwd: string | undefined,
   readFileFn: (path: string) => Promise<string>,
+  pathFilter: Set<string> | undefined,
 ): Promise<{ added: number; skipped: number; removed: number }> {
   // Always fetch known hashes — needed for stale-entry cleanup in both modes.
   // In incremental mode they are also used to skip unchanged files.
@@ -113,6 +140,8 @@ async function reindexSegment(
   const segConfig = { ...config, segments: [segment] };
 
   for await (const file of walkSegments(segConfig, cwd)) {
+    // paths mode: only process the requested files (still respects include/.gitignore).
+    if (pathFilter && !pathFilter.has(file.absolutePath)) continue;
     seenPaths.add(file.relativePath);
 
     // Read file content once — used for both hash comparison and chunking.
@@ -152,11 +181,28 @@ async function reindexSegment(
     added++;
   }
 
-  // Remove stale entries: files known to the store but absent from the walk.
-  // This runs in BOTH modes so that full-mode runs also clean up deleted files.
-  const removed = [...knownHashes.keys()].filter((p) => !seenPaths.has(p));
-  for (const filePath of removed) {
-    store.deleteFileFromSegment(filePath, segment.name);
+  // Remove stale entries.
+  let removed: string[];
+  if (pathFilter) {
+    // paths mode: only a requested path under this segment that no longer exists
+    // on disk gets removed — never touch files outside the requested set.
+    removed = [];
+    const segmentRoot = resolve(cwd ?? process.cwd(), segment.root);
+    for (const absPath of pathFilter) {
+      if (!isUnder(segmentRoot, absPath)) continue;
+      const rel = relative(segmentRoot, absPath);
+      if (knownHashes.has(rel) && !seenPaths.has(rel) && !existsSync(absPath)) {
+        store.deleteFileFromSegment(rel, segment.name);
+        removed.push(rel);
+      }
+    }
+  } else {
+    // Full walk: files known to the store but absent from the walk are stale.
+    // Runs in BOTH modes so full-mode runs also clean up deleted files.
+    removed = [...knownHashes.keys()].filter((p) => !seenPaths.has(p));
+    for (const filePath of removed) {
+      store.deleteFileFromSegment(filePath, segment.name);
+    }
   }
 
   return { added, skipped, removed: removed.length };

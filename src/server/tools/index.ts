@@ -12,6 +12,7 @@ import {
 } from './search-codebase.js';
 import { makeGetChunk, getChunkOutputShape } from './get-chunk.js';
 import { makeIndexStatus, indexStatusOutputShape } from './index-status.js';
+import { makeReindex, reindexOutputShape } from './reindex.js';
 
 /**
  * Everything the tools need to do their work: the parsed config, the open
@@ -22,21 +23,13 @@ export type ServerDeps = {
   config: RagConfig;
   store: VectorStore;
   embedder: Embedder;
+  /** Directory for resolving relative segment roots (= the config file's dir). */
+  cwd: string;
 };
 
-// Placeholder until the real handlers land. Returns a clear, non-crashing
-// "not implemented" so `tools/list` works and a premature call is graceful.
-function stub(tool: string, task: string) {
-  return async () => ({
-    content: [{ type: 'text' as const, text: `[rag-mcp] ${tool} is not implemented yet (${task}).` }],
-    isError: true,
-  });
-}
-
 /**
- * Registers the four RAG tools on the server. TASK-010 wires the schemas with
- * stub handlers; the real handlers replace the stubs in TASK-011 (search),
- * TASK-012 (get_chunk + index_status) and TASK-013 (reindex).
+ * Registers the four RAG tools on the server: search_codebase, get_chunk,
+ * index_status (read-only) and reindex (the only writer).
  */
 export function registerTools(server: McpServer, deps: ServerDeps): void {
   server.registerTool(
@@ -89,8 +82,9 @@ export function registerTools(server: McpServer, deps: ServerDeps): void {
         paths: z.array(z.string()).optional().describe('Specific file paths to reindex'),
         segment: z.string().optional().describe('Restrict to a named segment'),
       },
+      outputSchema: reindexOutputShape,
     },
-    stub('reindex', 'TASK-013'),
+    makeReindex(deps),
   );
 }
 

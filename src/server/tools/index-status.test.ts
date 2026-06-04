@@ -88,7 +88,7 @@ describe('makeIndexStatus', () => {
       ],
       [vec(1, 0, 0, 0), vec(0, 1, 0, 0), vec(0, 0, 1, 0), vec(0, 0, 0, 1)],
     );
-    const handler = makeIndexStatus({ config: makeConfig(), store, embedder: fakeEmbedder() });
+    const handler = makeIndexStatus({ config: makeConfig(), store, embedder: fakeEmbedder(), cwd: '/' });
 
     // Act
     const result = await handler();
@@ -110,7 +110,7 @@ describe('makeIndexStatus', () => {
   });
 
   it('reports an empty index without crashing', async () => {
-    const handler = makeIndexStatus({ config: makeConfig(), store, embedder: fakeEmbedder() });
+    const handler = makeIndexStatus({ config: makeConfig(), store, embedder: fakeEmbedder(), cwd: '/' });
     const result = await handler();
     const s = (result as { structuredContent: { chunks: number; segments: SegmentStat[]; lastIndexed: string | null } }).structuredContent;
     expect(s.chunks).toBe(0);
@@ -121,7 +121,7 @@ describe('makeIndexStatus', () => {
   it('does not modify the store (read-only)', async () => {
     store.upsert([makeChunk('w1')], [vec(1, 0, 0, 0)]);
     const before = store.stats().chunks;
-    await makeIndexStatus({ config: makeConfig(), store, embedder: fakeEmbedder() })();
+    await makeIndexStatus({ config: makeConfig(), store, embedder: fakeEmbedder(), cwd: '/' })();
     expect(store.stats().chunks).toBe(before);
   });
 });

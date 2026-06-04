@@ -67,7 +67,7 @@ describe('makeGetChunk', () => {
   });
 
   function deps() {
-    return { config: makeConfig(), store, embedder: fakeEmbedder() };
+    return { config: makeConfig(), store, embedder: fakeEmbedder(), cwd: '/' };
   }
 
   it('returns full text + structured metadata for an existing id', async () => {
@@ -148,7 +148,7 @@ describe('makeGetChunk', () => {
       const searchEmbedder: Embedder = {
         modelId: 'fake', dimensions: DIM, embed: async (t) => t.map(() => new Float32Array([0, 1, 0, 0])),
       };
-      const search = makeSearchCodebase({ config: makeConfig(), store, embedder: searchEmbedder });
+      const search = makeSearchCodebase({ config: makeConfig(), store, embedder: searchEmbedder, cwd: '/' });
       const getChunk = makeGetChunk(deps());
 
       // Act — take the id from search's structuredContent, feed it to get_chunk

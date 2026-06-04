@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -67,7 +67,9 @@ export async function startServer(
   // From here the store is open; close it if any wiring step throws so the
   // SQLite handle (and WAL/SHM files) are not leaked on a failed start.
   try {
-    const server = createMcpServer({ config, store, embedder });
+    // Segment roots resolve relative to the config file's directory (same base
+    // the index was built with), so reindex walks the right tree.
+    const server = createMcpServer({ config, store, embedder, cwd: dirname(absConfigPath) });
 
     const stats = store.stats();
     logStderr(
