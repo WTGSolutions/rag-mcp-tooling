@@ -1,5 +1,5 @@
 {
-  "groundTruthStatus": "PROPOSED — ground truth proposed by the agent from reading the codebase (anti-bias: NOT derived from embedder results). Awaiting human validation before any numbers from TASK-017 are frozen. Set to \"VALIDATED <date> <who>\" after review.",
+  "groundTruthStatus": "VALIDATED 2026-06-04 PO (szymonwal) — ground truth proposed by the agent from reading the codebase (anti-bias: NOT derived from embedder results), reviewed and approved by the product owner. Safe to freeze TASK-017 numbers.",
   "notes": [
     "Queries are English to match the English embedder (Xenova/bge-small-en-v1.5); `concept` carries the PL label.",
     "expectedFiles are repo-relative paths; a hit = any expected file appears in the top-k search results.",
