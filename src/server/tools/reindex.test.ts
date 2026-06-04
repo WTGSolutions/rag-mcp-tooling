@@ -88,6 +88,28 @@ describe('makeReindex — argument mapping (mock pipeline via spy store)', () =>
     // Assert — no throw about the (nonexistent) "other" root, src processed
     expect((result as { structuredContent: { added: number } }).structuredContent.added).toBe(1);
   });
+
+  it('a second run with no changes skips everything (added=0)', async () => {
+    // Arrange
+    writeFileSync(join(repoDir, 'src', 'a.ts'), 'export const a = 1;');
+    writeFileSync(join(repoDir, 'src', 'b.ts'), 'export const b = 2;');
+    const handler = makeReindex(deps());
+    await handler({});
+
+    // Act — nothing changed
+    const result = await handler({});
+
+    // Assert
+    const s = (result as { structuredContent: { added: number; skipped: number; removed: number } }).structuredContent;
+    expect(s.added).toBe(0);
+    expect(s.skipped).toBe(2);
+    expect(s.removed).toBe(0);
+  });
+
+  it('throws a clear error for an unknown segment', async () => {
+    const handler = makeReindex(deps());
+    await expect(handler({ segment: 'nope' })).rejects.toThrow('No segment named "nope"');
+  });
 });
 
 describe('makeReindex — concurrency', () => {
@@ -148,6 +170,36 @@ describe('makeReindex — concurrency', () => {
     // Act + Assert — sequential calls both succeed (lock released after each)
     await expect(handler({})).resolves.toBeDefined();
     await expect(handler({})).resolves.toBeDefined();
+  });
+
+  it('releases the mutex after an error so a later reindex can run', async () => {
+    // Arrange — embedder fails on the first embed, succeeds afterwards
+    writeFileSync(join(repoDir, 'src', 'a.ts'), 'export const a = 1;');
+    const base = fakeEmbedder();
+    let embedCalls = 0;
+    const embedder: Embedder = {
+      ...base,
+      embed: async (t) => {
+        embedCalls++;
+        if (embedCalls === 1) throw new Error('boom: model failed');
+        return base.embed(t);
+      },
+    };
+    const d: ServerDeps = {
+      config: {
+        segments: [{ name: 'src', root: join(repoDir, 'src'), include: ['**/*.ts'] }],
+        exclude: [],
+        embedder: { provider: 'local', model: 'fake' },
+        chunk: { maxTokens: 512, overlapLines: 0 },
+        store: { path: join(tmpDir, 'index.db') },
+      },
+      store, embedder, cwd: '/',
+    };
+    const handler = makeReindex(d);
+
+    // Act + Assert — first throws (branded), but the lock is released
+    await expect(handler({})).rejects.toThrow('[rag-mcp] reindex: boom: model failed');
+    await expect(handler({})).resolves.toBeDefined(); // not wedged at "already in progress"
   });
 });
 
@@ -254,5 +306,71 @@ describe('makeReindex — integration (search sees updates through the shared st
 
     // Assert — a.ts removed, b.ts untouched
     expect((r as { structuredContent: { removed: number } }).structuredContent.removed).toBe(1);
+  });
+
+  it('reports requested paths that matched no indexed file', async () => {
+    // Arrange
+    const d = deps();
+    const reindex = makeReindex(d);
+    writeFileSync(join(repoDir, 'src', 'a.ts'), 'export const a = 1;');
+    await reindex({});
+
+    // Act — request a path that is not under any segment / does not exist
+    const bogus = join(repoDir, 'src', 'ghost.ts');
+    const r = await reindex({ paths: [bogus] });
+
+    // Assert — surfaced in structuredContent and the text warning, no silent no-op
+    const s = (r as { structuredContent: { unmatchedPaths: string[] } }).structuredContent;
+    expect(s.unmatchedPaths).toContain(bogus);
+    expect((r.content[0] as { text: string }).text).toContain('matched no indexed file');
+  });
+
+  it('a concurrent search during reindex sees the old version, never the file absent', async () => {
+    // Arrange — index "alpha", then gate the reindex's embed so we can observe
+    // the store mid-reindex.
+    const base = fakeEmbedder();
+    let gateActive = false;
+    let gateCount = 0;
+    let releaseGate: () => void = () => {};
+    let signalEntered: () => void = () => {};
+    const gate = new Promise<void>((r) => { releaseGate = r; });
+    const entered = new Promise<void>((r) => { signalEntered = r; });
+    const embedder: Embedder = {
+      ...base,
+      embed: async (t) => {
+        if (gateActive && gateCount === 0) { gateCount++; signalEntered(); await gate; }
+        return base.embed(t);
+      },
+    };
+    const d: ServerDeps = {
+      config: {
+        segments: [{ name: 'src', root: join(repoDir, 'src'), include: ['**/*.ts'] }],
+        exclude: [],
+        embedder: { provider: 'local', model: 'fake' },
+        chunk: { maxTokens: 512, overlapLines: 0 },
+        store: { path: join(tmpDir, 'index.db') },
+      },
+      store, embedder, cwd: '/',
+    };
+    const reindex = makeReindex(d);
+    const search = makeSearchCodebase(d);
+    writeFileSync(join(repoDir, 'src', 'a.ts'), 'export const alpha = 1;');
+    await reindex({}); // initial index (gate inactive)
+
+    // Act — change the file, start a gated reindex (blocks inside embed)
+    writeFileSync(join(repoDir, 'src', 'a.ts'), 'export const beta = 2;');
+    gateActive = true;
+    const running = reindex({});
+    await entered; // reindex is now inside embed, BEFORE delete+upsert
+
+    // Assert — mid-reindex, the OLD version is still fully present (not absent)
+    const mid = await search({ query: 'alpha', k: 1 });
+    expect((mid.content[0] as { text: string }).text).toContain('alpha');
+
+    // Release the embed and let reindex finish, then the new version is visible
+    releaseGate();
+    await running;
+    const after = await search({ query: 'beta', k: 1 });
+    expect((after.content[0] as { text: string }).text).toContain('beta');
   });
 });
