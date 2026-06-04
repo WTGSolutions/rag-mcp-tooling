@@ -116,19 +116,48 @@ download the tool works with no network — verify with
 
 ## Usage — indexing
 
-After `npm run build`, run the indexer against a config:
+### From the monorepo root (primary path)
 
 ```bash
-node dist/cli/rag-index.js --config rag.config.json            # incremental (default)
-node dist/cli/rag-index.js --config rag.config.json --full     # rebuild everything
-node dist/cli/rag-index.js --config rag.config.json --segment mobile  # one segment
+npm run rag:build                         # build dist/ once, or after changing rag-mcp source
+npm run rag:index                         # incremental reindex (skips unchanged files)
+npm run rag:index -- --full              # full reindex, ignoring stored hashes
+npm run rag:index -- --segment mobile    # one segment only
+npm run rag:reset                         # delete store and rebuild from scratch (after model change)
+npm run rag:server                        # start MCP server manually (debug / without Claude Code)
+```
+
+The scripts hard-wire the config path (`rag.config.json` in the monorepo root) and the
+`dist/` location, so there is nothing to remember or type. Requires `dist/` to be built
+first (`rag:build`); there is no auto-rebuild on index to keep the loop fast.
+
+> **`npm link` alternative.** Running `npm link` inside `tools/rag-mcp/` installs
+> `rag-index` and `rag-mcp` as global commands, removing the need for the root scripts.
+> Useful if you work across multiple projects with different configs.
+
+### Direct invocation (reference)
+
+From the monorepo root, or with a non-default config path:
+
+```bash
+node tools/rag-mcp/dist/cli/rag-index.js --config rag.config.json
+node tools/rag-mcp/dist/cli/rag-index.js --config rag.config.json --full
+node tools/rag-mcp/dist/cli/rag-index.js --config /path/to/other-project/rag.config.json
+```
+
+After `npm link` inside `tools/rag-mcp/`, the `rag-index` binary is available globally:
+
+```bash
+rag-index --config rag.config.json --full
+rag-index --config /path/to/other-project/rag.config.json
 ```
 
 | Flag | Meaning |
 |---|---|
 | `-c, --config <path>` | Config file (default `rag.config.json`). Relative `segment.root` and `store.path` resolve against the config file's directory, not the shell's cwd. |
 | `--changed` | Only re-index files whose content hash changed (default). |
-| `--full` | Re-index everything, ignoring stored hashes (e.g. after a model change). |
+| `--full` | Re-index everything, ignoring stored hashes. Use after changing chunking settings (`chunk.maxTokens`, `include` globs, etc.) to ensure all files are re-chunked. |
+| `--reset` | Delete the vector store and re-index from scratch. Use after changing `embedder.model` to avoid dimension mismatches (implies `--full`). |
 | `-s, --segment <name>` | Process only the named segment. |
 | `-h, --help` | Usage. |
 
@@ -291,15 +320,17 @@ Only one `reindex` call runs at a time; a concurrent call is rejected with
 
 > ⚠️ **Model change requires a full rebuild.** The vector dimensions are
 > fixed in the database schema at index creation time. After switching
-> `embedder.model` in the config, delete `.rag/index.db` and run
-> `rag-index --full` before restarting the server.
+> `embedder.model` in the config, run `rag-index --reset` (or `npm run rag:reset`)
+> — it deletes the old store (including WAL sidecars) and rebuilds from scratch.
+> Then **restart the MCP server** so it opens the new store (the running server
+> holds an open file handle to the old database).
 
 ---
 
 ### Typical session flow
 
 ```
-1. rag-index --config rag.config.json --full   # first-time index (one-off)
+1. npm run rag:index -- --full              # first-time index (one-off; from the monorepo root)
 2. Start Claude Code with .mcp.json pointing at this server
 3. Agent calls search_codebase("your question") → gets ids
 4. Agent calls get_chunk(id) for the most promising hits
@@ -315,8 +346,9 @@ Only one `reindex` call runs at a time; a concurrent call is rejected with
   RAG_RUN_MODEL_TESTS=1 npm test
   ```
 
-- Reindexing after a model change requires rebuilding the index (vector
-  dimensions are fixed in the store schema — see the warning above).
+- After changing `embedder.model`, run `rag-index --reset` to delete the old
+  store and rebuild with the new dimensions (vector dimensions are fixed in
+  the store schema at creation time).
 - The e2e test (`src/server/server.e2e.test.ts`) spawns the real server binary
   via `StdioClientTransport` to catch stdout leaks and protocol issues that
   unit tests cannot detect.

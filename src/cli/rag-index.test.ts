@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { join, resolve, dirname } from 'node:path';
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync, existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { parseCliArgs, run } from './rag-index.js';
 import type { CliArgs } from './rag-index.js';
@@ -67,6 +67,23 @@ describe('parseCliArgs', () => {
   it('throws on unknown flag', () => {
     expect(() => parseCliArgs(['--unknown'])).toThrow();
   });
+
+  it('--reset sets reset flag and implies full mode', () => {
+    const args = parseCliArgs(['--reset']);
+    expect(args!.reset).toBe(true);
+    expect(args!.mode).toBe('full');
+  });
+
+  it('--reset overrides --changed to full mode', () => {
+    const args = parseCliArgs(['--reset', '--changed']);
+    expect(args!.reset).toBe(true);
+    expect(args!.mode).toBe('full');
+  });
+
+  it('default args have reset: false', () => {
+    const args = parseCliArgs([]);
+    expect(args!.reset).toBe(false);
+  });
 });
 
 // ── run (integration) ─────────────────────────────────────────────────────────
@@ -107,6 +124,7 @@ function makeArgs(overrides: Partial<CliArgs> = {}): CliArgs {
     segment: undefined,
     // Match parseCliArgs behaviour: cwd = dirname(configPath)
     cwd: dirname(configPath),
+    reset: false,
     ...overrides,
   };
 }
@@ -119,6 +137,7 @@ describe('run', () => {
       mode: 'full',
       segment: undefined,
       cwd: '/',
+      reset: false,
     };
 
     // Act + Assert
@@ -132,6 +151,64 @@ describe('run', () => {
     // Act + Assert
     await expect(run(args)).resolves.toBeUndefined();
   });
+
+  it('--reset combined with --segment throws before any deletion', async () => {
+    // Arrange — write a store file to confirm it is NOT deleted on error
+    const storePath = join(storeDir, 'index.db');
+    writeFileSync(storePath, 'SHOULD-SURVIVE');
+    const args = makeArgs({ reset: true, segment: 'alpha' });
+
+    // Act + Assert — throws before touching the filesystem
+    await expect(run(args)).rejects.toThrow(/--reset.*segment|segment.*--reset/i);
+    // Store must still be intact — no deletion happened
+    expect(readFileSync(storePath, 'utf-8')).toBe('SHOULD-SURVIVE');
+  });
+
+  it('--reset with no existing store completes without error', async () => {
+    // Arrange — no store files exist yet, src/ is empty
+    const args = makeArgs({ reset: true });
+
+    // Act + Assert
+    await expect(run(args)).resolves.toBeUndefined();
+  });
+
+  it('--reset deletes existing .db, -wal, and -shm before indexing', async () => {
+    // Arrange — write fake store files with identifiable content
+    const storePath = join(storeDir, 'index.db');
+    writeFileSync(storePath,          'FAKE-DB');
+    writeFileSync(storePath + '-wal', 'FAKE-WAL');
+    writeFileSync(storePath + '-shm', 'FAKE-SHM');
+    const args = makeArgs({ reset: true });
+
+    // Act
+    await run(args);
+
+    // Assert — sidecars are gone; VectorStore creates a fresh .db in their place
+    expect(existsSync(storePath + '-wal')).toBe(false);
+    expect(existsSync(storePath + '-shm')).toBe(false);
+    // The .db itself is recreated as a valid SQLite by VectorStore.open()
+    expect(existsSync(storePath)).toBe(true);
+    // Content must no longer be the fake bytes we wrote
+    expect(readFileSync(storePath, 'utf-8')).not.toBe('FAKE-DB');
+  });
+
+  it.skipIf(process.env['RAG_RUN_MODEL_TESTS'] !== '1')('--reset on an existing index produces a clean rebuild with the same model', async () => {
+    // Arrange — first, build a real index
+    writeFileSync(join(repoDir, 'src', 'a.ts'), 'export const a = 1;');
+    await run(makeArgs({ mode: 'full' }));
+
+    // Act — reset with the same model simulates "model change + reset"
+    await run(makeArgs({ reset: true }));
+
+    // Assert — store is valid and rebuilt from scratch
+    const { VectorStore } = await import('../store/vector-store.js');
+    const store = VectorStore.open(join(storeDir, 'index.db'), 384, 'Xenova/bge-small-en-v1.5');
+    const stats = store.stats();
+    store.close();
+
+    expect(stats.chunks).toBeGreaterThan(0);
+    expect(stats.modelId).toBe('Xenova/bge-small-en-v1.5');
+  }, 120_000);
 
   it.skipIf(process.env['RAG_RUN_MODEL_TESTS'] !== '1')('successfully indexes TypeScript files using the real offline bge-small model', async () => {
     // Arrange
@@ -170,7 +247,7 @@ describe('run', () => {
     writeFileSync(join(repoDir, 'src', 'a.ts'), 'export const a = 1;');
     writeFileSync(join(repoDir, 'src', 'b.ts'), 'export const b = 2;');
 
-    const args: CliArgs = { configPath, mode: 'full', segment: 'alpha', cwd: '/' };
+    const args: CliArgs = { configPath, mode: 'full', segment: 'alpha', cwd: '/', reset: false };
 
     // Act
     await run(args);
