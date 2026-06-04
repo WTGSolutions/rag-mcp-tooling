@@ -12,7 +12,8 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "eval": "node dist/eval/run-eval.js"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

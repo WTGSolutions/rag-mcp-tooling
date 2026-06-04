@@ -1,0 +1,121 @@
+{
+  "groundTruthStatus": "PROPOSED — ground truth proposed by the agent from reading the codebase (anti-bias: NOT derived from embedder results). Awaiting human validation before any numbers from TASK-017 are frozen. Set to \"VALIDATED <date> <who>\" after review.",
+  "notes": [
+    "Queries are English to match the English embedder (Xenova/bge-small-en-v1.5); `concept` carries the PL label.",
+    "expectedFiles are repo-relative paths; a hit = any expected file appears in the top-k search results.",
+    "Coverage: web (5), mobile (4), wiki (3), tools (3) — all four segments incl. the tool itself."
+  ],
+  "queries": [
+    {
+      "id": "q01-nip-validation",
+      "concept": "walidacja numeru NIP kontrahenta",
+      "query": "NIP tax identification number validation checksum",
+      "segment": "web",
+      "expectedFiles": ["web/src/lib/ksef-invoice-builder/validators/nip.validator.ts"]
+    },
+    {
+      "id": "q02-vat-calculation",
+      "concept": "obliczanie kwoty VAT na fakturze",
+      "query": "invoice VAT tax amount calculation and totals",
+      "segment": "web",
+      "expectedFiles": ["web/src/lib/ksef-invoice-builder/validators/calculation.validator.ts"]
+    },
+    {
+      "id": "q03-operator-auth",
+      "concept": "konfiguracja uwierzytelniania operatora (logowanie)",
+      "query": "operator authentication login session configuration",
+      "segment": "web",
+      "expectedFiles": ["web/src/auth.ts"]
+    },
+    {
+      "id": "q04-short-access-code",
+      "concept": "generowanie krótkiego kodu dostępu do wycieczki",
+      "query": "generate unique short access code for a tour",
+      "segment": "web",
+      "expectedFiles": ["web/src/utils/token/generate-unique-short-code/index.ts"]
+    },
+    {
+      "id": "q05-credits-purchase",
+      "concept": "panel zakupu kredytów",
+      "query": "buy credits panel purchase checkout",
+      "segment": "web",
+      "expectedFiles": [
+        "web/src/app/[locale]/(private)/panel/credits/page.tsx",
+        "web/src/app/[locale]/(private)/panel/credits/index.model.ts"
+      ]
+    },
+    {
+      "id": "q06-lost-participant",
+      "concept": "wykrywanie zgubionego uczestnika wycieczki",
+      "query": "detect lost participant outside safety circle and notify guide",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/lib/background-geolocation-service/handlers/on-http.ts",
+        "mobile/src/utils/tour/normalize-tokens-lost/index.ts"
+      ]
+    },
+    {
+      "id": "q07-fcm-push-token",
+      "concept": "rejestracja/odświeżanie tokenu powiadomień push (FCM)",
+      "query": "register and refresh FCM push notification token",
+      "segment": "mobile",
+      "expectedFiles": ["mobile/src/lib/push-notifications/index.ts"]
+    },
+    {
+      "id": "q08-background-geolocation",
+      "concept": "śledzenie lokalizacji w tle",
+      "query": "background geolocation tracking service",
+      "segment": "mobile",
+      "expectedFiles": ["mobile/src/lib/background-geolocation-service/index.ts"]
+    },
+    {
+      "id": "q09-update-tokens-on-map",
+      "concept": "aktualizacja pozycji uczestników na mapie",
+      "query": "update participant token markers position on the map",
+      "segment": "mobile",
+      "expectedFiles": ["mobile/src/utils/map/update-tokens-location/index.ts"]
+    },
+    {
+      "id": "q10-architecture-dynamodb",
+      "concept": "architektura systemu i indeksy GSI w DynamoDB",
+      "query": "system architecture DynamoDB global secondary index GSI",
+      "segment": "wiki",
+      "expectedFiles": ["wiki/architecture/Overview.md"]
+    },
+    {
+      "id": "q11-git-branching",
+      "concept": "konwencja gałęzi git i gitflow",
+      "query": "git branching convention gitflow conventional commits",
+      "segment": "wiki",
+      "expectedFiles": ["wiki/workflow/Git.md"]
+    },
+    {
+      "id": "q12-css-ios-webview",
+      "concept": "zasady CSS dla WebView na iOS",
+      "query": "CSS rules guidelines for iOS WebView",
+      "segment": "wiki",
+      "expectedFiles": ["wiki/standards/CSS-iOS-Guidelines.md"]
+    },
+    {
+      "id": "q13-reindex-mutex",
+      "concept": "blokada równoległego reindeksu (mutex)",
+      "query": "prevent concurrent reindex in-progress guard mutex",
+      "segment": "tools",
+      "expectedFiles": ["tools/rag-mcp/src/server/tools/reindex.ts"]
+    },
+    {
+      "id": "q14-markdown-chunking",
+      "concept": "dzielenie pliku markdown na sekcje po nagłówkach",
+      "query": "split markdown file into sections by headings",
+      "segment": "tools",
+      "expectedFiles": ["tools/rag-mcp/src/chunk/markdown-chunker.ts"]
+    },
+    {
+      "id": "q15-semantic-search-core",
+      "concept": "semantyczne wyszukiwanie kodu (rdzeń RAG)",
+      "query": "semantic code search embed query nearest neighbor",
+      "segment": "tools",
+      "expectedFiles": ["tools/rag-mcp/src/server/tools/search-codebase.ts"]
+    }
+  ]
+}
