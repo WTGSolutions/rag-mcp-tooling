@@ -1,0 +1,612 @@
+{
+  "model": "Xenova/all-MiniLM-L6-v2",
+  "k": 5,
+  "generatedAt": "2026-06-04T15:21:35.858Z",
+  "groundTruthStatus": "VALIDATED 2026-06-04 PO (szymonwal) — ground truth proposed by the agent from reading the codebase (anti-bias: NOT derived from embedder results), reviewed and approved by the product owner. Safe to freeze TASK-017 numbers.",
+  "rag": {
+    "count": 15,
+    "hits": 10,
+    "hitRate": 0.6666666666666666,
+    "mrr": 0.43888888888888894
+  },
+  "grep": {
+    "count": 15,
+    "hits": 12,
+    "hitRate": 0.8,
+    "mrr": 0.5933333333333334
+  },
+  "tokenCost": {
+    "ragTotal": 4681,
+    "broadTotal": 208689,
+    "ratio": 44.582140568254644
+  },
+  "perQuery": [
+    {
+      "id": "q01-nip-validation",
+      "concept": "walidacja numeru NIP kontrahenta",
+      "query": "NIP tax identification number validation checksum",
+      "segment": "web",
+      "expectedFiles": [
+        "web/src/lib/ksef-invoice-builder/validators/nip.validator.ts"
+      ],
+      "rag": {
+        "top": [
+          "web/src/lib/ksef-invoice-builder/validators/nip.validator.ts",
+          "web/src/lib/ksef-invoice-builder/schemas/common.ts",
+          "web/src/lib/ksef-invoice-builder/validators/nip.validator.ts",
+          "web/src/lib/ksef-invoice-builder/validators/nip.validator.ts",
+          "web/src/lib/ksef-invoice-builder/types/common.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 284
+      },
+      "grep": {
+        "top": [
+          "web/src/lib/ksef-invoice-builder/validators/nip.validator.ts",
+          "web/src/actions/auth/register.ts",
+          "web/src/lib/ksef-invoice-builder/schemas/common.ts",
+          "web/src/lib/ksef-invoice-builder/schemas/seller.ts",
+          "web/src/lib/ksef-invoice-builder/validators/eu-vat.validator.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 8646
+      }
+    },
+    {
+      "id": "q02-vat-calculation",
+      "concept": "obliczanie kwoty VAT na fakturze",
+      "query": "invoice VAT tax amount calculation and totals",
+      "segment": "web",
+      "expectedFiles": [
+        "web/src/lib/ksef-invoice-builder/validators/calculation.validator.ts"
+      ],
+      "rag": {
+        "top": [
+          "web/src/lib/ksef-invoice-builder/types/invoice-data.ts",
+          "web/src/lib/ksef-invoice-builder/validators/calculation.validator.ts",
+          "web/src/lib/ksef-invoice-builder/xml/formatters/amount.formatter.ts",
+          "web/src/lib/ksef-invoice-builder/xml/formatters/amount.formatter.ts",
+          "web/src/lib/ksef-invoice-builder/validators/calculation.validator.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 2,
+          "reciprocalRank": 0.5
+        },
+        "tokens": 347
+      },
+      "grep": {
+        "top": [
+          "web/src/lib/ksef-invoice-builder/builders/invoice-data.builder.ts",
+          "web/src/lib/ksef-invoice-builder/builders/electronic-service.builder.ts",
+          "web/src/lib/ksef-invoice-builder/types/fa-complex.ts",
+          "web/src/lib/ksef-invoice-builder/types/invoice-data.ts",
+          "web/src/lib/ksef-invoice-builder/validators/calculation.validator.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 5,
+          "reciprocalRank": 0.2
+        },
+        "tokens": 20242
+      }
+    },
+    {
+      "id": "q03-operator-auth",
+      "concept": "konfiguracja uwierzytelniania operatora (logowanie)",
+      "query": "operator authentication login session configuration",
+      "segment": "web",
+      "expectedFiles": [
+        "web/src/auth.ts"
+      ],
+      "rag": {
+        "top": [
+          "wiki/.epics/EPIC-033-interactive-chat-and-knowledge-base.md",
+          "web/src/lib/ksef/services/ksef-logger.ts",
+          "web/src/components/layout/consent-decline/index.tsx",
+          "web/src/lib/ksef/services/invoice-orchestrator.service.ts",
+          "web/src/utils/auth/protect-route/index.ts"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 292
+      },
+      "grep": {
+        "top": [
+          "web/src/lib/ksef/services/invoice-orchestrator.service.ts",
+          "web/src/lib/ksef/services/ksef-logger.ts",
+          "web/src/actions/finance/approve-payment.ts",
+          "web/src/actions/promocodes/new-promocode.ts",
+          "web/src/actions/promocodes/use-promocode.ts"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 11203
+      }
+    },
+    {
+      "id": "q04-short-access-code",
+      "concept": "generowanie krótkiego kodu dostępu do wycieczki",
+      "query": "generate unique short access code for a tour",
+      "segment": "web",
+      "expectedFiles": [
+        "web/src/utils/token/generate-unique-short-code/index.ts"
+      ],
+      "rag": {
+        "top": [
+          "wiki/.epics/EPIC-005-route-navigation-to-guide.md",
+          "web/src/utils/token/compute-short-code-valid-until/index.ts",
+          "wiki/.epics/EPIC-036-short-access-code.md",
+          "wiki/.epics/EPIC-002-deep-link-notification-navigation.md",
+          "wiki/.epics/EPIC-039-mobile-api-documentation-panel.md"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 342
+      },
+      "grep": {
+        "top": [
+          "web/src/actions/token/new-token.ts",
+          "web/src/actions/tours/new-tour.ts",
+          "web/src/actions/tours/new-tours-batch.ts",
+          "wiki/.epics/EPIC-036-short-access-code.md",
+          "web/src/actions/token/send-token.ts"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 11116
+      }
+    },
+    {
+      "id": "q05-credits-purchase",
+      "concept": "panel zakupu kredytów",
+      "query": "buy credits panel purchase checkout",
+      "segment": "web",
+      "expectedFiles": [
+        "web/src/app/[locale]/(private)/panel/credits/page.tsx",
+        "web/src/app/[locale]/(private)/panel/credits/index.model.ts"
+      ],
+      "rag": {
+        "top": [
+          "web/src/lib/ksef-invoice-builder/types/payment.ts",
+          "web/src/lib/ksef-invoice-builder/types/payment.ts",
+          "web/src/models/log.model.ts",
+          "web/src/lib/ksef-invoice-builder/builders/line-item.builder.ts",
+          "web/src/components/views/credits/credits-purchase-form/index.model.ts"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 285
+      },
+      "grep": {
+        "top": [
+          "web/src/app/[locale]/(private)/panel/credits/page.tsx",
+          "web/src/app/api/p24/register-transaction/route.ts",
+          "web/src/components/modal/components/content-factory/contents/modal-calculate-credits/index.tsx",
+          "web/src/components/views/credits/credits-custom-card/index.tsx",
+          "web/src/components/views/credits/payment/przelewy24-external/index.tsx"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 3788
+      }
+    },
+    {
+      "id": "q06-lost-participant",
+      "concept": "wykrywanie zgubionego uczestnika wycieczki",
+      "query": "detect lost participant outside safety circle and notify guide",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/lib/background-geolocation-service/handlers/on-http.ts",
+        "mobile/src/utils/tour/normalize-tokens-lost/index.ts"
+      ],
+      "rag": {
+        "top": [
+          "web/src/lib/location/index.ts",
+          "mobile/src/lib/background-geolocation-service/handlers/on-http.ts",
+          "wiki/.epics/EPIC-001-user-lost-self-notification.md",
+          "web/src/lib/location/index.ts",
+          "wiki/.epics/EPIC-001-user-lost-self-notification.md"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 2,
+          "reciprocalRank": 0.5
+        },
+        "tokens": 350
+      },
+      "grep": {
+        "top": [
+          "mobile/src/lib/background-geolocation-service/handlers/on-http.ts",
+          "web/src/app/api/token/[token_id]/route.ts",
+          "mobile/src/models/tour.model.ts",
+          "mobile/src/utils/map/update-tokens-location/index.ts",
+          "mobile/src/views/tours/:token/map/index.tsx"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 12167
+      }
+    },
+    {
+      "id": "q07-fcm-push-token",
+      "concept": "rejestracja/odświeżanie tokenu powiadomień push (FCM)",
+      "query": "register and refresh FCM push notification token",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/lib/push-notifications/index.ts"
+      ],
+      "rag": {
+        "top": [
+          "mobile/src/lib/push-notifications/listeners/notification-registration.ts",
+          "mobile/src/lib/push-notifications/index.ts",
+          "mobile/src/lib/push-notifications/index.ts",
+          "mobile/src/lib/push-notifications/listeners/notification-registration-error.ts",
+          "mobile/src/lib/push-notifications/listeners/notification-received.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 2,
+          "reciprocalRank": 0.5
+        },
+        "tokens": 350
+      },
+      "grep": {
+        "top": [
+          "mobile/src/views/tours/index.tsx",
+          "mobile/src/lib/push-notifications/index.ts",
+          "mobile/src/lib/push-notifications/listeners/notification-action-performed.ts",
+          "mobile/src/lib/push-notifications/listeners/notification-registration.ts",
+          "mobile/src/views/register/index.tsx"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 2,
+          "reciprocalRank": 0.5
+        },
+        "tokens": 6933
+      }
+    },
+    {
+      "id": "q08-background-geolocation",
+      "concept": "śledzenie lokalizacji w tle",
+      "query": "background geolocation tracking service",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/lib/background-geolocation-service/index.ts"
+      ],
+      "rag": {
+        "top": [
+          "mobile/src/lib/background-geolocation-service/handlers/on-location.ts",
+          "wiki/.epics/EPIC-021-geofencing.md",
+          "wiki/.epics/EPIC-016-plugin-architecture-hardening.md",
+          "mobile/src/lib/background-geolocation-service/index.ts",
+          "wiki/.epics/EPIC-014-custom-background-geolocation-poc.md"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 4,
+          "reciprocalRank": 0.25
+        },
+        "tokens": 350
+      },
+      "grep": {
+        "top": [
+          "mobile/src/lib/background-geolocation-service/index.ts",
+          "mobile/src/views/tours/:token/index.tsx",
+          "mobile/src/views/tours/:token/map/index.tsx",
+          "wiki/.epics/EPIC-005-route-navigation-to-guide.md",
+          "wiki/.epics/EPIC-014-custom-background-geolocation-poc.md"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 31195
+      }
+    },
+    {
+      "id": "q09-update-tokens-on-map",
+      "concept": "aktualizacja pozycji uczestników na mapie",
+      "query": "update participant token markers position on the map",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/utils/map/update-tokens-location/index.ts"
+      ],
+      "rag": {
+        "top": [
+          "wiki/.epics/EPIC-006-address-map-geocoding-sync.md",
+          "mobile/src/utils/map/update-tokens-location/index.ts",
+          "mobile/src/utils/map/update-tokens-location/index.model.ts",
+          "mobile/src/utils/map/update-tokens-location/index.ts",
+          "mobile/src/utils/map/watch-position/index.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 2,
+          "reciprocalRank": 0.5
+        },
+        "tokens": 315
+      },
+      "grep": {
+        "top": [
+          "mobile/src/lib/background-geolocation-service/handlers/on-http.ts",
+          "mobile/src/utils/map/update-tokens-location/index.ts",
+          "wiki/.epics/BUGS-001-found-in-mobile-app-version-1.99.1.md",
+          "wiki/.epics/EPIC-001-user-lost-self-notification.md",
+          "mobile/src/components/tour/tour-actions/handlers/on-tour-join/index.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 2,
+          "reciprocalRank": 0.5
+        },
+        "tokens": 21243
+      }
+    },
+    {
+      "id": "q10-architecture-dynamodb",
+      "concept": "architektura systemu i indeksy GSI w DynamoDB",
+      "query": "system architecture DynamoDB global secondary index GSI",
+      "segment": "wiki",
+      "expectedFiles": [
+        "wiki/architecture/Overview.md"
+      ],
+      "rag": {
+        "top": [
+          "wiki/.epics/EPIC-036-short-access-code.md",
+          "wiki/.epics/EPIC-009-storage-pagination-filters.md",
+          "web/src/lib/storage/index.model.ts",
+          "wiki/.epics/EPIC-038-terms-and-services-mobile-live-data.md",
+          "wiki/.epics/EPIC-009-storage-pagination-filters.md"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 322
+      },
+      "grep": {
+        "top": [
+          "wiki/.epics/EPIC-033-interactive-chat-and-knowledge-base.md",
+          "wiki/architecture/Overview.md",
+          "wiki/.epics/BUGS-001-found-in-mobile-app-version-1.99.1.md",
+          "wiki/.epics/EPIC-010-tours-list-pagination.md",
+          "wiki/.epics/EPIC-012-partiql-storage-migration.md"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 2,
+          "reciprocalRank": 0.5
+        },
+        "tokens": 28756
+      }
+    },
+    {
+      "id": "q11-git-branching",
+      "concept": "konwencja gałęzi git i gitflow",
+      "query": "git branching convention gitflow conventional commits",
+      "segment": "wiki",
+      "expectedFiles": [
+        "wiki/workflow/Git.md"
+      ],
+      "rag": {
+        "top": [
+          "wiki/workflow/AI-Development.en.md",
+          "wiki/workflow/AI-Development.en.md",
+          "wiki/workflow/Git.md",
+          "wiki/workflow/Git.md",
+          "wiki/workflow/Environments.md"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 3,
+          "reciprocalRank": 0.3333333333333333
+        },
+        "tokens": 267
+      },
+      "grep": {
+        "top": [
+          "wiki/workflow/Git.md",
+          "wiki/.epics/EPIC-016-plugin-architecture-hardening.md",
+          "mobile/src/components/tour/tour-actions/handlers/on-tour-join/index.ts",
+          "mobile/src/components/tour/tour-actions/handlers/on-tour-pause/index.ts",
+          "mobile/src/hooks/map/use-route-navigation/index.model.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 5885
+      }
+    },
+    {
+      "id": "q12-css-ios-webview",
+      "concept": "zasady CSS dla WebView na iOS",
+      "query": "CSS rules guidelines for iOS WebView",
+      "segment": "wiki",
+      "expectedFiles": [
+        "wiki/standards/CSS-iOS-Guidelines.md"
+      ],
+      "rag": {
+        "top": [
+          "wiki/standards/CSS-iOS-Guidelines.md",
+          "wiki/standards/README.md",
+          "wiki/standards/README.md",
+          "wiki/standards/CSS-iOS-Guidelines.md",
+          "wiki/standards/CSS-iOS-Guidelines.md"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 235
+      },
+      "grep": {
+        "top": [
+          "wiki/standards/README.md",
+          "wiki/.epics/BUGS-001-found-in-mobile-app-version-1.99.1.md",
+          "wiki/.epics/EPIC-020-react-native-port.md",
+          "wiki/README.md",
+          "wiki/standards/CSS-iOS-Guidelines.md"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 5,
+          "reciprocalRank": 0.2
+        },
+        "tokens": 13442
+      }
+    },
+    {
+      "id": "q13-reindex-mutex",
+      "concept": "blokada równoległego reindeksu (mutex)",
+      "query": "prevent concurrent reindex in-progress guard mutex",
+      "segment": "tools",
+      "expectedFiles": [
+        "tools/rag-mcp/src/server/tools/reindex.ts"
+      ],
+      "rag": {
+        "top": [
+          "tools/rag-mcp/src/server/tools/reindex.ts",
+          "tools/rag-mcp/src/indexer/reindex.ts",
+          "tools/rag-mcp/src/indexer/reindex.ts",
+          "tools/rag-mcp/src/indexer/reindex.ts",
+          "tools/rag-mcp/src/server/server.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 350
+      },
+      "grep": {
+        "top": [
+          "tools/rag-mcp/src/server/tools/reindex.ts",
+          "tools/rag-mcp/README.md",
+          "tools/rag-mcp/src/indexer/reindex.ts",
+          "tools/rag-mcp/src/store/vector-store.ts",
+          "wiki/.epics/EPIC-021-geofencing.md"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 14747
+      }
+    },
+    {
+      "id": "q14-markdown-chunking",
+      "concept": "dzielenie pliku markdown na sekcje po nagłówkach",
+      "query": "split markdown file into sections by headings",
+      "segment": "tools",
+      "expectedFiles": [
+        "tools/rag-mcp/src/chunk/markdown-chunker.ts"
+      ],
+      "rag": {
+        "top": [
+          "tools/rag-mcp/src/chunk/markdown-chunker.ts",
+          "tools/rag-mcp/src/chunk/line-chunker.ts",
+          "tools/rag-mcp/src/chunk/markdown-chunker.ts",
+          "web/src/components/forms/utils/__mocks__/markdown-to-string.tsx",
+          "web/src/components/forms/utils/markdown-to-string.tsx"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 266
+      },
+      "grep": {
+        "top": [
+          "tools/rag-mcp/src/chunk/markdown-chunker.ts",
+          "tools/rag-mcp/src/chunk/line-chunker.ts",
+          "tools/rag-mcp/THEORY.md",
+          "wiki/.epics/EPIC-032-more-bug-fixing.md",
+          "tools/rag-mcp/README.md"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 11044
+      }
+    },
+    {
+      "id": "q15-semantic-search-core",
+      "concept": "semantyczne wyszukiwanie kodu (rdzeń RAG)",
+      "query": "semantic code search embed query nearest neighbor",
+      "segment": "tools",
+      "expectedFiles": [
+        "tools/rag-mcp/src/server/tools/search-codebase.ts"
+      ],
+      "rag": {
+        "top": [
+          "tools/rag-mcp/THEORY.md",
+          "tools/rag-mcp/README.md",
+          "tools/rag-mcp/THEORY.md",
+          "tools/rag-mcp/src/eval/grep-baseline.ts",
+          "wiki/.epics/EPIC-041-mcp-rag-semantic-code-index.md"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 326
+      },
+      "grep": {
+        "top": [
+          "tools/rag-mcp/THEORY.md",
+          "tools/rag-mcp/README.md",
+          "tools/rag-mcp/src/server/tools/index.ts",
+          "tools/rag-mcp/src/eval/grep-baseline.ts",
+          "tools/rag-mcp/src/eval/run-eval.ts"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 8282
+      }
+    }
+  ]
+}
