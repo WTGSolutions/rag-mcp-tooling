@@ -37,8 +37,8 @@ describe('parseQuerySet', () => {
 describe('queries.json (acceptance set)', () => {
   const set = loadQuerySet(queriesPath);
 
-  it('has ~15 queries covering all four segments', () => {
-    expect(set.queries.length).toBeGreaterThanOrEqual(14);
+  it('has 50 queries covering all four segments', () => {
+    expect(set.queries.length).toBeGreaterThanOrEqual(50);
     const segments = new Set(set.queries.map((q) => q.segment));
     expect(segments).toEqual(new Set(['web', 'mobile', 'wiki', 'tools']));
   });

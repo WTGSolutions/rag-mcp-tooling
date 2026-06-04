@@ -1,9 +1,11 @@
 {
-  "groundTruthStatus": "VALIDATED 2026-06-04 PO (szymonwal) — ground truth proposed by the agent from reading the codebase (anti-bias: NOT derived from embedder results), reviewed and approved by the product owner. Safe to freeze TASK-017 numbers.",
+  "groundTruthStatus": "VALIDATED 2026-06-04 PO (szymonwal) — 50-query acceptance set. q01–q15 frozen in TASK-017; q16–q50 proposed by the agent from reading the codebase (anti-bias: NOT derived from embedder results), reviewed and approved by the PO incl. round-1 ground-truth widening of q18/q34/q35/q39. Safe to freeze.",
   "notes": [
     "Queries are English to match the English embedder (Xenova/bge-small-en-v1.5); `concept` carries the PL label.",
     "expectedFiles are repo-relative paths; a hit = any expected file appears in the top-k search results.",
-    "Coverage: web (5), mobile (4), wiki (3), tools (3) — all four segments incl. the tool itself."
+    "Coverage: web (5), mobile (28), wiki (3), tools (14) = 50. Extended in this pass with mobile + tools/rag-mcp queries.",
+    "ANTI-BIAS: ground truth for q16–q50 was chosen by reading the source (grep by concept → authoritative file), never from search results; PO-validated 2026-06-04 before freezing.",
+    "PO review round 1 (szymonwal): widened q18 (+storage index.model.ts), q34 (+message-item, +messages list view), q35 (+messages list view), q39 (+logger index.model.ts) — each addition is a file that structurally implements the concept (co-located module definition or hosting view), decided from code structure, not from what the embedder returned."
   ],
   "queries": [
     {
@@ -116,6 +118,264 @@
       "query": "semantic code search embed query nearest neighbor",
       "segment": "tools",
       "expectedFiles": ["tools/rag-mcp/src/server/tools/search-codebase.ts"]
+    },
+    {
+      "id": "q16-deep-link-navigation",
+      "concept": "nawigacja przez deep link (otwarcie aplikacji z URL)",
+      "query": "open the app from a deep link URL and navigate to a tour",
+      "segment": "mobile",
+      "expectedFiles": ["mobile/src/lib/deep-link/index.ts"]
+    },
+    {
+      "id": "q17-local-notifications-schedule",
+      "concept": "planowanie powiadomień lokalnych",
+      "query": "schedule local notifications on the device",
+      "segment": "mobile",
+      "expectedFiles": ["mobile/src/lib/local-notifications/index.ts"]
+    },
+    {
+      "id": "q18-persistent-storage",
+      "concept": "trwałe przechowywanie danych na urządzeniu",
+      "query": "persist and read key-value data on device storage",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/lib/storage/index.ts",
+        "mobile/src/lib/storage/index.model.ts"
+      ]
+    },
+    {
+      "id": "q19-route-navigation",
+      "concept": "nawigacja po trasie do przewodnika",
+      "query": "turn-by-turn route navigation to the guide",
+      "segment": "mobile",
+      "expectedFiles": ["mobile/src/hooks/map/use-route-navigation/index.ts"]
+    },
+    {
+      "id": "q20-auto-navigate-on-lost",
+      "concept": "automatyczna nawigacja po otrzymaniu powiadomienia o zgubieniu",
+      "query": "automatically start navigation when opened from a lost notification",
+      "segment": "mobile",
+      "expectedFiles": ["mobile/src/hooks/map/use-auto-navigate/index.ts"]
+    },
+    {
+      "id": "q21-fetch-walking-route",
+      "concept": "pobranie pieszej trasy z silnika routingu",
+      "query": "fetch a walking route from the routing engine with distance and duration",
+      "segment": "mobile",
+      "expectedFiles": ["mobile/src/utils/map/fetch-route/index.ts"]
+    },
+    {
+      "id": "q22-nearest-aed",
+      "concept": "znajdowanie najbliższego defibrylatora AED",
+      "query": "find nearest AED defibrillator around the user",
+      "segment": "mobile",
+      "expectedFiles": ["mobile/src/utils/map/get-aed/index.ts"]
+    },
+    {
+      "id": "q23-safety-circle-area",
+      "concept": "rysowanie strefy bezpieczeństwa wokół wycieczki",
+      "query": "draw the tour safety sensitivity circle area on the map",
+      "segment": "mobile",
+      "expectedFiles": ["mobile/src/utils/map/tour-sensitivity-area/index.ts"]
+    },
+    {
+      "id": "q24-watch-gps-position",
+      "concept": "śledzenie pozycji GPS użytkownika z wygładzaniem",
+      "query": "watch the user GPS position with heading smoothing",
+      "segment": "mobile",
+      "expectedFiles": ["mobile/src/utils/map/watch-position/index.ts"]
+    },
+    {
+      "id": "q25-api-db-key-conversion",
+      "concept": "konwersja kluczy camelCase ↔ snake_case między API a DB",
+      "query": "convert object keys between camelCase and snake_case for API and DB",
+      "segment": "mobile",
+      "expectedFiles": ["mobile/src/utils/db-api-converter/index.ts"]
+    },
+    {
+      "id": "q26-device-identifier",
+      "concept": "pobranie identyfikatora urządzenia",
+      "query": "get the unique device identifier",
+      "segment": "mobile",
+      "expectedFiles": ["mobile/src/utils/device-id/index.ts"]
+    },
+    {
+      "id": "q27-archive-finished-tours",
+      "concept": "archiwizacja zakończonych wycieczek po okresie karencji",
+      "query": "archive finished tour tokens after the grace period expires",
+      "segment": "mobile",
+      "expectedFiles": ["mobile/src/utils/app/archive-finished-tokens/index.ts"]
+    },
+    {
+      "id": "q28-schedule-tour-reminders",
+      "concept": "planowanie przypomnień o nadchodzącej wycieczce",
+      "query": "schedule reminder notifications before an upcoming tour",
+      "segment": "mobile",
+      "expectedFiles": ["mobile/src/utils/registration/schedule-reminders/index.ts"]
+    },
+    {
+      "id": "q29-weather-forecast",
+      "concept": "pobieranie prognozy pogody dla wycieczki",
+      "query": "fetch current and hourly weather forecast for a location",
+      "segment": "mobile",
+      "expectedFiles": ["mobile/src/lib/weather/index.ts"]
+    },
+    {
+      "id": "q30-http-fetch-wrapper",
+      "concept": "wrapper na zapytania HTTP z konwersją danych",
+      "query": "http fetch wrapper that converts the response payload",
+      "segment": "mobile",
+      "expectedFiles": ["mobile/src/lib/gt-fetch/index.ts"]
+    },
+    {
+      "id": "q31-tour-events-bus",
+      "concept": "magistrala zdarzeń aktualizacji danych wycieczki",
+      "query": "event bus to publish and subscribe to tour data updates",
+      "segment": "mobile",
+      "expectedFiles": ["mobile/src/lib/tour-events/index.ts"]
+    },
+    {
+      "id": "q32-subscribe-tour-updates",
+      "concept": "hook subskrybujący aktualizacje danych wycieczki",
+      "query": "react hook that subscribes to tour data update events",
+      "segment": "mobile",
+      "expectedFiles": ["mobile/src/hooks/tour/use-tour-data-update/index.ts"]
+    },
+    {
+      "id": "q33-token-role",
+      "concept": "ustalanie roli z tokenu (przewodnik/opiekun/uczestnik/bus)",
+      "query": "determine the user role from a token string",
+      "segment": "mobile",
+      "expectedFiles": ["mobile/src/utils/token-role/index.ts"]
+    },
+    {
+      "id": "q34-message-inbox",
+      "concept": "skrzynka wiadomości na wycieczce",
+      "query": "display the inbox of received tour messages",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/components/tour/message-inbox/index.tsx",
+        "mobile/src/components/tour/message-item/index.tsx",
+        "mobile/src/views/tours/:token/messages/index.tsx"
+      ]
+    },
+    {
+      "id": "q35-predefined-messages",
+      "concept": "predefiniowane szybkie wiadomości",
+      "query": "send a predefined quick message to participants",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/components/tour/predefined-messages/index.tsx",
+        "mobile/src/views/tours/:token/messages/index.tsx"
+      ]
+    },
+    {
+      "id": "q36-token-qr-code",
+      "concept": "kod QR tokenu do udostępnienia",
+      "query": "show a shareable QR code for a tour token",
+      "segment": "mobile",
+      "expectedFiles": ["mobile/src/components/tour/token-qr-code/index.tsx"]
+    },
+    {
+      "id": "q37-push-notification-tap",
+      "concept": "obsługa tapnięcia w powiadomienie push",
+      "query": "handle the user tapping a push notification action",
+      "segment": "mobile",
+      "expectedFiles": ["mobile/src/lib/push-notifications/listeners/notification-action-performed.ts"]
+    },
+    {
+      "id": "q38-refresh-app-data",
+      "concept": "odświeżanie danych aplikacji z API",
+      "query": "refresh the app data from the backend API",
+      "segment": "mobile",
+      "expectedFiles": ["mobile/src/utils/app/update-app-data/index.ts"]
+    },
+    {
+      "id": "q39-app-logger",
+      "concept": "logowanie zdarzeń aplikacji (dev/prod)",
+      "query": "application logger with development and production modes",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/lib/logger/index.ts",
+        "mobile/src/lib/logger/index.model.ts"
+      ]
+    },
+    {
+      "id": "q40-file-walker",
+      "concept": "przechodzenie plików repo z respektowaniem .gitignore i segmentów",
+      "query": "walk repository files respecting gitignore and segment globs",
+      "segment": "tools",
+      "expectedFiles": ["tools/rag-mcp/src/walker.ts"]
+    },
+    {
+      "id": "q41-ast-chunker",
+      "concept": "dzielenie TS/JS na chunki po AST (funkcje/klasy)",
+      "query": "split TypeScript and JavaScript into chunks by AST functions and classes",
+      "segment": "tools",
+      "expectedFiles": ["tools/rag-mcp/src/chunk/ast-chunker.ts"]
+    },
+    {
+      "id": "q42-line-fallback-chunker",
+      "concept": "fallbackowy chunker okien liniowych z zakładką",
+      "query": "fallback line-window chunking with overlap for unknown file types",
+      "segment": "tools",
+      "expectedFiles": ["tools/rag-mcp/src/chunk/line-chunker.ts"]
+    },
+    {
+      "id": "q43-chunker-router",
+      "concept": "router chunkera dobierający strategię po typie pliku",
+      "query": "dispatch a file to the right chunker based on its language",
+      "segment": "tools",
+      "expectedFiles": ["tools/rag-mcp/src/chunk/router.ts"]
+    },
+    {
+      "id": "q44-local-embedder",
+      "concept": "lokalny offline embedder (transformers.js)",
+      "query": "generate text embeddings locally offline with a transformer model",
+      "segment": "tools",
+      "expectedFiles": ["tools/rag-mcp/src/embedder/local-embedder.ts"]
+    },
+    {
+      "id": "q45-sqlite-vector-store",
+      "concept": "wektorowa baza SQLite z kNN (sqlite-vec)",
+      "query": "store and nearest-neighbour search vectors in SQLite with sqlite-vec",
+      "segment": "tools",
+      "expectedFiles": ["tools/rag-mcp/src/store/vector-store.ts"]
+    },
+    {
+      "id": "q46-incremental-reindex",
+      "concept": "inkrementalny reindeks po hashu treści pliku",
+      "query": "incrementally reindex only files whose content hash changed",
+      "segment": "tools",
+      "expectedFiles": ["tools/rag-mcp/src/indexer/reindex.ts"]
+    },
+    {
+      "id": "q47-content-hashing",
+      "concept": "hashowanie treści (sha1) dla chunków i plików",
+      "query": "content hashing helper for chunk ids and file change detection",
+      "segment": "tools",
+      "expectedFiles": ["tools/rag-mcp/src/hash.ts"]
+    },
+    {
+      "id": "q48-get-chunk-tool",
+      "concept": "narzędzie MCP zwracające pełną treść chunku po id",
+      "query": "fetch the full untruncated text of a chunk by its id",
+      "segment": "tools",
+      "expectedFiles": ["tools/rag-mcp/src/server/tools/get-chunk.ts"]
+    },
+    {
+      "id": "q49-index-status-tool",
+      "concept": "narzędzie MCP raportujące stan indeksu",
+      "query": "report index health: chunk count, model and last indexed date",
+      "segment": "tools",
+      "expectedFiles": ["tools/rag-mcp/src/server/tools/index-status.ts"]
+    },
+    {
+      "id": "q50-mcp-server-bootstrap",
+      "concept": "uruchomienie serwera MCP po stdio",
+      "query": "start the MCP server over stdio and register the tools",
+      "segment": "tools",
+      "expectedFiles": ["tools/rag-mcp/src/server/server.ts"]
     }
   ]
 }

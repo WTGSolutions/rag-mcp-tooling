@@ -2,6 +2,7 @@
 import { parseArgs } from 'node:util';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { rmSync } from 'node:fs';
 import { loadConfig, ConfigError, resolveStorePath } from '../config.js';
 import { createEmbedder } from '../embedder/local-embedder.js';
 import { reindex } from '../indexer/reindex.js';
@@ -17,6 +18,9 @@ Options:
   -c, --config <path>   Path to rag.config.json (default: rag.config.json)
   --full                Re-index everything, ignoring stored hashes
   --changed             Only re-index changed files (default)
+  --reset               Delete the vector store and re-index from scratch
+                        (use after changing embedder.model to avoid dimension
+                        mismatches; implies --full)
   -s, --segment <name>  Process only the named segment
   -h, --help            Show this help
 
@@ -30,6 +34,7 @@ export type CliArgs = {
   mode: ReindexMode;
   segment: string | undefined;
   cwd: string;
+  reset: boolean;
 };
 
 export function parseCliArgs(argv: string[]): CliArgs | null {
@@ -39,6 +44,7 @@ export function parseCliArgs(argv: string[]): CliArgs | null {
       config:  { type: 'string',  short: 'c', default: 'rag.config.json' },
       full:    { type: 'boolean',              default: false },
       changed: { type: 'boolean',              default: false },
+      reset:   { type: 'boolean',              default: false },
       segment: { type: 'string',  short: 's' },
       help:    { type: 'boolean', short: 'h', default: false },
     },
@@ -50,15 +56,18 @@ export function parseCliArgs(argv: string[]): CliArgs | null {
     return null;
   }
 
+  const reset = values.reset as boolean;
   // Resolve configPath first so cwd can be derived from it.
   const configPath = resolve(values.config as string);
   return {
     configPath,
-    mode: values.full ? 'full' : 'incremental',
+    // --reset implies --full: a fresh store always needs a full rebuild.
+    mode: (reset || values.full) ? 'full' : 'incremental',
     segment: values.segment as string | undefined,
     // Use the config file's directory as cwd so relative segment roots in the
     // config resolve against the project, not the shell's working directory.
     cwd: dirname(configPath),
+    reset,
   };
 }
 
@@ -79,7 +88,27 @@ export async function run(args: CliArgs): Promise<void> {
   const resolvedStorePath = resolveStorePath(args.configPath, config);
   const resolvedConfig = { ...config, store: { ...config.store, path: resolvedStorePath } };
 
+  // Validate before any destructive action so a bad model name never leaves the
+  // user with a deleted store and no new index.
+  if (args.reset && args.segment !== undefined) {
+    throw new ConfigError(
+      `--reset deletes the entire vector store and cannot be scoped to one segment. ` +
+      `Omit --segment to reset and rebuild all segments, or use --full --segment ` +
+      `${args.segment} to force-reindex one segment without touching the others.`,
+    );
+  }
+
+  // Create the embedder before any destructive work: it validates the model name
+  // synchronously, so a typo in embedder.model fails here — not after the store
+  // has already been deleted.
   const embedder = createEmbedder(resolvedConfig.embedder);
+
+  if (args.reset) {
+    for (const suffix of ['', '-wal', '-shm']) {
+      rmSync(resolvedStorePath + suffix, { force: true });
+    }
+    process.stderr.write(`rag-index: reset — store deleted (${resolvedStorePath})\n`);
+  }
 
   const segmentDesc = args.segment ? `segment "${args.segment}"` : 'all segments';
   process.stderr.write(`rag-index: ${args.mode} — ${segmentDesc} — model ${embedder.modelId}\n`);

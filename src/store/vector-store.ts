@@ -167,7 +167,7 @@ export class VectorStore {
       db.close();
       throw new Error(
         `[rag-mcp] Dimension mismatch: store was built with ${storedDims} dimensions ` +
-        `but embedder has ${dimensions}. Delete ${absPath} and reindex.`,
+        `but embedder has ${dimensions}. Run: rag-index --reset to rebuild.`,
       );
     }
 
