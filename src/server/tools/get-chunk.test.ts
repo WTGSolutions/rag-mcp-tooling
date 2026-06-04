@@ -105,6 +105,32 @@ describe('makeGetChunk', () => {
     await expect(handler({ id: '  ' })).rejects.toThrow('id must not be empty');
   });
 
+  it('trims surrounding whitespace before lookup (ids copied from prose)', async () => {
+    // Arrange
+    store.upsert([makeChunk('abc', { text: 'trimmed lookup' })], [new Float32Array([1, 0, 0, 0])]);
+    const handler = makeGetChunk(deps());
+
+    // Act — id pasted with stray whitespace
+    const result = await handler({ id: '  abc  ' });
+
+    // Assert — resolves the same chunk
+    expect((result.content[0] as { text: string }).text).toContain('trimmed lookup');
+  });
+
+  it('renders an empty-text chunk without crashing', async () => {
+    // Arrange
+    store.upsert([makeChunk('empty', { text: '' })], [new Float32Array([1, 0, 0, 0])]);
+    const handler = makeGetChunk(deps());
+
+    // Act
+    const result = await handler({ id: 'empty' });
+
+    // Assert — header + id present, text section empty
+    const text = (result.content[0] as { text: string }).text;
+    expect(text).toContain('id=empty');
+    expect((result as { structuredContent: { text: string } }).structuredContent.text).toBe('');
+  });
+
   it('does not modify the store (read-only)', async () => {
     store.upsert([makeChunk('abc')], [new Float32Array([1, 0, 0, 0])]);
     const before = store.stats().chunks;

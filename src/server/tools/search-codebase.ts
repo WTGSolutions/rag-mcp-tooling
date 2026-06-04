@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { SearchResult } from '../../store/vector-store.js';
 import type { ServerDeps } from './index.js';
+import { chunkRef, chunkToStructured } from './format.js';
 
 export const DEFAULT_K = 8;
 export const MAX_K = 100;
@@ -52,11 +53,7 @@ function indent(text: string): string {
 
 function formatResult(result: SearchResult, index: number): string {
   const c = result.chunk;
-  const label = c.symbol ? `${c.kind} ${c.symbol}` : c.kind;
-  // `filePath:startLine` is the clickable reference for the agent's editor.
-  const header =
-    `${index + 1}. ${c.filePath}:${c.startLine}  ` +
-    `[${label} · ${c.segment} · score ${result.score.toFixed(2)}]  (lines ${c.startLine}-${c.endLine})`;
+  const header = `${index + 1}. ${chunkRef(c, `score ${result.score.toFixed(2)}`)}`;
 
   const snippet = truncate(c.text, SNIPPET_MAX_CHARS);
   const snippetLine = snippet.trim() === '' ? '' : `\n${indent(snippet)}`;
@@ -76,19 +73,7 @@ export function formatResults(results: SearchResult[], query: string): string {
 
 export function toStructured(results: SearchResult[]) {
   return {
-    results: results.map((r) => {
-      const c = r.chunk;
-      return {
-        id: c.id,
-        filePath: c.filePath,
-        startLine: c.startLine,
-        endLine: c.endLine,
-        segment: c.segment,
-        kind: c.kind,
-        score: r.score,
-        ...(c.symbol !== undefined ? { symbol: c.symbol } : {}),
-      };
-    }),
+    results: results.map((r) => ({ ...chunkToStructured(r.chunk), score: r.score })),
   };
 }
 

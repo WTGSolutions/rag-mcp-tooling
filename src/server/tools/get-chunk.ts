@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { Chunk } from '../../chunk/types.js';
 import type { ServerDeps } from './index.js';
+import { chunkRef, chunkToStructured } from './format.js';
 
 export type GetChunkArgs = { id: string };
 
@@ -19,25 +20,15 @@ export const getChunkOutputShape = {
 };
 
 export function formatChunk(chunk: Chunk): string {
-  const label = chunk.symbol ? `${chunk.kind} ${chunk.symbol}` : chunk.kind;
-  const header =
-    `${chunk.filePath}:${chunk.startLine}  ` +
-    `[${label} · ${chunk.segment} · ${chunk.language}]  (lines ${chunk.startLine}-${chunk.endLine})`;
-  return `${header}\nid=${chunk.id}\n\n${chunk.text}`;
+  return `${chunkRef(chunk, chunk.language)}\nid=${chunk.id}\n\n${chunk.text}`;
 }
 
 export function toStructuredChunk(chunk: Chunk) {
   return {
-    id: chunk.id,
-    filePath: chunk.filePath,
-    startLine: chunk.startLine,
-    endLine: chunk.endLine,
-    segment: chunk.segment,
-    kind: chunk.kind,
+    ...chunkToStructured(chunk),
     language: chunk.language,
     fileHash: chunk.fileHash,
     text: chunk.text,
-    ...(chunk.symbol !== undefined ? { symbol: chunk.symbol } : {}),
   };
 }
 
