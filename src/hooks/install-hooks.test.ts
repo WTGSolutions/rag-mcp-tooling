@@ -298,17 +298,24 @@ describe('installHooks — idempotency, coexistence, uninstall', () => {
     }
   });
 
-  it('uninstall does NOT delete a foreign shebang-only hook', () => {
+  it('uninstall does NOT delete a foreign shebang-only hook; owned hooks are removed', () => {
     const config = singleRepo();
     writeFileSync(hookPath(scratch), '#!/bin/sh\n');
     installHooks({ configPath: config, reindexScript: FAKE_SCRIPT });
 
     const res = installHooks({ configPath: config, reindexScript: FAKE_SCRIPT, uninstall: true });
 
+    // post-commit was a foreign file we appended to → cleared (file kept, block stripped)
     const commitRes = res.find((r) => r.hookType === 'post-commit')!;
-    expect(commitRes.action).toBe('cleared'); // we appended, so strip-only
-    expect(existsSync(hookPath(scratch))).toBe(true); // file survives
+    expect(commitRes.action).toBe('cleared');
+    expect(existsSync(hookPath(scratch))).toBe(true);
     expect(readFileSync(hookPath(scratch), 'utf8')).not.toContain(BEGIN);
+
+    // post-checkout and post-merge were created from scratch (CREATED_MARK present) → removed
+    expect(res.find((r) => r.hookType === 'post-checkout')!.action).toBe('removed');
+    expect(res.find((r) => r.hookType === 'post-merge')!.action).toBe('removed');
+    expect(existsSync(hookPath(scratch, 'post-checkout'))).toBe(false);
+    expect(existsSync(hookPath(scratch, 'post-merge'))).toBe(false);
   });
 
   it('refuses to append to a non-sh hook; other hook types are still created', () => {

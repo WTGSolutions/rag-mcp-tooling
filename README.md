@@ -165,46 +165,54 @@ Progress and the summary (`added / skipped / removed / total-chunks / time`) go 
 **stderr**; exit code is `0` on success, `1` on error — suitable for CI or a
 git hook. Incremental runs after a small edit re-embed only the changed files.
 
-## Auto-reindex on commit (git hook)
+## Auto-reindex on commit, checkout, and merge (git hooks)
 
-Keep the index fresh automatically: a `post-commit` hook runs `rag-index --changed`
-in the **background** after every commit. It is **non-fatal** — the commit never
-waits for embeddings and never fails because of the hook.
+Keep the index fresh automatically: three hooks run `rag-index --changed` in the
+**background** after the most common events that change working-tree content.
+All are **non-fatal** — commits/checkouts/merges never wait for embeddings and
+never fail because of a hook.
+
+| Hook | When git fires it | Reindex condition |
+|---|---|---|
+| `post-commit` | after every local commit | always |
+| `post-checkout` | after `git checkout` / `git switch` | only on **branch switch** (`$3=1`); file restores are skipped |
+| `post-merge` | after `git pull` / `git merge` | always |
 
 ```bash
 npm run rag:install-hooks      # install into every repo backing the config
-npm run rag:install-hooks -- --dry      # preview which repos would get the hook
-npm run rag:uninstall-hooks    # remove the managed block again
+npm run rag:install-hooks -- --dry      # preview which repos would get the hooks
+npm run rag:uninstall-hooks    # remove the managed blocks again
 ```
 
 The installer reads the segments in `rag.config.json`, asks git which repository
-each segment lives in (`git -C <root> rev-parse --show-toplevel`), and writes one
-hook per **distinct** repo. This makes it topology-agnostic with no flags:
+each segment lives in (`git -C <root> rev-parse --show-toplevel`), and writes
+**three hooks per distinct repo**. This makes it topology-agnostic with no flags:
 
 | Topology | `.git` | Hooks installed |
 |---|---|---|
-| Single project | one, at the repo root | 1 |
-| Monorepo (many packages) | one, at the repo root | 1 |
-| Separate repos under a shared root | one per sub-repo; root is **not** a repo | N (one per sub-repo) |
+| Single project | one, at the repo root | 3 |
+| Monorepo (many packages) | one, at the repo root | 3 |
+| Separate repos under a shared root | one per sub-repo; root is **not** a repo | 3×N (three per sub-repo) |
 
 How it behaves:
 
 - **Idempotent.** Re-running replaces the managed block in place (fenced by
   `# >>> rag-mcp auto-reindex (managed) >>>` markers). It never duplicates.
-- **Coexists with other hooks.** If a `post-commit` already exists (Husky,
-  lint-staged), the block is **appended** and the rest is left untouched;
-  `--uninstall` strips only the managed block.
-- **Background + locked.** The hook detaches `scripts/reindex-bg.sh`, which takes
-  a single-writer lock (`.rag/reindex.lock`) so rapid commits don't stack, and
+- **Coexists with other hooks.** If any of the three hook files already exist
+  (Husky, lint-staged), the block is **appended** and the rest is left untouched;
+  `--uninstall` strips only the managed block from each file.
+- **Background + locked.** Each hook detaches `scripts/reindex-bg.sh`, which takes
+  a single-writer lock (`.rag/reindex.lock`) so concurrent triggers (e.g. a
+  commit arriving while a checkout reindex is still running) don't stack, and
   logs to `.rag/reindex.log`. Build `dist/` first (`rag:build`); if it's missing
   or `node` isn't on `PATH`, the run is skipped with a note in the log — the
-  commit still succeeds.
+  triggering git operation still succeeds.
 
-- **Safe alongside foreign hooks.** A `post-commit` written in a non-sh language
+- **Safe alongside foreign hooks.** A hook written in a non-sh language
   (a Python or Node shebang) is **skipped with a warning** rather than corrupted.
 - **Requires a POSIX shell** (`sh`). On Windows use Git Bash / the shell git ships.
 
-> The hook bakes in absolute paths to the runner and the config at install time,
+> The hooks bake in absolute paths to the runner and the config at install time,
 > so moving the checkout means re-running `rag:install-hooks`. Logic lives in
 > `reindex-bg.sh`, so changing *behaviour* needs no reinstall.
 
