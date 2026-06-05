@@ -380,6 +380,57 @@ Only one `reindex` call runs at a time; a concurrent call is rejected with
 5. Agent calls reindex() after you edit files → index stays current
 ```
 
+## Monitoring usage
+
+The MCP server logs every tool call (query, result count, top score, latency) to
+`.rag/usage.jsonl` — one JSON line per call, appended in the background.
+Logging is always non-fatal: an I/O error is printed to stderr but never
+propagates to the caller. Disable it with `RAG_USAGE_LOG=0` in the server's
+environment.
+
+Print a summary report from the monorepo root:
+
+```bash
+npm run rag:usage
+```
+
+Or directly:
+
+```bash
+node tools/rag-mcp/dist/cli/rag-usage.js --config rag.config.json
+```
+
+Example output:
+
+```
+RAG-MCP Usage Report
+====================
+
+search_codebase: 24 call(s)
+  Top score:  min 0.61  median 0.79  max 0.94
+  Latency:    avg 38ms  p95 87ms
+  Follow-up:  67% of searches followed by get_chunk (≤5 min)
+
+get_chunk: 18 call(s)  (found 17, not-found 1)
+
+reindex: 2 call(s)
+
+Top queries:
+    4×  "lost participant detection"
+    3×  "auth token validation"
+
+Top segments:
+   14×  mobile
+   10×  web
+```
+
+The follow-up rate — fraction of searches where `get_chunk` is called within
+5 minutes — is the primary usefulness signal: a high rate means the agent
+frequently digs deeper after finding relevant hits.
+
+The log is in `.rag/` which is already gitignored. Reset it by deleting
+`.rag/usage.jsonl`.
+
 ## Development
 
 - Tests use **Vitest** with the AAA pattern; unit tests run offline.

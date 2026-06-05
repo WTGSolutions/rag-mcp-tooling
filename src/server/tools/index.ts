@@ -13,6 +13,7 @@ import {
 import { makeGetChunk, getChunkOutputShape } from './get-chunk.js';
 import { makeIndexStatus, indexStatusOutputShape } from './index-status.js';
 import { makeReindex, reindexOutputShape } from './reindex.js';
+import { UsageLogger, wrapHandler } from '../usage-logger.js';
 
 /**
  * Everything the tools need to do their work: the parsed config, the open
@@ -30,8 +31,15 @@ export type ServerDeps = {
 /**
  * Registers the four RAG tools on the server: search_codebase, get_chunk,
  * index_status (read-only) and reindex (the only writer).
+ *
+ * When a `logger` is provided each call is timed and appended to the usage
+ * log (non-fatal — logging errors never reach the MCP SDK).
  */
-export function registerTools(server: McpServer, deps: ServerDeps): void {
+export function registerTools(server: McpServer, deps: ServerDeps, logger?: UsageLogger): void {
+  const ts = () => new Date().toISOString();
+  // A disabled logger is a cheap noop; avoids conditional wrapping everywhere.
+  const log = logger ?? new UsageLogger('', false);
+
   server.registerTool(
     'search_codebase',
     {
@@ -47,7 +55,25 @@ export function registerTools(server: McpServer, deps: ServerDeps): void {
       },
       outputSchema: searchOutputShape,
     },
-    makeSearchCodebase(deps),
+    wrapHandler(
+      makeSearchCodebase(deps),
+      (args, result, latencyMs) => {
+        if (result === null) return null; // skip on error
+        const hits = result.structuredContent.results;
+        return {
+          ts: ts(),
+          tool: 'search_codebase',
+          query: args.query,
+          k: args.k ?? DEFAULT_K,
+          segment: args.segment ?? null,
+          results: hits.length,
+          topScore: hits[0]?.score ?? null,
+          latencyMs,
+          paths: hits.map((r) => r.filePath),
+        };
+      },
+      log,
+    ),
   );
 
   server.registerTool(
@@ -59,7 +85,17 @@ export function registerTools(server: McpServer, deps: ServerDeps): void {
       },
       outputSchema: getChunkOutputShape,
     },
-    makeGetChunk(deps),
+    wrapHandler(
+      makeGetChunk(deps),
+      (args, result, latencyMs) => ({
+        ts: ts(),
+        tool: 'get_chunk',
+        id: args.id,
+        found: result !== null,
+        latencyMs,
+      }),
+      log,
+    ),
   );
 
   server.registerTool(
@@ -84,7 +120,21 @@ export function registerTools(server: McpServer, deps: ServerDeps): void {
       },
       outputSchema: reindexOutputShape,
     },
-    makeReindex(deps),
+    wrapHandler(
+      makeReindex(deps),
+      (args, result, latencyMs) => {
+        if (result === null) return null;
+        return {
+          ts: ts(),
+          tool: 'reindex',
+          added: result.structuredContent.added,
+          skipped: result.structuredContent.skipped,
+          removed: result.structuredContent.removed,
+          latencyMs,
+        };
+      },
+      log,
+    ),
   );
 }
 

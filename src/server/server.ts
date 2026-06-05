@@ -10,6 +10,7 @@ import { loadConfig, resolveStorePath } from '../config.js';
 import { createEmbedder } from '../embedder/local-embedder.js';
 import { VectorStore } from '../store/vector-store.js';
 import { registerTools, type ServerDeps } from './tools/index.js';
+import { UsageLogger, createUsageLogger } from './usage-logger.js';
 
 const SERVER_NAME = 'rag-mcp';
 const SERVER_VERSION = '0.1.0';
@@ -25,9 +26,9 @@ function logStderr(message: string): void {
  * synchronous — no I/O, no transport — so it is unit-testable by connecting an
  * in-memory client.
  */
-export function createMcpServer(deps: ServerDeps): McpServer {
+export function createMcpServer(deps: ServerDeps, logger?: UsageLogger): McpServer {
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
-  registerTools(server, deps);
+  registerTools(server, deps, logger);
   return server;
 }
 
@@ -69,7 +70,9 @@ export async function startServer(
   try {
     // Segment roots resolve relative to the config file's directory (same base
     // the index was built with), so reindex walks the right tree.
-    const server = createMcpServer({ config, store, embedder, cwd: dirname(absConfigPath) });
+    const cwd = dirname(absConfigPath);
+    const usageLogger = createUsageLogger(resolve(cwd, '.rag', 'usage.jsonl'));
+    const server = createMcpServer({ config, store, embedder, cwd }, usageLogger);
 
     const stats = store.stats();
     logStderr(
