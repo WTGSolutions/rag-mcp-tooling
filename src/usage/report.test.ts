@@ -73,6 +73,20 @@ describe('parseLog', () => {
     expect(records).toHaveLength(1);
   });
 
+  it('skips structurally incomplete known-tool records (prevents scoreStats crash)', () => {
+    // A line with correct tool but missing tool-specific fields must be rejected.
+    const partial = JSON.stringify({ tool: 'search_codebase', ts: new Date().toISOString() });
+    const text = [partial, makeSearch()].join('\n');
+    const records = parseLog(text);
+    expect(records).toHaveLength(1);
+  });
+
+  it('skips unknown tool values', () => {
+    const unknown = JSON.stringify({ tool: 'index_status', ts: new Date().toISOString() });
+    const text = [unknown, makeChunk()].join('\n');
+    expect(parseLog(text)).toHaveLength(1);
+  });
+
   it('skips blank lines', () => {
     const text = [makeSearch(), '', '   ', makeChunk()].join('\n');
     expect(parseLog(text)).toHaveLength(2);

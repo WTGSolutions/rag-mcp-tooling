@@ -67,6 +67,15 @@ describe('UsageLogger', () => {
     expect(existsSync(logPath())).toBe(false);
   });
 
+  it('multiple appends all succeed after the directory is created once', () => {
+    const logger = new UsageLogger(logPath(), true);
+    const record: UsageRecord = { ts: '', tool: 'get_chunk', id: 'a', found: true, latencyMs: 1 };
+    logger.append(record);
+    logger.append(record);
+    logger.append(record);
+    expect(readLines()).toHaveLength(3);
+  });
+
   it('is non-fatal on I/O error (writes to stderr)', () => {
     const stderrSpy = vi.spyOn(process.stderr, 'write').mockReturnValue(true);
     // Use a path whose parent cannot be created (empty string dirname resolves to '.')

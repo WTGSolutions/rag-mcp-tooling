@@ -1,4 +1,4 @@
-import type { UsageRecord, SearchRecord, GetChunkRecord } from '../server/usage-logger.js';
+import type { UsageRecord } from '../server/usage-logger.js';
 
 export type { UsageRecord };
 
@@ -49,7 +49,34 @@ export function parseLog(text: string): UsageRecord[] {
 function isUsageRecord(obj: unknown): obj is UsageRecord {
   if (typeof obj !== 'object' || obj === null) return false;
   const r = obj as Record<string, unknown>;
-  return typeof r['tool'] === 'string' && typeof r['ts'] === 'string';
+  if (typeof r['ts'] !== 'string') return false;
+  if (r['tool'] === 'search_codebase') {
+    return (
+      typeof r['query'] === 'string' &&
+      typeof r['k'] === 'number' &&
+      typeof r['results'] === 'number' &&
+      typeof r['latencyMs'] === 'number' &&
+      Array.isArray(r['paths']) &&
+      (r['topScore'] === null || typeof r['topScore'] === 'number') &&
+      (r['segment'] === null || typeof r['segment'] === 'string')
+    );
+  }
+  if (r['tool'] === 'get_chunk') {
+    return (
+      typeof r['id'] === 'string' &&
+      typeof r['found'] === 'boolean' &&
+      typeof r['latencyMs'] === 'number'
+    );
+  }
+  if (r['tool'] === 'reindex') {
+    return (
+      typeof r['added'] === 'number' &&
+      typeof r['skipped'] === 'number' &&
+      typeof r['removed'] === 'number' &&
+      typeof r['latencyMs'] === 'number'
+    );
+  }
+  return false; // unknown tool — skip
 }
 
 function topN(counts: Map<string, number>, n = 10): [string, number][] {
@@ -68,8 +95,8 @@ export function aggregate(records: UsageRecord[]): AggregatedUsage {
   const queryCounts = new Map<string, number>();
   const segmentCounts = new Map<string, number>();
 
-  const searches: SearchRecord[] = [];
-  const chunks: GetChunkRecord[] = [];
+  const searchTimes: number[] = [];
+  const chunkTimes: number[] = [];
 
   for (const r of records) {
     if (r.tool === 'search_codebase') {
@@ -80,11 +107,11 @@ export function aggregate(records: UsageRecord[]): AggregatedUsage {
       if (r.segment !== null) {
         segmentCounts.set(r.segment, (segmentCounts.get(r.segment) ?? 0) + 1);
       }
-      searches.push(r);
+      searchTimes.push(new Date(r.ts).getTime());
     } else if (r.tool === 'get_chunk') {
       getChunk.count++;
       if (r.found) getChunk.found++; else getChunk.notFound++;
-      chunks.push(r);
+      chunkTimes.push(new Date(r.ts).getTime());
     } else if (r.tool === 'reindex') {
       reindex.count++;
     }
@@ -92,14 +119,12 @@ export function aggregate(records: UsageRecord[]): AggregatedUsage {
 
   // Follow-up: a search is "followed up" when a get_chunk happens within the window after it.
   let followUpRate: number | null = null;
-  if (searches.length > 0) {
-    const chunkTimes = chunks.map((c) => new Date(c.ts).getTime());
+  if (searchTimes.length > 0) {
     let followed = 0;
-    for (const s of searches) {
-      const t = new Date(s.ts).getTime();
+    for (const t of searchTimes) {
       if (chunkTimes.some((ct) => ct >= t && ct <= t + FOLLOW_UP_WINDOW_MS)) followed++;
     }
-    followUpRate = followed / searches.length;
+    followUpRate = followed / searchTimes.length;
   }
 
   return {

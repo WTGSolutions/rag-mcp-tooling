@@ -38,6 +38,8 @@ export type UsageRecord = SearchRecord | GetChunkRecord | ReindexRecord;
  * Disabled entirely when `RAG_USAGE_LOG=0`.
  */
 export class UsageLogger {
+  private dirEnsured = false;
+
   constructor(
     readonly logPath: string,
     private readonly enabled: boolean,
@@ -46,7 +48,10 @@ export class UsageLogger {
   append(record: UsageRecord): void {
     if (!this.enabled) return;
     try {
-      mkdirSync(dirname(this.logPath), { recursive: true });
+      if (!this.dirEnsured) {
+        mkdirSync(dirname(this.logPath), { recursive: true });
+        this.dirEnsured = true;
+      }
       appendFileSync(this.logPath, JSON.stringify(record) + '\n');
     } catch {
       process.stderr.write('[rag-mcp] usage log write failed\n');
@@ -75,22 +80,20 @@ export function wrapHandler<Args, Result>(
 ): (args: Args) => Promise<Result> {
   return async (args: Args): Promise<Result> => {
     const t0 = Date.now();
-    try {
-      const result = await handler(args);
+    const tryLog = (result: Result | null) => {
       try {
         const record = makeRecord(args, result, Date.now() - t0);
         if (record !== null) logger.append(record);
       } catch {
         // non-fatal: logging machinery must never affect the caller
       }
+    };
+    try {
+      const result = await handler(args);
+      tryLog(result);
       return result;
     } catch (e) {
-      try {
-        const record = makeRecord(args, null, Date.now() - t0);
-        if (record !== null) logger.append(record);
-      } catch {
-        // non-fatal
-      }
+      tryLog(null);
       throw e;
     }
   };
