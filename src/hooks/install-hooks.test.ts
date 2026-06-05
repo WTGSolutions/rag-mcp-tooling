@@ -5,6 +5,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   BEGIN, END,
+  HOOK_TYPES,
+  type HookType,
   buildManagedBlock, upsertBlock, stripBlock,
   discoverRepos, installHooks,
 } from './install-hooks.js';
@@ -12,21 +14,48 @@ import {
 // ── Pure block operations ─────────────────────────────────────────────────────
 
 describe('buildManagedBlock', () => {
-  it('fences the block with the markers and bakes both absolute paths', () => {
-    // Arrange + Act
+  it('fences the block with the markers and bakes both absolute paths (post-commit default)', () => {
     const block = buildManagedBlock('/tool/scripts/reindex-bg.sh', '/repo/rag.config.json');
 
-    // Assert
     expect(block.startsWith(BEGIN)).toBe(true);
     expect(block.endsWith(END)).toBe(true);
     expect(block).toContain(`'/tool/scripts/reindex-bg.sh'`);
     expect(block).toContain(`'/repo/rag.config.json'`);
     expect(block).toContain('&'); // detached into the background
+    expect(block).toContain(`'post-commit'`); // trigger label baked in
   });
 
   it('single-quote-escapes a path containing a quote', () => {
     const block = buildManagedBlock("/a'b/reindex-bg.sh", '/c/rag.config.json');
     expect(block).toContain(`'/a'\\''b/reindex-bg.sh'`);
+  });
+
+  it('post-checkout block wraps the call in a branch-switch guard ($3 == 1)', () => {
+    const block = buildManagedBlock('/s/reindex-bg.sh', '/c/rag.config.json', 'post-checkout');
+    expect(block).toContain('if [ "$3" = "1" ]');
+    expect(block).toContain(`'post-checkout'`);
+  });
+
+  it('post-checkout block does not contain a $3=0 path — guard handles file-restore by exclusion', () => {
+    const block = buildManagedBlock('/s/reindex-bg.sh', '/c/rag.config.json', 'post-checkout');
+    // Only branch switches ($3=1) should pass; no explicit $3=0 branch needed.
+    expect(block).toContain('"1"');
+    expect(block).not.toContain('"0"');
+  });
+
+  it('post-merge block has no branch-switch guard and bakes trigger label', () => {
+    const block = buildManagedBlock('/s/reindex-bg.sh', '/c/rag.config.json', 'post-merge');
+    expect(block).not.toContain('$3');
+    expect(block).toContain(`'post-merge'`);
+    expect(block).toContain(BEGIN);
+    expect(block).toContain(END);
+  });
+
+  it('all three hook types bake their own trigger label', () => {
+    for (const hookType of HOOK_TYPES) {
+      const block = buildManagedBlock('/s/r.sh', '/c/rag.config.json', hookType);
+      expect(block).toContain(`'${hookType}'`);
+    }
   });
 });
 
@@ -96,32 +125,30 @@ function writeConfig(path: string, segments: { name: string; root: string }[]): 
   writeFileSync(path, JSON.stringify(config));
 }
 
-function hookPath(repo: string): string {
-  return join(repo, '.git', 'hooks', 'post-commit');
+function hookPath(repo: string, hookType: HookType = 'post-commit'): string {
+  return join(repo, '.git', 'hooks', hookType);
 }
 
 describe('installHooks — topologies', () => {
-  it('(A) single project: one repo, config at its root → one hook', () => {
-    // Arrange
+  it('(A) single project: one repo → three hooks (one per hook type)', () => {
     gitInit(scratch);
     mkdirSync(join(scratch, 'src'), { recursive: true });
     const config = join(scratch, 'rag.config.json');
     writeConfig(config, [{ name: 'app', root: 'src' }]);
 
-    // Act
     const results = installHooks({ configPath: config, reindexScript: FAKE_SCRIPT });
 
-    // Assert
-    expect(results).toHaveLength(1);
-    expect(results[0]!.action).toBe('created');
-    const hook = hookPath(scratch);
-    expect(existsSync(hook)).toBe(true);
-    expect(readFileSync(hook, 'utf8')).toContain(BEGIN);
-    expect(statSync(hook).mode & 0o100).toBeTruthy(); // owner-executable
+    expect(results).toHaveLength(3); // 1 repo × 3 hook types
+    expect(results.every((r) => r.action === 'created')).toBe(true);
+    for (const hookType of HOOK_TYPES) {
+      const path = hookPath(scratch, hookType);
+      expect(existsSync(path)).toBe(true);
+      expect(readFileSync(path, 'utf8')).toContain(BEGIN);
+      expect(statSync(path).mode & 0o100).toBeTruthy(); // owner-executable
+    }
   });
 
-  it('(B) monorepo: one repo, many segments → still one hook (dedup by toplevel)', () => {
-    // Arrange
+  it('(B) monorepo: one repo, many segments → still three hooks (dedup by toplevel)', () => {
     gitInit(scratch);
     mkdirSync(join(scratch, 'packages/web/src'), { recursive: true });
     mkdirSync(join(scratch, 'packages/api/src'), { recursive: true });
@@ -131,16 +158,15 @@ describe('installHooks — topologies', () => {
       { name: 'api', root: 'packages/api/src' },
     ]);
 
-    // Act
     const results = installHooks({ configPath: config, reindexScript: FAKE_SCRIPT });
 
-    // Assert
-    expect(results).toHaveLength(1);
-    expect(existsSync(hookPath(scratch))).toBe(true);
+    expect(results).toHaveLength(3); // 1 repo × 3 hooks
+    for (const hookType of HOOK_TYPES) {
+      expect(existsSync(hookPath(scratch, hookType))).toBe(true);
+    }
   });
 
-  it('(C) separate repos under a non-repo root → one hook per sub-repo', () => {
-    // Arrange — scratch is NOT a git repo; web/ and mobile/ are
+  it('(C) separate repos under a non-repo root → three hooks per sub-repo', () => {
     const web = join(scratch, 'web');
     const mobile = join(scratch, 'mobile');
     gitInit(web);
@@ -153,34 +179,29 @@ describe('installHooks — topologies', () => {
       { name: 'mobile', root: 'mobile/src' },
     ]);
 
-    // Act
     const results = installHooks({ configPath: config, reindexScript: FAKE_SCRIPT });
 
-    // Assert — two distinct repos, two hooks; the non-repo root gets none
-    expect(results).toHaveLength(2);
-    expect(existsSync(hookPath(web))).toBe(true);
-    expect(existsSync(hookPath(mobile))).toBe(true);
-    expect(existsSync(join(scratch, '.git'))).toBe(false);
+    expect(results).toHaveLength(6); // 2 repos × 3 hooks
+    for (const hookType of HOOK_TYPES) {
+      expect(existsSync(hookPath(web, hookType))).toBe(true);
+      expect(existsSync(hookPath(mobile, hookType))).toBe(true);
+    }
     // The baked block points back at the shared config.
     expect(readFileSync(hookPath(web), 'utf8')).toContain(config);
+    expect(existsSync(join(scratch, '.git'))).toBe(false);
   });
 
   it('skips segment roots that are outside any git repository', () => {
-    // Arrange — config and segment exist, but nothing is a git repo
     mkdirSync(join(scratch, 'src'), { recursive: true });
     const config = join(scratch, 'rag.config.json');
     writeConfig(config, [{ name: 'app', root: 'src' }]);
 
-    // Act
     const results = installHooks({ configPath: config, reindexScript: FAKE_SCRIPT });
 
-    // Assert
     expect(results).toEqual([]);
   });
 
   it('(worktree) resolves the shared hooks dir via --git-path, not a hard-coded .git/hooks', () => {
-    // Arrange — a repo with a commit, then a linked worktree whose hooks live in
-    // the COMMON git dir; a hard-coded `<toplevel>/.git/hooks` would miss it.
     const mainRepo = join(scratch, 'main');
     gitInit(mainRepo);
     const g = (...a: string[]) => execFileSync('git', ['-C', mainRepo, ...a], { stdio: 'ignore' });
@@ -193,12 +214,10 @@ describe('installHooks — topologies', () => {
     const config = join(wt, 'rag.config.json');
     writeConfig(config, [{ name: 'app', root: 'src' }]);
 
-    // Act
     const results = installHooks({ configPath: config, reindexScript: FAKE_SCRIPT });
 
-    // Assert — one hook, written into the resolved (shared) hooks dir
-    expect(results).toHaveLength(1);
-    expect(existsSync(results[0]!.hookPath)).toBe(true);
+    expect(results).toHaveLength(3); // 1 repo × 3 hooks
+    expect(results.every((r) => existsSync(r.hookPath))).toBe(true);
     expect(readFileSync(results[0]!.hookPath, 'utf8')).toContain(BEGIN);
   });
 });
@@ -212,92 +231,155 @@ describe('installHooks — idempotency, coexistence, uninstall', () => {
     return config;
   }
 
-  it('re-running does not duplicate the block', () => {
+  it('re-running does not duplicate any block', () => {
     const config = singleRepo();
     installHooks({ configPath: config, reindexScript: FAKE_SCRIPT });
     const second = installHooks({ configPath: config, reindexScript: FAKE_SCRIPT });
 
-    expect(second[0]!.action).toBe('updated');
-    const body = readFileSync(hookPath(scratch), 'utf8');
-    expect(body.split(BEGIN)).toHaveLength(2); // exactly one block
+    expect(second.every((r) => r.action === 'updated')).toBe(true);
+    for (const hookType of HOOK_TYPES) {
+      const body = readFileSync(hookPath(scratch, hookType), 'utf8');
+      expect(body.split(BEGIN)).toHaveLength(2); // exactly one block
+    }
   });
 
-  it('appends to a pre-existing foreign hook and preserves it', () => {
+  it('appends to a pre-existing foreign post-commit and preserves it; other hooks are created', () => {
     const config = singleRepo();
     writeFileSync(hookPath(scratch), '#!/bin/sh\necho "husky"\n');
 
     const res = installHooks({ configPath: config, reindexScript: FAKE_SCRIPT });
 
-    expect(res[0]!.action).toBe('appended');
+    expect(res.find((r) => r.hookType === 'post-commit')!.action).toBe('appended');
     const body = readFileSync(hookPath(scratch), 'utf8');
     expect(body).toContain('echo "husky"');
     expect(body).toContain(BEGIN);
+
+    // Other hooks have no foreign content — created from scratch
+    expect(res.find((r) => r.hookType === 'post-checkout')!.action).toBe('created');
+    expect(res.find((r) => r.hookType === 'post-merge')!.action).toBe('created');
   });
 
-  it('uninstall removes our own scaffold file entirely', () => {
+  it('uninstall removes all three scaffold files when installer created them', () => {
     const config = singleRepo();
     installHooks({ configPath: config, reindexScript: FAKE_SCRIPT });
 
     const res = installHooks({ configPath: config, reindexScript: FAKE_SCRIPT, uninstall: true });
 
-    expect(res[0]!.action).toBe('removed');
-    expect(existsSync(hookPath(scratch))).toBe(false);
+    expect(res.every((r) => r.action === 'removed')).toBe(true);
+    for (const hookType of HOOK_TYPES) {
+      expect(existsSync(hookPath(scratch, hookType))).toBe(false);
+    }
   });
 
-  it('uninstall strips only our block from a foreign hook', () => {
+  it('uninstall strips only our block from foreign hooks, leaving foreign content intact', () => {
     const config = singleRepo();
-    writeFileSync(hookPath(scratch), '#!/bin/sh\necho "husky"\n');
+    for (const hookType of HOOK_TYPES) {
+      writeFileSync(hookPath(scratch, hookType), `#!/bin/sh\necho "${hookType}-foreign"\n`);
+    }
     installHooks({ configPath: config, reindexScript: FAKE_SCRIPT });
 
     const res = installHooks({ configPath: config, reindexScript: FAKE_SCRIPT, uninstall: true });
 
-    expect(res[0]!.action).toBe('cleared');
-    const body = readFileSync(hookPath(scratch), 'utf8');
-    expect(body).toContain('echo "husky"');
-    expect(body).not.toContain(BEGIN);
+    expect(res.every((r) => r.action === 'cleared')).toBe(true);
+    for (const hookType of HOOK_TYPES) {
+      const body = readFileSync(hookPath(scratch, hookType), 'utf8');
+      expect(body).toContain(`echo "${hookType}-foreign"`);
+      expect(body).not.toContain(BEGIN);
+    }
   });
 
-  it('dry run discovers targets without writing anything', () => {
+  it('dry run discovers all three targets without writing anything', () => {
     const config = singleRepo();
     const res = installHooks({ configPath: config, reindexScript: FAKE_SCRIPT, dry: true });
 
-    expect(res[0]!.action).toBe('created');
-    expect(existsSync(hookPath(scratch))).toBe(false);
+    expect(res.every((r) => r.action === 'created')).toBe(true);
+    for (const hookType of HOOK_TYPES) {
+      expect(existsSync(hookPath(scratch, hookType))).toBe(false);
+    }
   });
 
   it('uninstall does NOT delete a foreign shebang-only hook', () => {
-    // Arrange — a deliberate bare-shebang hook (not ours), then install appends.
     const config = singleRepo();
     writeFileSync(hookPath(scratch), '#!/bin/sh\n');
     installHooks({ configPath: config, reindexScript: FAKE_SCRIPT });
 
-    // Act
     const res = installHooks({ configPath: config, reindexScript: FAKE_SCRIPT, uninstall: true });
 
-    // Assert — file survives (we never created it), only our block is gone
-    expect(res[0]!.action).toBe('cleared');
-    expect(existsSync(hookPath(scratch))).toBe(true);
+    const commitRes = res.find((r) => r.hookType === 'post-commit')!;
+    expect(commitRes.action).toBe('cleared'); // we appended, so strip-only
+    expect(existsSync(hookPath(scratch))).toBe(true); // file survives
     expect(readFileSync(hookPath(scratch), 'utf8')).not.toContain(BEGIN);
   });
 
-  it('refuses to append to a non-sh hook, leaving it untouched', () => {
-    // Arrange — a Python post-commit; appending shell would corrupt it
+  it('refuses to append to a non-sh hook; other hook types are still created', () => {
     const config = singleRepo();
     const python = '#!/usr/bin/env python3\nprint("hi")\n';
     writeFileSync(hookPath(scratch), python);
 
-    // Act
     const res = installHooks({ configPath: config, reindexScript: FAKE_SCRIPT });
 
-    // Assert
-    expect(res[0]!.action).toBe('skipped-foreign');
+    expect(res.find((r) => r.hookType === 'post-commit')!.action).toBe('skipped-foreign');
     expect(readFileSync(hookPath(scratch), 'utf8')).toBe(python); // byte-for-byte intact
+
+    // post-checkout and post-merge don't exist yet — created normally
+    expect(res.find((r) => r.hookType === 'post-checkout')!.action).toBe('created');
+    expect(res.find((r) => r.hookType === 'post-merge')!.action).toBe('created');
   });
 
-  it('uninstall on a repo with no hook reports absent', () => {
+  it('uninstall on a repo with no hooks reports absent for each hook type', () => {
     const config = singleRepo();
     const res = installHooks({ configPath: config, reindexScript: FAKE_SCRIPT, uninstall: true });
-    expect(res[0]!.action).toBe('absent');
+    expect(res.every((r) => r.action === 'absent')).toBe(true);
+    expect(res).toHaveLength(3);
+  });
+});
+
+describe('installHooks — post-checkout and post-merge hook content', () => {
+  function singleRepo(): string {
+    gitInit(scratch);
+    mkdirSync(join(scratch, 'src'), { recursive: true });
+    const config = join(scratch, 'rag.config.json');
+    writeConfig(config, [{ name: 'app', root: 'src' }]);
+    return config;
+  }
+
+  it('post-checkout hook contains the branch-switch guard', () => {
+    const config = singleRepo();
+    installHooks({ configPath: config, reindexScript: FAKE_SCRIPT });
+
+    const body = readFileSync(hookPath(scratch, 'post-checkout'), 'utf8');
+    expect(body).toContain('[ "$3" = "1" ]');
+    expect(body).toContain(`'post-checkout'`);
+  });
+
+  it('post-merge hook has no branch-switch guard', () => {
+    const config = singleRepo();
+    installHooks({ configPath: config, reindexScript: FAKE_SCRIPT });
+
+    const body = readFileSync(hookPath(scratch, 'post-merge'), 'utf8');
+    expect(body).not.toContain('$3');
+    expect(body).toContain(`'post-merge'`);
+  });
+
+  it('all three hooks pass their own trigger label to reindex-bg.sh', () => {
+    const config = singleRepo();
+    installHooks({ configPath: config, reindexScript: FAKE_SCRIPT });
+
+    for (const hookType of HOOK_TYPES) {
+      const body = readFileSync(hookPath(scratch, hookType), 'utf8');
+      expect(body).toContain(`'${hookType}'`);
+    }
+  });
+
+  it('each hook result carries the correct hookType field', () => {
+    const config = singleRepo();
+    const results = installHooks({ configPath: config, reindexScript: FAKE_SCRIPT });
+
+    for (const hookType of HOOK_TYPES) {
+      const r = results.find((x) => x.hookType === hookType);
+      expect(r).toBeDefined();
+      expect(r!.hookPath).toContain(hookType);
+    }
   });
 });
 

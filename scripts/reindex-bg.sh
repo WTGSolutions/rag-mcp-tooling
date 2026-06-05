@@ -6,9 +6,12 @@
 # every diagnostic to the log. The post-commit hook is a thin stub that only
 # detaches this script — so changing the logic here needs no hook reinstall.
 #
-# Usage: reindex-bg.sh <path-to-rag.config.json>
+# Usage: reindex-bg.sh <path-to-rag.config.json> [trigger]
+#   trigger — label shown in the log (default: post-commit).  Passed by the
+#             hook stub so log entries distinguish checkout/merge/commit runs.
 
 config="$1"
+trigger="${2:-post-commit}"
 [ -n "$config" ] || exit 0
 [ -f "$config" ] || exit 0
 
@@ -40,7 +43,7 @@ script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" 2>/dev/null && pwd) || exit 0
 cli="$script_dir/../dist/cli/rag-index.js"
 
 {
-  printf '== %s  post-commit auto-reindex\n' "$(date '+%Y-%m-%d %H:%M:%S')"
+  printf '== %s  %s auto-reindex\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$trigger"
   if ! command -v node >/dev/null 2>&1; then
     echo "skipped: 'node' not found on PATH"
   elif [ ! -f "$cli" ]; then
