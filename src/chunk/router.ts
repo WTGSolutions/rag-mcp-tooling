@@ -40,6 +40,12 @@ export async function dispatchChunkerAsync(
   config: RagChunkConfig,
   fileHash: string,
 ): Promise<Chunk[]> {
+  // Phase-5 A/B eval baseline (TASK-023): RAG_FORCE_LINE_CHUNKER=1 forces every
+  // file through the line chunker — the "before AST-awareness" index — so the
+  // same harness can measure line-chunker vs tree-sitter. Unset in production.
+  if (process.env['RAG_FORCE_LINE_CHUNKER'] === '1') {
+    return chunkLines(text, file, config, fileHash);
+  }
   if (file.language in TREE_SITTER_LANGS) {
     return chunkTreeSitter(text, file, config, fileHash);
   }

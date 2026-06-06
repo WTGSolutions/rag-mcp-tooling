@@ -1,0 +1,24 @@
+{
+  "groundTruthStatus": "VALIDATED 2026-06-06 PO (szymonwal) — Polyglot Phase-5 quality-gate set (Python/Go/Rust), 13 queries. ANTI-BIAS: expectedFiles derived by reading the fixtures (what each file implements), NOT from embedder/search output; reviewed and approved by the PO before measurement. Safe to freeze.",
+  "notes": [
+    "Queries are English to match the embedder (Xenova/bge-small-en-v1.5); `concept` carries the PL label.",
+    "expectedFiles are config-relative (segment root src/__fixtures__/polyglot), matching the eval harness toRepoPath output.",
+    "Several queries target a specific symbol inside a multi-symbol file (geo.py, tokens.py, tracker.go, quadtree.rs) — the case where AST-aware chunking can beat blind line windows at file-level retrieval.",
+    "Baseline = line-chunker (Phase-5 'before'); treatment = tree-sitter ('after'). Same corpus, queries, model."
+  ],
+  "queries": [
+    { "id": "q-poly-01-haversine", "concept": "great-circle distance (haversine) między dwoma punktami lat/lon", "query": "great-circle haversine distance between two latitude longitude points", "segment": "polyglot", "expectedFiles": ["src/__fixtures__/polyglot/py/geo.py"] },
+    { "id": "q-poly-02-bearing", "concept": "namiar kompasowy (bearing) z jednego punktu do drugiego", "query": "initial compass bearing heading from one coordinate to another", "segment": "polyglot", "expectedFiles": ["src/__fixtures__/polyglot/py/geo.py"] },
+    { "id": "q-poly-03-geofence", "concept": "sprawdzenie czy punkt GPS jest wewnątrz geofence", "query": "check whether a GPS point is inside a circular geofence", "segment": "polyglot", "expectedFiles": ["src/__fixtures__/polyglot/py/geofence.py"] },
+    { "id": "q-poly-04-normalize-tokens", "concept": "normalizacja i deduplikacja tokenów śledzenia uczestnika", "query": "normalize and deduplicate participant tracking tokens", "segment": "polyglot", "expectedFiles": ["src/__fixtures__/polyglot/py/tokens.py"] },
+    { "id": "q-poly-05-rate-limit", "concept": "limiter token-bucket dla wychodzących pingów lokalizacji", "query": "token bucket rate limiter for outbound location pings", "segment": "polyglot", "expectedFiles": ["src/__fixtures__/polyglot/py/tokens.py"] },
+    { "id": "q-poly-06-tracker-update", "concept": "zapis ostatniej znanej pozycji śledzonego urządzenia", "query": "record the latest known position of a tracked device", "segment": "polyglot", "expectedFiles": ["src/__fixtures__/polyglot/go/tracker.go"] },
+    { "id": "q-poly-07-stale-device", "concept": "wykrycie urządzenia, które dawno nie raportowało (stale)", "query": "detect a stale device that has not reported a position recently", "segment": "polyglot", "expectedFiles": ["src/__fixtures__/polyglot/go/tracker.go"] },
+    { "id": "q-poly-08-geohash", "concept": "kodowanie lat/lon do stringa geohash", "query": "encode latitude and longitude into a geohash string", "segment": "polyglot", "expectedFiles": ["src/__fixtures__/polyglot/go/geohash.go"] },
+    { "id": "q-poly-09-dispatch-alert", "concept": "wysłanie alertu o zgubionym uczestniku przez notifier", "query": "send a lost participant alert through a notifier", "segment": "polyglot", "expectedFiles": ["src/__fixtures__/polyglot/go/dispatch.go"] },
+    { "id": "q-poly-10-route-distance", "concept": "suma dystansu po waypointach trasy", "query": "sum the total distance along a route's waypoints", "segment": "polyglot", "expectedFiles": ["src/__fixtures__/polyglot/rs/route.rs"] },
+    { "id": "q-poly-11-quadtree-insert", "concept": "wstawienie punktu do quadtree (indeks przestrzenny)", "query": "insert a point into a quadtree spatial index", "segment": "polyglot", "expectedFiles": ["src/__fixtures__/polyglot/rs/quadtree.rs"] },
+    { "id": "q-poly-12-quadtree-range", "concept": "zapytanie zakresowe o punkty w bounding boxie", "query": "range query for points within a bounding box", "segment": "polyglot", "expectedFiles": ["src/__fixtures__/polyglot/rs/quadtree.rs"] },
+    { "id": "q-poly-13-km-to-miles", "concept": "konwersja kilometrów na mile", "query": "convert kilometers to miles", "segment": "polyglot", "expectedFiles": ["src/__fixtures__/polyglot/rs/units.rs"] }
+  ]
+}

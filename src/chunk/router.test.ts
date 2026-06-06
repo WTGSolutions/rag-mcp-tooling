@@ -116,6 +116,19 @@ describe('dispatchChunkerAsync', () => {
     const chunks = await dispatchChunkerAsync(tsText, file, DEFAULT_CONFIG, tsHash);
     expect(chunks.every((c) => c.kind === 'block')).toBe(true);
   });
+
+  it('RAG_FORCE_LINE_CHUNKER=1 forces line chunking even for a tree-sitter language (Phase-5 A/B baseline)', async () => {
+    const tsCode = 'export function add(a: number, b: number) { return a + b; }';
+    const file = makeFile('typescript');
+    process.env['RAG_FORCE_LINE_CHUNKER'] = '1';
+    try {
+      const chunks = await dispatchChunkerAsync(tsCode, file, DEFAULT_CONFIG, createHash('sha1').update(tsCode).digest('hex'));
+      expect(chunks.every((c) => c.kind === 'block')).toBe(true);
+      expect(chunks.some((c) => c.symbol === 'add')).toBe(false); // no semantic symbol chunk
+    } finally {
+      delete process.env['RAG_FORCE_LINE_CHUNKER'];
+    }
+  });
 });
 
 describe('chunkFile', () => {

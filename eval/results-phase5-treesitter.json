@@ -1,0 +1,516 @@
+{
+  "model": "Xenova/bge-small-en-v1.5",
+  "k": 5,
+  "generatedAt": "2026-06-06T13:55:32.464Z",
+  "groundTruthStatus": "VALIDATED 2026-06-06 PO (szymonwal) — Polyglot Phase-5 quality-gate set (Python/Go/Rust), 13 queries. ANTI-BIAS: expectedFiles derived by reading the fixtures (what each file implements), NOT from embedder/search output; reviewed and approved by the PO before measurement. Safe to freeze.",
+  "rag": {
+    "count": 13,
+    "hits": 13,
+    "hitRate": 1,
+    "mrr": 0.8974358974358974
+  },
+  "grep": {
+    "count": 13,
+    "hits": 13,
+    "hitRate": 1,
+    "mrr": 1
+  },
+  "tokenCost": {
+    "ragTotal": 3188,
+    "broadTotal": 12311,
+    "ratio": 3.8616687578419073
+  },
+  "perQuery": [
+    {
+      "id": "q-poly-01-haversine",
+      "concept": "great-circle distance (haversine) między dwoma punktami lat/lon",
+      "query": "great-circle haversine distance between two latitude longitude points",
+      "segment": "polyglot",
+      "expectedFiles": [
+        "src/__fixtures__/polyglot/py/geo.py"
+      ],
+      "rag": {
+        "top": [
+          "src/__fixtures__/polyglot/py/geo.py",
+          "src/__fixtures__/polyglot/py/geo.py",
+          "src/__fixtures__/polyglot/rs/route.rs",
+          "src/__fixtures__/polyglot/py/geofence.py",
+          "src/__fixtures__/polyglot/py/geo.py"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 329
+      },
+      "grep": {
+        "top": [
+          "src/__fixtures__/polyglot/py/geo.py",
+          "src/__fixtures__/polyglot/rs/route.rs",
+          "src/__fixtures__/polyglot/go/geohash.go",
+          "src/__fixtures__/polyglot/py/geofence.py",
+          "src/__fixtures__/polyglot/rs/quadtree.rs"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 1382
+      }
+    },
+    {
+      "id": "q-poly-02-bearing",
+      "concept": "namiar kompasowy (bearing) z jednego punktu do drugiego",
+      "query": "initial compass bearing heading from one coordinate to another",
+      "segment": "polyglot",
+      "expectedFiles": [
+        "src/__fixtures__/polyglot/py/geo.py"
+      ],
+      "rag": {
+        "top": [
+          "src/__fixtures__/polyglot/py/geo.py",
+          "src/__fixtures__/polyglot/py/geo.py",
+          "src/__fixtures__/polyglot/rs/route.rs",
+          "src/__fixtures__/polyglot/py/geofence.py",
+          "src/__fixtures__/polyglot/py/geofence.py"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 297
+      },
+      "grep": {
+        "top": [
+          "src/__fixtures__/polyglot/py/geo.py",
+          "src/__fixtures__/polyglot/py/geofence.py",
+          "src/__fixtures__/polyglot/py/tokens.py",
+          "src/__fixtures__/polyglot/rs/quadtree.rs",
+          "src/__fixtures__/polyglot/rs/units.rs"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 1284
+      }
+    },
+    {
+      "id": "q-poly-03-geofence",
+      "concept": "sprawdzenie czy punkt GPS jest wewnątrz geofence",
+      "query": "check whether a GPS point is inside a circular geofence",
+      "segment": "polyglot",
+      "expectedFiles": [
+        "src/__fixtures__/polyglot/py/geofence.py"
+      ],
+      "rag": {
+        "top": [
+          "src/__fixtures__/polyglot/py/geofence.py",
+          "src/__fixtures__/polyglot/py/geofence.py",
+          "src/__fixtures__/polyglot/py/geofence.py",
+          "src/__fixtures__/polyglot/py/geo.py",
+          "src/__fixtures__/polyglot/py/geo.py"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 262
+      },
+      "grep": {
+        "top": [
+          "src/__fixtures__/polyglot/py/geofence.py",
+          "src/__fixtures__/polyglot/go/tracker.go",
+          "src/__fixtures__/polyglot/rs/quadtree.rs",
+          "src/__fixtures__/polyglot/py/geo.py",
+          "src/__fixtures__/polyglot/rs/route.rs"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 1436
+      }
+    },
+    {
+      "id": "q-poly-04-normalize-tokens",
+      "concept": "normalizacja i deduplikacja tokenów śledzenia uczestnika",
+      "query": "normalize and deduplicate participant tracking tokens",
+      "segment": "polyglot",
+      "expectedFiles": [
+        "src/__fixtures__/polyglot/py/tokens.py"
+      ],
+      "rag": {
+        "top": [
+          "src/__fixtures__/polyglot/py/tokens.py",
+          "src/__fixtures__/polyglot/py/tokens.py",
+          "src/__fixtures__/polyglot/py/tokens.py",
+          "src/__fixtures__/polyglot/go/dispatch.go",
+          "src/__fixtures__/polyglot/py/geofence.py"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 191
+      },
+      "grep": {
+        "top": [
+          "src/__fixtures__/polyglot/py/tokens.py",
+          "src/__fixtures__/polyglot/go/dispatch.go",
+          "src/__fixtures__/polyglot/go/geohash.go",
+          "src/__fixtures__/polyglot/go/tracker.go",
+          "src/__fixtures__/polyglot/py/geofence.py"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 1079
+      }
+    },
+    {
+      "id": "q-poly-05-rate-limit",
+      "concept": "limiter token-bucket dla wychodzących pingów lokalizacji",
+      "query": "token bucket rate limiter for outbound location pings",
+      "segment": "polyglot",
+      "expectedFiles": [
+        "src/__fixtures__/polyglot/py/tokens.py"
+      ],
+      "rag": {
+        "top": [
+          "src/__fixtures__/polyglot/py/tokens.py",
+          "src/__fixtures__/polyglot/py/tokens.py",
+          "src/__fixtures__/polyglot/py/tokens.py",
+          "src/__fixtures__/polyglot/py/geo.py",
+          "src/__fixtures__/polyglot/py/tokens.py"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 300
+      },
+      "grep": {
+        "top": [
+          "src/__fixtures__/polyglot/py/tokens.py",
+          "src/__fixtures__/polyglot/py/geo.py"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 672
+      }
+    },
+    {
+      "id": "q-poly-06-tracker-update",
+      "concept": "zapis ostatniej znanej pozycji śledzonego urządzenia",
+      "query": "record the latest known position of a tracked device",
+      "segment": "polyglot",
+      "expectedFiles": [
+        "src/__fixtures__/polyglot/go/tracker.go"
+      ],
+      "rag": {
+        "top": [
+          "src/__fixtures__/polyglot/go/tracker.go",
+          "src/__fixtures__/polyglot/go/tracker.go",
+          "src/__fixtures__/polyglot/py/tokens.py",
+          "src/__fixtures__/polyglot/go/dispatch.go",
+          "src/__fixtures__/polyglot/go/tracker.go"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 125
+      },
+      "grep": {
+        "top": [
+          "src/__fixtures__/polyglot/go/tracker.go",
+          "src/__fixtures__/polyglot/go/dispatch.go"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 409
+      }
+    },
+    {
+      "id": "q-poly-07-stale-device",
+      "concept": "wykrycie urządzenia, które dawno nie raportowało (stale)",
+      "query": "detect a stale device that has not reported a position recently",
+      "segment": "polyglot",
+      "expectedFiles": [
+        "src/__fixtures__/polyglot/go/tracker.go"
+      ],
+      "rag": {
+        "top": [
+          "src/__fixtures__/polyglot/go/dispatch.go",
+          "src/__fixtures__/polyglot/py/tokens.py",
+          "src/__fixtures__/polyglot/go/tracker.go",
+          "src/__fixtures__/polyglot/go/tracker.go",
+          "src/__fixtures__/polyglot/go/tracker.go"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 3,
+          "reciprocalRank": 0.3333333333333333
+        },
+        "tokens": 155
+      },
+      "grep": {
+        "top": [
+          "src/__fixtures__/polyglot/go/tracker.go",
+          "src/__fixtures__/polyglot/go/dispatch.go",
+          "src/__fixtures__/polyglot/go/geohash.go",
+          "src/__fixtures__/polyglot/py/tokens.py"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 893
+      }
+    },
+    {
+      "id": "q-poly-08-geohash",
+      "concept": "kodowanie lat/lon do stringa geohash",
+      "query": "encode latitude and longitude into a geohash string",
+      "segment": "polyglot",
+      "expectedFiles": [
+        "src/__fixtures__/polyglot/go/geohash.go"
+      ],
+      "rag": {
+        "top": [
+          "src/__fixtures__/polyglot/go/geohash.go",
+          "src/__fixtures__/polyglot/py/geo.py",
+          "src/__fixtures__/polyglot/rs/units.rs",
+          "src/__fixtures__/polyglot/py/geofence.py",
+          "src/__fixtures__/polyglot/py/geo.py"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 279
+      },
+      "grep": {
+        "top": [
+          "src/__fixtures__/polyglot/go/geohash.go",
+          "src/__fixtures__/polyglot/go/dispatch.go",
+          "src/__fixtures__/polyglot/go/tracker.go",
+          "src/__fixtures__/polyglot/rs/units.rs"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 774
+      }
+    },
+    {
+      "id": "q-poly-09-dispatch-alert",
+      "concept": "wysłanie alertu o zgubionym uczestniku przez notifier",
+      "query": "send a lost participant alert through a notifier",
+      "segment": "polyglot",
+      "expectedFiles": [
+        "src/__fixtures__/polyglot/go/dispatch.go"
+      ],
+      "rag": {
+        "top": [
+          "src/__fixtures__/polyglot/go/dispatch.go",
+          "src/__fixtures__/polyglot/py/tokens.py",
+          "src/__fixtures__/polyglot/go/dispatch.go",
+          "src/__fixtures__/polyglot/py/tokens.py",
+          "src/__fixtures__/polyglot/py/geofence.py"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 217
+      },
+      "grep": {
+        "top": [
+          "src/__fixtures__/polyglot/go/dispatch.go",
+          "src/__fixtures__/polyglot/py/geofence.py",
+          "src/__fixtures__/polyglot/py/tokens.py"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 583
+      }
+    },
+    {
+      "id": "q-poly-10-route-distance",
+      "concept": "suma dystansu po waypointach trasy",
+      "query": "sum the total distance along a route's waypoints",
+      "segment": "polyglot",
+      "expectedFiles": [
+        "src/__fixtures__/polyglot/rs/route.rs"
+      ],
+      "rag": {
+        "top": [
+          "src/__fixtures__/polyglot/py/geo.py",
+          "src/__fixtures__/polyglot/py/geo.py",
+          "src/__fixtures__/polyglot/rs/route.rs",
+          "src/__fixtures__/polyglot/py/geo.py",
+          "src/__fixtures__/polyglot/py/geo.py"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 3,
+          "reciprocalRank": 0.3333333333333333
+        },
+        "tokens": 312
+      },
+      "grep": {
+        "top": [
+          "src/__fixtures__/polyglot/rs/route.rs",
+          "src/__fixtures__/polyglot/py/geo.py",
+          "src/__fixtures__/polyglot/py/geofence.py",
+          "src/__fixtures__/polyglot/rs/units.rs"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 1023
+      }
+    },
+    {
+      "id": "q-poly-11-quadtree-insert",
+      "concept": "wstawienie punktu do quadtree (indeks przestrzenny)",
+      "query": "insert a point into a quadtree spatial index",
+      "segment": "polyglot",
+      "expectedFiles": [
+        "src/__fixtures__/polyglot/rs/quadtree.rs"
+      ],
+      "rag": {
+        "top": [
+          "src/__fixtures__/polyglot/rs/quadtree.rs",
+          "src/__fixtures__/polyglot/rs/quadtree.rs",
+          "src/__fixtures__/polyglot/rs/quadtree.rs",
+          "src/__fixtures__/polyglot/rs/quadtree.rs",
+          "src/__fixtures__/polyglot/py/geo.py"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 174
+      },
+      "grep": {
+        "top": [
+          "src/__fixtures__/polyglot/rs/quadtree.rs",
+          "src/__fixtures__/polyglot/py/geo.py",
+          "src/__fixtures__/polyglot/py/geofence.py",
+          "src/__fixtures__/polyglot/rs/route.rs"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 1161
+      }
+    },
+    {
+      "id": "q-poly-12-quadtree-range",
+      "concept": "zapytanie zakresowe o punkty w bounding boxie",
+      "query": "range query for points within a bounding box",
+      "segment": "polyglot",
+      "expectedFiles": [
+        "src/__fixtures__/polyglot/rs/quadtree.rs"
+      ],
+      "rag": {
+        "top": [
+          "src/__fixtures__/polyglot/rs/quadtree.rs",
+          "src/__fixtures__/polyglot/py/geo.py",
+          "src/__fixtures__/polyglot/py/geo.py",
+          "src/__fixtures__/polyglot/rs/quadtree.rs",
+          "src/__fixtures__/polyglot/py/geo.py"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 269
+      },
+      "grep": {
+        "top": [
+          "src/__fixtures__/polyglot/rs/quadtree.rs",
+          "src/__fixtures__/polyglot/py/geo.py",
+          "src/__fixtures__/polyglot/go/geohash.go",
+          "src/__fixtures__/polyglot/go/tracker.go",
+          "src/__fixtures__/polyglot/rs/route.rs"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 1471
+      }
+    },
+    {
+      "id": "q-poly-13-km-to-miles",
+      "concept": "konwersja kilometrów na mile",
+      "query": "convert kilometers to miles",
+      "segment": "polyglot",
+      "expectedFiles": [
+        "src/__fixtures__/polyglot/rs/units.rs"
+      ],
+      "rag": {
+        "top": [
+          "src/__fixtures__/polyglot/rs/units.rs",
+          "src/__fixtures__/polyglot/py/geo.py",
+          "src/__fixtures__/polyglot/py/geofence.py",
+          "src/__fixtures__/polyglot/py/geo.py",
+          "src/__fixtures__/polyglot/py/geo.py"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 278
+      },
+      "grep": {
+        "top": [
+          "src/__fixtures__/polyglot/rs/units.rs"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 144
+      }
+    }
+  ]
+}
