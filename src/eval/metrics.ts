@@ -41,6 +41,49 @@ export function evaluate(ordered: readonly string[], expected: readonly string[]
   };
 }
 
+/** A ranked search hit reduced to what symbol-level scoring needs. */
+export type RankedChunk = { repoPath: string; symbol: string | undefined };
+
+/**
+ * Does a retrieved chunk's symbol satisfy an expected symbol? True when:
+ *  - they are equal, or
+ *  - the chunk is the **container** of the expected member (`Class` vs `Class.method`), or
+ *  - the chunk is a **member** of the expected container (`Class.method` vs `Class`).
+ * Tree-sitter emits overlapping class + method chunks; retrieving the containing
+ * class for a method query (or vice versa) still surfaces the right code region, so
+ * it counts. Sibling members (`Class.a` vs `Class.b`) do NOT match.
+ */
+function symbolSatisfies(chunkSymbol: string, expected: string): boolean {
+  return chunkSymbol === expected
+    || expected.startsWith(`${chunkSymbol}.`)
+    || chunkSymbol.startsWith(`${expected}.`);
+}
+
+/**
+ * Symbol-level outcome (TASK-027): the 1-based rank of the first top-k chunk that
+ * lies in an **expected file** AND whose `symbol` satisfies one of the **expected
+ * symbols** (container-aware, see {@link symbolSatisfies}). Stricter than
+ * {@link evaluate} — it asks "did we retrieve the right *symbol/region*, not merely
+ * the right file". The precision the file-level score is blind to.
+ */
+export function evaluateSymbol(
+  ordered: readonly RankedChunk[],
+  expectedFiles: readonly string[],
+  expectedSymbols: readonly string[],
+  k: number,
+): Outcome {
+  const files = new Set(expectedFiles);
+  const top = ordered.slice(0, k);
+  for (let i = 0; i < top.length; i++) {
+    const c = top[i];
+    if (c && c.symbol !== undefined && files.has(c.repoPath)
+      && expectedSymbols.some((exp) => symbolSatisfies(c.symbol as string, exp))) {
+      return { hit: true, position: i + 1, reciprocalRank: 1 / (i + 1) };
+    }
+  }
+  return { hit: false, position: null, reciprocalRank: 0 };
+}
+
 export type Aggregate = { count: number; hits: number; hitRate: number; mrr: number };
 
 /** Aggregate per-query outcomes into hit-rate and mean reciprocal rank. */

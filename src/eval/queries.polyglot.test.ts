@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadQuerySet } from './queries.js';
@@ -41,5 +41,24 @@ describe('queries.polyglot.json (Phase-5 polyglot acceptance set)', () => {
   it('declares a ground-truth status (PROPOSED until PO-validated)', () => {
     expect(typeof set.groundTruthStatus).toBe('string');
     expect(set.groundTruthStatus.length).toBeGreaterThan(0);
+  });
+
+  // TASK-027: symbol-level ground truth.
+  it('every query carries expectedSymbols', () => {
+    for (const q of set.queries) {
+      expect(q.expectedSymbols, q.id).toBeDefined();
+      expect(q.expectedSymbols!.length, q.id).toBeGreaterThan(0);
+    }
+  });
+
+  it('each expectedSymbol base name appears in its expected file (anti-typo)', () => {
+    for (const q of set.queries) {
+      const sources = q.expectedFiles.map((f) => readFileSync(resolve(ragMcpDir, f), 'utf8'));
+      for (const sym of q.expectedSymbols ?? []) {
+        const base = sym.split('.').pop()!; // `Class.method` → `method`; bare name unchanged
+        const found = sources.some((src) => src.includes(base));
+        expect(found, `${q.id} → ${sym} (base "${base}") not found in ${q.expectedFiles.join(', ')}`).toBe(true);
+      }
+    }
   });
 });

@@ -3,10 +3,12 @@ import {
   toRepoPath,
   firstHitPosition,
   evaluate,
+  evaluateSymbol,
   aggregate,
   extractKeywords,
   estimateTokens,
   type Outcome,
+  type RankedChunk,
 } from './metrics.js';
 
 describe('toRepoPath', () => {
@@ -41,6 +43,60 @@ describe('evaluate', () => {
     // target is at rank 6 but k=5 → miss
     const ordered = ['a', 'b', 'c', 'd', 'e', 'target'];
     expect(evaluate(ordered, ['target'], 5)).toEqual({ hit: false, position: null, reciprocalRank: 0 });
+  });
+});
+
+describe('evaluateSymbol', () => {
+  const rc = (repoPath: string, symbol: string | undefined): RankedChunk => ({ repoPath, symbol });
+
+  it('hits only when both file AND symbol match, at the right rank', () => {
+    const ordered = [
+      rc('other.ts', 'foo'),            // wrong file
+      rc('target.ts', 'wrongSymbol'),   // right file, wrong symbol
+      rc('target.ts', 'Calc.add'),      // right file + right symbol → hit at #3
+    ];
+    expect(evaluateSymbol(ordered, ['target.ts'], ['Calc.add'], 5))
+      .toEqual({ hit: true, position: 3, reciprocalRank: 1 / 3 });
+  });
+
+  it('does not hit on the right symbol in the wrong file', () => {
+    const ordered = [rc('other.ts', 'Calc.add')];
+    expect(evaluateSymbol(ordered, ['target.ts'], ['Calc.add'], 5))
+      .toEqual({ hit: false, position: null, reciprocalRank: 0 });
+  });
+
+  it('does not hit on the right file with a missing/undefined symbol (line-chunker case)', () => {
+    const ordered = [rc('target.ts', undefined), rc('target.ts', undefined)];
+    expect(evaluateSymbol(ordered, ['target.ts'], ['Calc.add'], 5).hit).toBe(false);
+  });
+
+  it('respects the k cutoff', () => {
+    const ordered = [
+      rc('x', 'a'), rc('x', 'b'), rc('x', 'c'), rc('x', 'd'), rc('x', 'e'),
+      rc('target.ts', 'Calc.add'), // rank 6, beyond k=5
+    ];
+    expect(evaluateSymbol(ordered, ['target.ts'], ['Calc.add'], 5).hit).toBe(false);
+  });
+
+  it('accepts any of several expected symbols', () => {
+    const ordered = [rc('target.ts', 'Calc.zero')];
+    expect(evaluateSymbol(ordered, ['target.ts'], ['Calc.add', 'Calc.zero'], 5).position).toBe(1);
+  });
+
+  it('a container class chunk satisfies a query for one of its methods', () => {
+    // expected the method, search returned the whole class (which contains it) → right region
+    const ordered = [rc('target.ts', 'Calc')];
+    expect(evaluateSymbol(ordered, ['target.ts'], ['Calc.add'], 5).position).toBe(1);
+  });
+
+  it('a member chunk satisfies a query for its container', () => {
+    const ordered = [rc('target.ts', 'TokenBucket.allow')];
+    expect(evaluateSymbol(ordered, ['target.ts'], ['TokenBucket'], 5).position).toBe(1);
+  });
+
+  it('a sibling method does NOT satisfy (wrong symbol, same class)', () => {
+    const ordered = [rc('target.ts', 'Calc.zero')];
+    expect(evaluateSymbol(ordered, ['target.ts'], ['Calc.add'], 5).hit).toBe(false);
   });
 });
 

@@ -32,6 +32,20 @@ describe('parseQuerySet', () => {
     const bad = { ...valid, queries: [valid.queries[0], valid.queries[0]] };
     expect(() => parseQuerySet(bad)).toThrow(/duplicate id/);
   });
+
+  it('accepts optional expectedSymbols (TASK-027)', () => {
+    const withSym = { ...valid, queries: [{ ...valid.queries[0], expectedSymbols: ['Foo.bar'] }] };
+    expect(parseQuerySet(withSym).queries[0]!.expectedSymbols).toEqual(['Foo.bar']);
+  });
+
+  it('leaves expectedSymbols undefined when absent (backward-compatible)', () => {
+    expect(parseQuerySet(valid).queries[0]!.expectedSymbols).toBeUndefined();
+  });
+
+  it('rejects an empty expectedSymbols array when the field is present', () => {
+    const bad = { ...valid, queries: [{ ...valid.queries[0], expectedSymbols: [] }] };
+    expect(() => parseQuerySet(bad)).toThrow(/expectedSymbols/);
+  });
 });
 
 describe('queries.json (acceptance set)', () => {
