@@ -24,6 +24,7 @@ export const GRAMMAR_SPECS: Readonly<Record<string, GrammarSpec>> = {
   tsx:        { pkg: 'tree-sitter-typescript', wasm: 'tree-sitter-tsx.wasm' },
   go:         { pkg: 'tree-sitter-go',         wasm: 'tree-sitter-go.wasm' },
   rust:       { pkg: 'tree-sitter-rust',       wasm: 'tree-sitter-rust.wasm' },
+  java:       { pkg: 'tree-sitter-java',       wasm: 'tree-sitter-java.wasm' },
 };
 
 export function grammarCacheDir(): string {
