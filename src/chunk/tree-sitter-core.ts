@@ -9,7 +9,7 @@ import { Parser } from 'web-tree-sitter';
 import type { RagChunkConfig } from '../config.js';
 import type { WalkedFile } from '../walker.js';
 import { createChunk } from './chunk-factory.js';
-import { chunkLines, windowTrimmedSpan } from './line-chunker.js';
+import { chunkLines, estimateTokens, windowLineRanges, windowTrimmedSpan } from './line-chunker.js';
 import type { Chunk, ChunkKind } from './types.js';
 
 export type LineRange = { start: number; end: number };
@@ -50,6 +50,7 @@ export type EmitCtx = {
   commentPrefixes: readonly string[];
   chunks: Chunk[];
   topLevelRanges: LineRange[];
+  config: RagChunkConfig;
 };
 
 /** A per-language top-level walk: classify named children and emit chunks. */
@@ -79,9 +80,64 @@ function withLeadingComments(
 }
 
 /**
+ * Split an oversized symbol into disjoint sub-windows, each with the signature
+ * line prepended. Mirrors the markdown chunker's heading-repeat pattern.
+ *
+ * `symbolLines[0]` is the signature anchor: `withLeadingComments` never returns
+ * a start on a blank line, so the first element is always the first non-empty
+ * line of the symbol (the declaration, or the leading comment if one was pulled
+ * in). The body (everything after line 0) is windowed with overlap=0 to keep
+ * ranges disjoint — a requirement for stable incremental reindex IDs.
+ */
+function emitWindowedSymbol(
+  symbolLines: string[],
+  baseLine: number,
+  kind: ChunkKind,
+  symbol: string | undefined,
+  ctx: EmitCtx,
+): void {
+  const signatureLine = symbolLines[0] ?? '';
+  const bodyLines = symbolLines.slice(1);
+
+  // No body to split — emit as-is even if it exceeds maxTokens.
+  if (bodyLines.length === 0) {
+    ctx.chunks.push(createChunk({
+      file: ctx.file,
+      fileHash: ctx.fileHash,
+      startLine: baseLine,
+      endLine: baseLine,
+      text: signatureLine,
+      kind,
+      symbol,
+    }));
+    return;
+  }
+
+  const sigTokens = estimateTokens(signatureLine + '\n');
+  const budget = Math.max(1, ctx.config.maxTokens - sigTokens);
+  const bodyBase = baseLine + 1; // 1-based line number of bodyLines[0]
+
+  for (const { startIdx, endIdx } of windowLineRanges(bodyLines, budget, 0)) {
+    ctx.chunks.push(createChunk({
+      file: ctx.file,
+      fileHash: ctx.fileHash,
+      startLine: bodyBase + startIdx,
+      endLine: bodyBase + endIdx - 1,
+      text: `${signatureLine}\n${bodyLines.slice(startIdx, endIdx).join('\n')}`,
+      kind,
+      symbol,
+    }));
+  }
+}
+
+/**
  * Emit one chunk for a node. `spanNode` defines the line span (1-based, inclusive,
  * extended upward over leading comments); `kind`/`symbol` classify it. Top-level
  * symbols record their range so gap filling can cover the loose code between them.
+ *
+ * When the symbol's text exceeds `config.maxTokens`, it is split into disjoint
+ * sub-windows via `emitWindowedSymbol` (TASK-028) so no tokens are silently
+ * truncated. Symbols that fit are emitted as a single chunk (parity with before).
  */
 export function emit(
   spanNode: SyntaxNode,
@@ -92,15 +148,22 @@ export function emit(
 ): void {
   const end = spanNode.endPosition.row + 1; // tree-sitter rows are 0-based
   const start = withLeadingComments(spanNode.startPosition.row + 1, ctx.lines, ctx.commentPrefixes);
-  ctx.chunks.push(createChunk({
-    file: ctx.file,
-    fileHash: ctx.fileHash,
-    startLine: start,
-    endLine: end,
-    text: ctx.lines.slice(start - 1, end).join('\n'),
-    kind,
-    symbol,
-  }));
+  const symbolLines = ctx.lines.slice(start - 1, end) as string[];
+  const text = symbolLines.join('\n');
+
+  if (estimateTokens(text) > ctx.config.maxTokens) {
+    emitWindowedSymbol(symbolLines, start, kind, symbol, ctx);
+  } else {
+    ctx.chunks.push(createChunk({
+      file: ctx.file,
+      fileHash: ctx.fileHash,
+      startLine: start,
+      endLine: end,
+      text,
+      kind,
+      symbol,
+    }));
+  }
   if (countAsTopLevel) ctx.topLevelRanges.push({ start, end });
 }
 
@@ -145,7 +208,7 @@ export async function runTreeSitterChunk(opts: RunChunkOptions): Promise<Chunk[]
     if (!tree) return chunkLines(text, file, config, fileHash);
 
     const lines = text.split('\n');
-    const ctx: EmitCtx = { lines, file, fileHash, commentPrefixes, chunks: [], topLevelRanges: [] };
+    const ctx: EmitCtx = { lines, file, fileHash, commentPrefixes, config, chunks: [], topLevelRanges: [] };
     walk(tree.rootNode, ctx);
 
     // Module-level loose code → block chunks filling the gaps between top-level
