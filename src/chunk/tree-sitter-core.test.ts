@@ -98,6 +98,53 @@ describe('emit windowing — oversized symbol', () => {
   });
 });
 
+// ── Anchor fix: oversized symbol WITH a leading comment (TASK-028 regression) ──
+
+describe('emit windowing — declaration is the anchor, not the leading comment', () => {
+  it('every sub-window contains the declaration line def documented(y):', async () => {
+    const text = readFileSync(join(FIXTURES, 'oversized.py'), 'utf-8');
+    const chunks = await chunkTreeSitter(text, makePy(), TIGHT, sha1(text));
+
+    const docChunks = chunks.filter((c) => c.symbol === 'documented');
+    expect(docChunks.length).toBeGreaterThanOrEqual(2);
+    // The bug: a leading comment made `/**`/`#` the anchor, so later windows
+    // never mentioned the symbol. The declaration must appear in EVERY window.
+    for (const c of docChunks) {
+      expect(c.text).toContain('def documented(y):');
+    }
+  });
+
+  it('windows after the first start with the declaration (anchor prepended)', async () => {
+    const text = readFileSync(join(FIXTURES, 'oversized.py'), 'utf-8');
+    const chunks = await chunkTreeSitter(text, makePy(), TIGHT, sha1(text));
+
+    const docChunks = chunks.filter((c) => c.symbol === 'documented').sort((a, b) => a.startLine - b.startLine);
+    for (const c of docChunks.slice(1)) {
+      expect(c.text).toMatch(/^def documented\(y\):/);
+    }
+  });
+
+  it('the leading comment is preserved in the first window only', async () => {
+    const text = readFileSync(join(FIXTURES, 'oversized.py'), 'utf-8');
+    const chunks = await chunkTreeSitter(text, makePy(), TIGHT, sha1(text));
+
+    const docChunks = chunks.filter((c) => c.symbol === 'documented').sort((a, b) => a.startLine - b.startLine);
+    const withComment = docChunks.filter((c) => c.text.includes('# A documented oversized function'));
+    expect(withComment).toHaveLength(1);
+    expect(withComment[0]).toBe(docChunks[0]); // it is the first window
+  });
+
+  it('documented windows are disjoint and cover the whole symbol body', async () => {
+    const text = readFileSync(join(FIXTURES, 'oversized.py'), 'utf-8');
+    const chunks = await chunkTreeSitter(text, makePy(), TIGHT, sha1(text));
+
+    const sorted = chunks.filter((c) => c.symbol === 'documented').sort((a, b) => a.startLine - b.startLine);
+    for (let i = 1; i < sorted.length; i++) {
+      expect(sorted[i]!.startLine).toBe(sorted[i - 1]!.endLine + 1); // adjacent + disjoint
+    }
+  });
+});
+
 // ── Parity: small symbol and default budget ───────────────────────────────────
 
 describe('emit windowing — parity for small symbols', () => {

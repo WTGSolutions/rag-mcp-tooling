@@ -80,54 +80,75 @@ function withLeadingComments(
 }
 
 /**
- * Split an oversized symbol into disjoint sub-windows, each with the signature
- * line prepended. Mirrors the markdown chunker's heading-repeat pattern.
+ * Split an oversized symbol into disjoint sub-windows, each anchored by the
+ * symbol's **declaration** line (e.g. `def foo(...)` / `class X {`), mirroring
+ * the markdown chunker's heading-repeat pattern. The declaration — not a leading
+ * comment line — is the anchor, so every window carries the symbol's identity
+ * even when it has a leading docstring/JSDoc (the common case for large, well
+ * documented symbols). Leading comments ride along in the first window only.
+ * The body (lines after the declaration) is windowed with overlap=0 so ranges
+ * are disjoint and adjacent — a requirement for stable incremental reindex IDs.
  *
- * `symbolLines[0]` is the signature anchor: `withLeadingComments` never returns
- * a start on a blank line, so the first element is always the first non-empty
- * line of the symbol (the declaration, or the leading comment if one was pulled
- * in). The body (everything after line 0) is windowed with overlap=0 to keep
- * ranges disjoint — a requirement for stable incremental reindex IDs.
+ * @param start    1-based first line of the span (a leading comment, if any).
+ * @param declLine 1-based declaration line — the repeated anchor.
+ * @param end      1-based last line of the symbol (inclusive).
  */
 function emitWindowedSymbol(
-  symbolLines: string[],
-  baseLine: number,
+  start: number,
+  declLine: number,
+  end: number,
   kind: ChunkKind,
   symbol: string | undefined,
   ctx: EmitCtx,
 ): void {
-  const signatureLine = symbolLines[0] ?? '';
-  const bodyLines = symbolLines.slice(1);
+  const { lines } = ctx;
+  const signatureLine = lines[declLine - 1] ?? '';
+  const leading = lines.slice(start - 1, declLine - 1); // comment lines above the declaration (maybe empty)
+  const bodyLines = lines.slice(declLine, end);          // lines after the declaration (1-based declLine+1..end)
 
-  // No body to split — emit as-is even if it exceeds maxTokens.
+  // Declaration with no body (rare: a giant single-line signature) — one chunk.
   if (bodyLines.length === 0) {
     ctx.chunks.push(createChunk({
       file: ctx.file,
       fileHash: ctx.fileHash,
-      startLine: baseLine,
-      endLine: baseLine,
-      text: signatureLine,
+      startLine: start,
+      endLine: end,
+      text: [...leading, signatureLine].join('\n'),
       kind,
       symbol,
     }));
     return;
   }
 
-  const sigTokens = estimateTokens(signatureLine + '\n');
-  const budget = Math.max(1, ctx.config.maxTokens - sigTokens);
-  const bodyBase = baseLine + 1; // 1-based line number of bodyLines[0]
+  const budget = Math.max(1, ctx.config.maxTokens - estimateTokens(signatureLine + '\n'));
+  const bodyBase = declLine + 1; // 1-based line number of bodyLines[0]
 
-  for (const { startIdx, endIdx } of windowLineRanges(bodyLines, budget, 0)) {
-    ctx.chunks.push(createChunk({
-      file: ctx.file,
-      fileHash: ctx.fileHash,
-      startLine: bodyBase + startIdx,
-      endLine: bodyBase + endIdx - 1,
-      text: `${signatureLine}\n${bodyLines.slice(startIdx, endIdx).join('\n')}`,
-      kind,
-      symbol,
-    }));
-  }
+  windowLineRanges(bodyLines as string[], budget, 0).forEach(({ startIdx, endIdx }, w) => {
+    const slice = bodyLines.slice(startIdx, endIdx).join('\n');
+    if (w === 0) {
+      // First window: leading comments + declaration + first body slice, contiguous.
+      ctx.chunks.push(createChunk({
+        file: ctx.file,
+        fileHash: ctx.fileHash,
+        startLine: start,
+        endLine: bodyBase + endIdx - 1,
+        text: [...leading, signatureLine, slice].join('\n'),
+        kind,
+        symbol,
+      }));
+    } else {
+      // Later windows: repeat the declaration as a context anchor (text only).
+      ctx.chunks.push(createChunk({
+        file: ctx.file,
+        fileHash: ctx.fileHash,
+        startLine: bodyBase + startIdx,
+        endLine: bodyBase + endIdx - 1,
+        text: `${signatureLine}\n${slice}`,
+        kind,
+        symbol,
+      }));
+    }
+  });
 }
 
 /**
@@ -146,13 +167,13 @@ export function emit(
   ctx: EmitCtx,
   countAsTopLevel: boolean,
 ): void {
-  const end = spanNode.endPosition.row + 1; // tree-sitter rows are 0-based
-  const start = withLeadingComments(spanNode.startPosition.row + 1, ctx.lines, ctx.commentPrefixes);
-  const symbolLines = ctx.lines.slice(start - 1, end) as string[];
-  const text = symbolLines.join('\n');
+  const end = spanNode.endPosition.row + 1;        // tree-sitter rows are 0-based
+  const declLine = spanNode.startPosition.row + 1; // the declaration line, before leading comments
+  const start = withLeadingComments(declLine, ctx.lines, ctx.commentPrefixes);
+  const text = ctx.lines.slice(start - 1, end).join('\n');
 
   if (estimateTokens(text) > ctx.config.maxTokens) {
-    emitWindowedSymbol(symbolLines, start, kind, symbol, ctx);
+    emitWindowedSymbol(start, declLine, end, kind, symbol, ctx);
   } else {
     ctx.chunks.push(createChunk({
       file: ctx.file,
