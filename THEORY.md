@@ -204,6 +204,7 @@ chunks decides retrieval quality:
 | `*.py` | AST (tree-sitter) | function / class / method |
 | `*.go` | AST (tree-sitter) | function / method (`Recv.m`) / type / interface |
 | `*.rs` | AST (tree-sitter) | function / type (struct/enum) / interface (trait) / method (`Type.m` in impl) |
+| `*.java` | AST (tree-sitter) | class / method (`Class.m`) / interface / type (enum) |
 | `*.md` | headings | section under `#` / `##` (code fences respected) |
 | other text | line window + overlap | N lines with overlap |
 

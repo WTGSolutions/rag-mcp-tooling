@@ -12,6 +12,13 @@ export type EvalQuery = {
   query: string;
   segment: string;
   expectedFiles: string[];
+  /**
+   * Optional symbol-level ground truth (TASK-027): the symbol(s) that answer the
+   * query inside an expected file (e.g. `DynamoDBStorage.queryPaginated`). When
+   * present, the harness also scores symbol-level retrieval. Absent → file-level
+   * only (backward-compatible).
+   */
+  expectedSymbols?: string[];
 };
 
 export type QuerySet = {
@@ -55,12 +62,25 @@ export function parseQuerySet(raw: unknown): QuerySet {
       asNonEmptyString(f, `${where}.expectedFiles[${j}]`),
     );
 
+    // Optional symbol-level ground truth (TASK-027). When present it must be a
+    // non-empty array of non-empty strings; absent leaves the query file-level only.
+    let expectedSymbols: string[] | undefined;
+    if (e['expectedSymbols'] !== undefined) {
+      if (!Array.isArray(e['expectedSymbols']) || e['expectedSymbols'].length === 0) {
+        throw new Error(`[rag-mcp] queries: ${where}.expectedSymbols must be a non-empty array when present`);
+      }
+      expectedSymbols = e['expectedSymbols'].map((s, j) =>
+        asNonEmptyString(s, `${where}.expectedSymbols[${j}]`),
+      );
+    }
+
     return {
       id,
       concept: asNonEmptyString(e['concept'], `${where}.concept`),
       query: asNonEmptyString(e['query'], `${where}.query`),
       segment: asNonEmptyString(e['segment'], `${where}.segment`),
       expectedFiles,
+      ...(expectedSymbols ? { expectedSymbols } : {}),
     };
   });
 

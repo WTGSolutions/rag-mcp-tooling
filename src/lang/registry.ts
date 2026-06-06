@@ -11,6 +11,7 @@ import { pythonWalk, PYTHON_COMMENT_PREFIXES } from '../chunk/walks/python.js';
 import { typescriptWalk, TS_COMMENT_PREFIXES } from '../chunk/walks/typescript.js';
 import { goWalk, GO_COMMENT_PREFIXES } from '../chunk/walks/go.js';
 import { rustWalk, RUST_COMMENT_PREFIXES } from '../chunk/walks/rust.js';
+import { javaWalk, JAVA_COMMENT_PREFIXES } from '../chunk/walks/java.js';
 
 export type LangEntry = {
   /** Lowercase file extensions (with leading dot) that map to this language. */
@@ -61,6 +62,12 @@ export const TREE_SITTER_LANGS = {
     commentPrefixes: RUST_COMMENT_PREFIXES,
     walk: rustWalk,
     grammarFor: () => 'rust',
+  },
+  java: {
+    extensions: ['.java'],
+    commentPrefixes: JAVA_COMMENT_PREFIXES,
+    walk: javaWalk,
+    grammarFor: () => 'java',
   },
 } as const satisfies Record<string, LangEntry>;
 

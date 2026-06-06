@@ -28,9 +28,10 @@ describe('EXT_TO_LANGUAGE', () => {
     expect(EXT_TO_LANGUAGE['.pyw']).toBe('python');
   });
 
-  it('maps Go and Rust extensions', () => {
+  it('maps Go, Rust and Java extensions', () => {
     expect(EXT_TO_LANGUAGE['.go']).toBe('go');
     expect(EXT_TO_LANGUAGE['.rs']).toBe('rust');
+    expect(EXT_TO_LANGUAGE['.java']).toBe('java');
   });
 
   it('returns undefined for unknown extensions', () => {
@@ -41,12 +42,10 @@ describe('EXT_TO_LANGUAGE', () => {
 });
 
 describe('TREE_SITTER_LANGS registry', () => {
-  it('contains python, typescript, javascript, go and rust entries', () => {
-    expect('python' in TREE_SITTER_LANGS).toBe(true);
-    expect('typescript' in TREE_SITTER_LANGS).toBe(true);
-    expect('javascript' in TREE_SITTER_LANGS).toBe(true);
-    expect('go' in TREE_SITTER_LANGS).toBe(true);
-    expect('rust' in TREE_SITTER_LANGS).toBe(true);
+  it('contains python, typescript, javascript, go, rust and java entries', () => {
+    for (const lang of ['python', 'typescript', 'javascript', 'go', 'rust', 'java']) {
+      expect(lang in TREE_SITTER_LANGS).toBe(true);
+    }
   });
 
   it('every entry carries the data the generic chunker needs (walk, prefixes, grammarFor)', () => {
