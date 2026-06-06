@@ -42,7 +42,7 @@ and tested.
 | Incremental reindex (file-hash change detection) | ✅ |
 | `rag-index` CLI + auto-reindex git hooks | ✅ |
 | MCP server (`search_codebase`, `get_chunk`, `index_status`, `reindex`) | ✅ |
-| Eval harness (hit@5 / MRR, anti-bias ground truth) + usage logging | ✅ |
+| Eval harness (file + symbol-level hit@5 / MRR, anti-bias ground truth) + usage logging | ✅ |
 
 Acceptance: a full index of GuideTrackee (`web` + `mobile` + `wiki` + `tools`)
 processes **~1,150 files → ~5,500 chunks** offline with no errors; the PO-validated
@@ -112,9 +112,12 @@ download the tool works with no network — verify with
 `HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1`. Override the location with the
 `RAG_MODEL_CACHE` env var (useful in CI or sandboxes).
 
-> Inputs longer than the model's 512-token limit are silently truncated. Very
-> large chunks (e.g. a big class) embed only their first 512 tokens; method-level
-> chunks mitigate this for code.
+> The model has a hard 512-token input limit. Every chunker keeps chunks within
+> `chunk.maxTokens` (default 512): the line and markdown chunkers window by
+> budget, and oversized AST symbols are split into sub-windows that repeat the
+> symbol signature (TASK-028) instead of being truncated. Chunk size is
+> *estimated* (`chars/4`), so a window can still occasionally graze the model's
+> exact tokenizer count.
 
 ## Usage — indexing
 
@@ -445,39 +448,38 @@ The log is in `.rag/` which is already gitignored. Reset it by deleting
 
 **Known limitations (honest scope).**
 
-- **The eval metric is file-level.** `hit@5` / `MRR` score whether the right
-  *file* is retrieved, not the right *symbol*. AST chunking's main payoff —
-  precise, token-lean chunks (the Phase-5 polyglot gate returned the *same* files
-  in **~30% fewer tokens** than the line-chunker) — is largely invisible here, and
-  on tiny files the line-chunker is competitive (it even edges MRR).
-- **Oversized symbols are truncated.** A symbol whose chunk exceeds the model's
-  512-token window is embedded from its first 512 tokens only; there is no
-  sub-splitting of a very large function/class.
+- **Symbol-level ground truth is partial.** A symbol-level metric exists
+  (`evaluateSymbol`, TASK-027) and the polyglot set carries `expectedSymbols`,
+  but the 50-query acceptance set is still file-level (`hit@5`/`MRR` on files).
+  A firmer multi-language verdict needs symbol GT on a larger corpus.
+- **Symbol windowing is not yet eval-validated at scale.** Oversized AST symbols
+  are now sub-windowed rather than truncated (TASK-028), but every current
+  fixture fits in a single window, so the large multi-chunk regime — where
+  windowing matters most — is still under-tested.
 - **English-centric embedder.** `bge-small-en` is trained on English; heavily
   non-English identifiers/comments may retrieve worse (not stress-tested).
 - **Brute-force kNN.** `sqlite-vec` scans all vectors per query — excellent at
   repo scale, unproven on very large (100k-file) monorepos.
 
+**Recently addressed.** Oversized-symbol windowing (TASK-028) and a symbol-level
+eval metric (TASK-027) — formerly the top two directions — are implemented and
+measured; see [`eval/phase6-report.md`](eval/phase6-report.md) (tree-sitter 100%
+vs line 0% at symbol level, reconciling the Phase-5 file-level tie).
+
 **Directions, roughly in value order.**
 
-1. **Oversized-symbol windowing** — when one AST chunk exceeds the token budget,
-   sub-window it (repeating the symbol signature, like the markdown chunker)
-   instead of silently truncating.
-2. **Symbol-level eval metric** — score whether the *answering symbol* (not just
-   its file) lands in the top-k. This surfaces the precision benefit the
-   file-level gate cannot, and would give a firmer multi-language verdict.
-3. **More languages — pure data.** A language is a walk module + two registry
+1. **More languages — pure data.** A language is a walk module + two registry
    entries (proven across Python/Go/Rust/Java; the core never changes). Natural
    next: C#, C/C++, Ruby, PHP, Kotlin, Swift; config formats (YAML/JSON) for infra.
-4. **Hybrid retrieval** — fuse semantic kNN with a lexical signal; the eval
+2. **Hybrid retrieval** — fuse semantic kNN with a lexical signal; the eval
    harness already carries a `grep` baseline to measure any lift.
-5. **Optional reranking** — a small cross-encoder over the top-K to sharpen
+3. **Optional reranking** — a small cross-encoder over the top-K to sharpen
    ambiguous queries; adopt only behind an eval win (kept out so far by design).
-6. **Code- / multilingual embedder** — revisit a code-specialized or multilingual
+4. **Code- / multilingual embedder** — revisit a code-specialized or multilingual
    model if a non-English or very large repo shows embedder-attributable misses.
-7. **Scale & sharing** — benchmark very large monorepos (ANN tuning, per-segment
+5. **Scale & sharing** — benchmark very large monorepos (ANN tuning, per-segment
    stores) and a shared / CI-built index cache so developers don't each rebuild.
-8. **Richer chunk metadata** — surface imports, callers and doc links via
+6. **Richer chunk metadata** — surface imports, callers and doc links via
    `get_chunk` to give the agent structured context beyond raw text.
 
 ## Development
