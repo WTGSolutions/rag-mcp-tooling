@@ -28,8 +28,9 @@ The embedding model only **finds** relevant chunks; the agent then reads the
 
 ## Status
 
-**Phase 1 (indexing pipeline) is complete and tested.** The `rag-index` CLI
-builds a searchable vector store from any repo.
+**Complete and in use.** Indexing, the MCP server, the eval harness, auto-reindex
+git hooks, usage logging, and multi-language (tree-sitter) chunking are all built
+and tested.
 
 | Component | Status |
 |---|---|
@@ -39,12 +40,13 @@ builds a searchable vector store from any repo.
 | Local embedder (transformers.js, offline) | ✅ |
 | Vector store (SQLite + sqlite-vec, kNN) | ✅ |
 | Incremental reindex (file-hash change detection) | ✅ |
-| `rag-index` CLI | ✅ |
-| MCP server (`search_codebase`, …) | ⏳ Phase 2 (TASK-010–014) |
+| `rag-index` CLI + auto-reindex git hooks | ✅ |
+| MCP server (`search_codebase`, `get_chunk`, `index_status`, `reindex`) | ✅ |
+| Eval harness (hit@5 / MRR, anti-bias ground truth) + usage logging | ✅ |
 
-Acceptance: a full index of GuideTrackee (`web` + `mobile` + `wiki`) processes
-**1,249 files → 5,713 chunks** with no errors. Querying is Phase 2 (MCP server);
-the index it produces is already on disk and ready for it.
+Acceptance: a full index of GuideTrackee (`web` + `mobile` + `wiki` + `tools`)
+processes **~1,150 files → ~5,500 chunks** offline with no errors; the PO-validated
+50-query acceptance set scores **hit@5 84% / MRR 0.69** with `bge-small-en`.
 
 ## Install & build
 
@@ -438,6 +440,45 @@ frequently digs deeper after finding relevant hits.
 
 The log is in `.rag/` which is already gitignored. Reset it by deleting
 `.rag/usage.jsonl`.
+
+## Limitations & future directions
+
+**Known limitations (honest scope).**
+
+- **The eval metric is file-level.** `hit@5` / `MRR` score whether the right
+  *file* is retrieved, not the right *symbol*. AST chunking's main payoff —
+  precise, token-lean chunks (the Phase-5 polyglot gate returned the *same* files
+  in **~30% fewer tokens** than the line-chunker) — is largely invisible here, and
+  on tiny files the line-chunker is competitive (it even edges MRR).
+- **Oversized symbols are truncated.** A symbol whose chunk exceeds the model's
+  512-token window is embedded from its first 512 tokens only; there is no
+  sub-splitting of a very large function/class.
+- **English-centric embedder.** `bge-small-en` is trained on English; heavily
+  non-English identifiers/comments may retrieve worse (not stress-tested).
+- **Brute-force kNN.** `sqlite-vec` scans all vectors per query — excellent at
+  repo scale, unproven on very large (100k-file) monorepos.
+
+**Directions, roughly in value order.**
+
+1. **Oversized-symbol windowing** — when one AST chunk exceeds the token budget,
+   sub-window it (repeating the symbol signature, like the markdown chunker)
+   instead of silently truncating.
+2. **Symbol-level eval metric** — score whether the *answering symbol* (not just
+   its file) lands in the top-k. This surfaces the precision benefit the
+   file-level gate cannot, and would give a firmer multi-language verdict.
+3. **More languages — pure data.** A language is a walk module + two registry
+   entries (proven across Python/Go/Rust/Java; the core never changes). Natural
+   next: C#, C/C++, Ruby, PHP, Kotlin, Swift; config formats (YAML/JSON) for infra.
+4. **Hybrid retrieval** — fuse semantic kNN with a lexical signal; the eval
+   harness already carries a `grep` baseline to measure any lift.
+5. **Optional reranking** — a small cross-encoder over the top-K to sharpen
+   ambiguous queries; adopt only behind an eval win (kept out so far by design).
+6. **Code- / multilingual embedder** — revisit a code-specialized or multilingual
+   model if a non-English or very large repo shows embedder-attributable misses.
+7. **Scale & sharing** — benchmark very large monorepos (ANN tuning, per-segment
+   stores) and a shared / CI-built index cache so developers don't each rebuild.
+8. **Richer chunk metadata** — surface imports, callers and doc links via
+   `get_chunk` to give the agent structured context beyond raw text.
 
 ## Development
 
