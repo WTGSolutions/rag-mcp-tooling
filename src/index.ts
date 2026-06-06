@@ -18,7 +18,7 @@ export { walkSegments, detectLanguage } from './walker.js';
 export type { WalkedFile, FileLanguage } from './walker.js';
 
 // ── Chunking ────────────────────────────────────────────────────────────────
-export { dispatchChunker, chunkFile } from './chunk/router.js';
+export { dispatchChunker, dispatchChunkerAsync, chunkFile } from './chunk/router.js';
 export type { Chunk, ChunkKind } from './chunk/types.js';
 
 // ── Embedder ────────────────────────────────────────────────────────────────

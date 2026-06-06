@@ -2,11 +2,18 @@ import { readFile } from 'node:fs/promises';
 import { sha1 } from '../hash.js';
 import type { RagChunkConfig } from '../config.js';
 import type { WalkedFile } from '../walker.js';
-import { chunkAst } from './ast-chunker.js';
+import { TREE_SITTER_LANGS } from '../lang/registry.js';
 import { chunkLines } from './line-chunker.js';
 import { chunkMarkdown } from './markdown-chunker.js';
+import { chunkTreeSitter } from './tree-sitter.js';
 import type { Chunk } from './types.js';
 
+/**
+ * Synchronous chunkers only: Markdown and the line-chunker default. All semantic
+ * code chunking (TS/JS and Python) is async via tree-sitter — callers that may
+ * encounter code files MUST use dispatchChunkerAsync; using this directly
+ * silently line-chunks them.
+ */
 export function dispatchChunker(
   text: string,
   file: WalkedFile,
@@ -14,14 +21,29 @@ export function dispatchChunker(
   fileHash: string,
 ): Chunk[] {
   switch (file.language) {
-    case 'typescript':
-    case 'javascript':
-      return chunkAst(text, file, config, fileHash);
     case 'markdown':
       return chunkMarkdown(text, file, config, fileHash);
     default:
       return chunkLines(text, file, config, fileHash);
   }
+}
+
+/**
+ * Full chunk routing. TS/JS and the registry-driven tree-sitter languages (Python,
+ * …) go to their async WASM chunkers; everything else delegates to the synchronous
+ * dispatchChunker. The indexer and chunkFile route through here so code files are
+ * parsed into semantic chunks.
+ */
+export async function dispatchChunkerAsync(
+  text: string,
+  file: WalkedFile,
+  config: RagChunkConfig,
+  fileHash: string,
+): Promise<Chunk[]> {
+  if (file.language in TREE_SITTER_LANGS) {
+    return chunkTreeSitter(text, file, config, fileHash);
+  }
+  return dispatchChunker(text, file, config, fileHash);
 }
 
 export async function chunkFile(file: WalkedFile, config: RagChunkConfig): Promise<Chunk[]> {
@@ -31,6 +53,5 @@ export async function chunkFile(file: WalkedFile, config: RagChunkConfig): Promi
   } catch (e) {
     throw new Error(`Failed to read file for chunking: ${file.absolutePath}`, { cause: e });
   }
-  const fileHash = sha1(text);
-  return dispatchChunker(text, file, config, fileHash);
+  return dispatchChunkerAsync(text, file, config, sha1(text));
 }

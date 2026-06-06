@@ -6,6 +6,11 @@ import { reindex } from './reindex.js';
 import type { ReindexOptions } from './reindex.js';
 import type { RagConfig } from '../config.js';
 import type { Embedder } from '../embedder/types.js';
+import { VectorStore } from '../store/vector-store.js';
+
+// Hermetic grammar cache so a tree-sitter (.py) reindex copies the WASM to a temp
+// dir instead of the user's real ~/.cache. ensureGrammars copies from node_modules.
+process.env['RAG_GRAMMAR_CACHE'] = mkdtempSync(join(tmpdir(), 'rag-reindex-grammars-'));
 
 // ── Test helpers ──────────────────────────────────────────────────────────────
 
@@ -270,5 +275,44 @@ describe('reindex — segment filter', () => {
     await expect(
       reindex(makeOpts({ segment: 'nonexistent' })),
     ).rejects.toThrow('nonexistent');
+  });
+});
+
+describe('reindex — python (tree-sitter)', () => {
+  // End-to-end guard: the real indexing pipeline must route .py through the
+  // tree-sitter chunker. If it falls back to the line chunker (the bug), the
+  // store holds only kind='block' chunks and these assertions fail.
+  it('indexes a .py file as semantic chunks reaching the store', async () => {
+    // Arrange — a .py file with a function, a class, and a method
+    write('src/sample.py', [
+      'def greet(name):',
+      '    return f"Hi {name}"',
+      '',
+      'class Dog:',
+      '    def speak(self):',
+      '        return "Woof"',
+      '',
+    ].join('\n'));
+    const config = makeConfig();
+    config.segments = [{ name: 'src', root: join(repoDir, 'src'), include: ['**/*.py'] }];
+    const embedder = fakeEmbedder();
+
+    // Act
+    const result = await reindex({ config, embedder, mode: 'full', cwd: '/' });
+
+    // Assert — the file was indexed and the store holds semantic units
+    expect(result.added).toBe(1);
+
+    const store = VectorStore.open(config.store.path, DIM, 'fake-model');
+    try {
+      const [queryVector] = await embedder.embed(['probe']);
+      const hits = store.search(queryVector!, 100, { segment: 'src' });
+      const kinds = new Set(hits.map((h) => h.chunk.kind));
+      expect(kinds.has('function')).toBe(true);
+      expect(kinds.has('method')).toBe(true);
+      expect(hits.some((h) => h.chunk.symbol === 'Dog.speak')).toBe(true);
+    } finally {
+      store.close();
+    }
   });
 });

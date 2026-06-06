@@ -5,7 +5,7 @@ import type { RagConfig, RagSegment } from '../config.js';
 import type { Embedder } from '../embedder/types.js';
 import { sha1 } from '../hash.js';
 import { walkSegments } from '../walker.js';
-import { dispatchChunker } from '../chunk/router.js';
+import { dispatchChunkerAsync } from '../chunk/router.js';
 import { VectorStore } from '../store/vector-store.js';
 
 export type ReindexMode = 'incremental' | 'full';
@@ -229,7 +229,7 @@ async function reindexSegment(
     // search_codebase sharing this store sees either the complete old version
     // or the complete new one — never the file momentarily absent. A failure
     // during embed leaves the old chunks intact (nothing was deleted yet).
-    const chunks = dispatchChunker(text, file, config.chunk, currentHash);
+    const chunks = await dispatchChunkerAsync(text, file, config.chunk, currentHash);
     if (chunks.length > 0) {
       const vectors = await embedder.embed(chunks.map((c) => c.text));
       store.deleteFileFromSegment(file.relativePath, segment.name);

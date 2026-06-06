@@ -200,14 +200,17 @@ chunks decides retrieval quality:
 
 | File type | Strategy | Chunk boundary |
 |---|---|---|
-| `*.ts` / `*.tsx` / `*.js` | AST (ts-morph) | function / class / method / interface / type |
+| `*.ts` / `*.tsx` / `*.js` | AST (tree-sitter) | function / class / method / interface / type |
+| `*.py` | AST (tree-sitter) | function / class / method |
+| `*.go` | AST (tree-sitter) | function / method (`Recv.m`) / type / interface |
+| `*.rs` | AST (tree-sitter) | function / type (struct/enum) / interface (trait) / method (`Type.m` in impl) |
 | `*.md` | headings | section under `#` / `##` (code fences respected) |
 | other text | line window + overlap | N lines with overlap |
 
 A chunk = one semantic unit gives one focused vector. Blind fixed-size slicing
 mixes unrelated code into one vector, blurring its position in the space and
-hurting search. This is why the AST chunker is the highest-leverage component for
-quality.
+hurting search. This is why structure-aware (AST) chunking is the highest-leverage
+component for quality.
 
 ---
 
@@ -217,29 +220,33 @@ The embedder and vector store are **already language-agnostic** — `bge-small`
 embeds any text, the store holds any vector. All per-language work is in the
 **chunker** (structure extraction).
 
-**Today**, any language can already be indexed by adding include globs to the
-config; files fall through to the line chunker — searchable, but without
-structure awareness.
+**Today**, structure-aware chunking runs on a single engine — **tree-sitter**.
+TS/JS and Python are parsed by it; any other language can be indexed by adding
+include globs to the config and falls through to the line chunker (searchable,
+but without structure awareness). ts-morph was replaced by the tree-sitter TS/JS
+chunker once an eval spike showed file- and symbol-level parity at hit@5 84%, so
+one engine now covers every supported language.
 
-**For first-class support** (like TS/JS) add:
-
-1. `detectLanguage` mapping in [src/walker.ts](src/walker.ts) (`.py → 'python'`).
-2. A `case` in `dispatchChunker` ([src/chunk/router.ts](src/chunk/router.ts)).
-3. A structure-aware chunker — the real work.
-
-The right generalization for step 3 is **tree-sitter**: one library with grammars
-for nearly every language. Instead of N hand-written chunkers, one tree-sitter
-chunker driven by a per-language map of node types:
+The mechanical work (parser init/memoisation, leading-comment capture, chunk
+emission, gap filling, fallback, sort) lives once in
+[tree-sitter-core.ts](src/chunk/tree-sitter-core.ts). A language supplies only a
+**top-level walk** that classifies node types into chunk kinds, plus its comment
+prefixes and grammar:
 
 ```
-python  → function_definition, class_definition
-go      → function_declaration, type_declaration
-rust    → function_item, struct_item, impl_item
+python  → function_definition, class_definition          (#  comments)
+typescript → function/class/interface/type_alias…        (// and /* */)
+go      → function_declaration, method_declaration, type_declaration
+rust    → function_item, struct_item, enum_item, trait_item, impl_item
 ```
 
-This reuses the same pattern as the AST chunker (find top-level symbols + their
-line ranges + leading doc comment) and feeds the same language-neutral
-[chunk-factory](src/chunk/chunk-factory.ts).
+**For first-class support** of a new language add — without touching the core:
+
+1. A `detectLanguage` mapping via the registry ([src/lang/registry.ts](src/lang/registry.ts)).
+2. A grammar `.wasm` dependency + `ensureGrammars` resolution.
+3. A walk module under [src/chunk/walks/](src/chunk/walks/) (like
+   [python.ts](src/chunk/walks/python.ts)) that classifies node types into chunk
+   kinds via the shared core. The generic chunker, core, and router are untouched.
 
 **Model caveat:** `bge-small-en` is English-trained. It works well for code
 (identifiers are English-ish) but for non-English prose or exotic languages a

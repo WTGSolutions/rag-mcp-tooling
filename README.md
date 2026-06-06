@@ -35,7 +35,7 @@ builds a searchable vector store from any repo.
 |---|---|
 | Config loader (`rag.config.json`) | ✅ |
 | File walker (`.gitignore`, segments, binaries) | ✅ |
-| Chunkers: line (fallback), TS/JS (AST via ts-morph), Markdown (headings) | ✅ |
+| Chunkers: line (fallback), TS/JS + Python + Go + Rust (AST via tree-sitter), Markdown (headings) | ✅ |
 | Local embedder (transformers.js, offline) | ✅ |
 | Vector store (SQLite + sqlite-vec, kNN) | ✅ |
 | Incremental reindex (file-hash change detection) | ✅ |
