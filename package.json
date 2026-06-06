@@ -6,14 +6,16 @@
   "main": "./dist/index.js",
   "bin": {
     "rag-index": "./dist/cli/rag-index.js",
-    "rag-mcp": "./dist/server/server.js"
+    "rag-mcp": "./dist/server/server.js",
+    "rag-usage": "./dist/cli/rag-usage.js"
   },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
     "test": "vitest run",
     "test:watch": "vitest",
-    "eval": "node dist/eval/run-eval.js"
+    "eval": "node dist/eval/run-eval.js",
+    "rag:usage": "node dist/cli/rag-usage.js"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
@@ -27,7 +29,11 @@
     "better-sqlite3": "^12.10.0",
     "globby": "^16.2.0",
     "sqlite-vec": "^0.1.9",
-    "ts-morph": "^28.0.0",
+    "tree-sitter-go": "0.25.0",
+    "tree-sitter-python": "0.25.0",
+    "tree-sitter-rust": "0.24.0",
+    "tree-sitter-typescript": "0.23.2",
+    "web-tree-sitter": "0.26.9",
     "zod": "^4.4.3"
   }
 }

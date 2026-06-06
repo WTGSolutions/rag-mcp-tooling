@@ -1,8 +1,9 @@
 import { globby } from 'globby';
 import { resolve, extname } from 'node:path';
 import type { RagConfig, RagSegment } from './config.js';
+import { EXT_TO_LANGUAGE, type FileLanguage } from './lang/registry.js';
 
-export type FileLanguage = 'typescript' | 'javascript' | 'markdown' | 'unknown';
+export type { FileLanguage } from './lang/registry.js';
 
 export type WalkedFile = {
   absolutePath: string;
@@ -36,21 +37,7 @@ export const ALWAYS_EXCLUDE: readonly string[] = [
 
 export function detectLanguage(filePath: string): FileLanguage {
   const ext = extname(filePath).toLowerCase();
-  switch (ext) {
-    case '.ts':
-    case '.tsx':
-      return 'typescript';
-    case '.js':
-    case '.jsx':
-    case '.mjs':
-    case '.cjs':
-      return 'javascript';
-    case '.md':
-    case '.mdx':
-      return 'markdown';
-    default:
-      return 'unknown';
-  }
+  return EXT_TO_LANGUAGE[ext] ?? 'unknown';
 }
 
 export async function* walkSegments(

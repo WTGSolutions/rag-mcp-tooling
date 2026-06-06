@@ -6,11 +6,14 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs as nodeParseArgs } from 'node:util';
 import { loadConfig, ConfigError } from '../config.js';
 
-// Markers fencing the managed region of a post-commit hook. They are the basis
-// of idempotency and of coexisting with a foreign hook (Husky, lint-staged): we
+// Markers fencing the managed region of a hook. They are the basis of
+// idempotency and of coexisting with a foreign hook (Husky, lint-staged): we
 // only ever touch the text between them, never the rest of the file.
 export const BEGIN = '# >>> rag-mcp auto-reindex (managed) >>>';
 export const END = '# <<< rag-mcp auto-reindex (managed) <<<';
+
+export type HookType = 'post-commit' | 'post-checkout' | 'post-merge';
+export const HOOK_TYPES: readonly HookType[] = ['post-commit', 'post-checkout', 'post-merge'];
 
 // Stamped into a hook file that the installer created from scratch, so uninstall
 // can delete the whole file only when *we* own it — never a foreign hook that
@@ -32,17 +35,36 @@ function shQuote(p: string): string {
   return `'${p.replace(/'/g, `'\\''`)}'`;
 }
 
+const HOOK_COMMENTS: Record<HookType, string> = {
+  'post-commit':   '# Auto-reindex the RAG semantic index after each commit (background, non-fatal).',
+  'post-checkout': '# Auto-reindex the RAG semantic index on branch switch (background, non-fatal).',
+  'post-merge':    '# Auto-reindex the RAG semantic index after merge/pull (background, non-fatal).',
+};
+
 /**
- * The managed post-commit block. Absolute paths to the shared runner and the
- * config are baked in at install time, so the stub stays trivial and works in
- * every topology (single repo, monorepo, separate repos under a non-repo root).
+ * The managed block for the given hook type. Absolute paths to the shared
+ * runner and the config are baked in at install time, so the stub stays
+ * trivial and works in every topology (single repo, monorepo, separate repos).
+ *
+ * `post-checkout` wraps the call in `if [ "$3" = "1" ]` so only branch
+ * switches trigger a reindex — file-restore checkouts (`git checkout <file>`)
+ * pass `$3=0` and are ignored.
  */
-export function buildManagedBlock(reindexScript: string, configPath: string): string {
+export function buildManagedBlock(
+  reindexScript: string,
+  configPath: string,
+  hookType: HookType = 'post-commit',
+): string {
+  const call = `( sh ${shQuote(reindexScript)} ${shQuote(configPath)} ${shQuote(hookType)} >/dev/null 2>&1 & )`;
+  const body =
+    hookType === 'post-checkout'
+      ? `if [ "$3" = "1" ]; then\n  ${call}\nfi`
+      : call;
   return [
     BEGIN,
-    '# Auto-reindex the RAG semantic index after each commit (background, non-fatal).',
+    HOOK_COMMENTS[hookType],
     '# Managed by `rag-index install-hooks` — edit reindex-bg.sh, not this block.',
-    `( sh ${shQuote(reindexScript)} ${shQuote(configPath)} >/dev/null 2>&1 & )`,
+    body,
     END,
   ].join('\n');
 }
@@ -126,7 +148,7 @@ export function discoverRepos(segmentRoots: string[]): RepoTarget[] {
 }
 
 export type HookAction = 'created' | 'updated' | 'appended' | 'removed' | 'cleared' | 'absent' | 'skipped-foreign';
-export type InstallResult = { toplevel: string; hookPath: string; action: HookAction };
+export type InstallResult = { toplevel: string; hookPath: string; hookType: HookType; action: HookAction };
 
 export type InstallOptions = {
   configPath: string;
@@ -138,54 +160,58 @@ export type InstallOptions = {
 };
 
 /**
- * Install (or uninstall) the managed post-commit hook in every git repo backing
- * the config's segments. Idempotent: re-running replaces the block in place.
+ * Install (or uninstall) the managed hooks (post-commit, post-checkout,
+ * post-merge) in every git repo backing the config's segments.
+ * Idempotent: re-running replaces each block in place.
  */
 export function installHooks(opts: InstallOptions): InstallResult[] {
   const configPath = resolve(opts.configPath);
   const config = loadConfig(configPath); // validates the config; throws on a bad/missing file
   const configDir = dirname(configPath);
   const roots = config.segments.map((s) => resolve(configDir, s.root));
-  const block = buildManagedBlock(opts.reindexScript ?? defaultReindexScript(), configPath);
+  const scriptPath = opts.reindexScript ?? defaultReindexScript();
 
   const results: InstallResult[] = [];
   for (const { toplevel, hooksDir } of discoverRepos(roots)) {
-    const hookPath = join(hooksDir, 'post-commit');
-    const existing = existsSync(hookPath) ? readFileSync(hookPath, 'utf8') : null;
+    for (const hookType of HOOK_TYPES) {
+      const hookPath = join(hooksDir, hookType);
+      const block = buildManagedBlock(scriptPath, configPath, hookType);
+      const existing = existsSync(hookPath) ? readFileSync(hookPath, 'utf8') : null;
 
-    if (opts.uninstall) {
-      if (existing === null || !existing.includes(BEGIN) || !existing.includes(END)) {
-        results.push({ toplevel, hookPath, action: 'absent' });
+      if (opts.uninstall) {
+        if (existing === null || !existing.includes(BEGIN) || !existing.includes(END)) {
+          results.push({ toplevel, hookPath, hookType, action: 'absent' });
+          continue;
+        }
+        const stripped = stripBlock(existing);
+        // Delete the file only when we created it and nothing but our scaffold is
+        // left — never a foreign hook (even one that was just a bare shebang).
+        if (existing.includes(CREATED_MARK) && isOnlyScaffold(stripped)) {
+          if (!opts.dry) rmSync(hookPath, { force: true });
+          results.push({ toplevel, hookPath, hookType, action: 'removed' });
+        } else {
+          if (!opts.dry) writeFileSync(hookPath, stripped);
+          results.push({ toplevel, hookPath, hookType, action: 'cleared' });
+        }
         continue;
       }
-      const stripped = stripBlock(existing);
-      // Delete the file only when we created it and nothing but our scaffold is
-      // left — never a foreign hook (even one that was just a bare shebang).
-      if (existing.includes(CREATED_MARK) && isOnlyScaffold(stripped)) {
-        if (!opts.dry) rmSync(hookPath, { force: true });
-        results.push({ toplevel, hookPath, action: 'removed' });
-      } else {
-        if (!opts.dry) writeFileSync(hookPath, stripped);
-        results.push({ toplevel, hookPath, action: 'cleared' });
+
+      // Refuse to append to a hook written in a non-sh language — appending
+      // shell syntax would corrupt it. Updating our own block is always fine.
+      if (existing !== null && !existing.includes(BEGIN) && !isPosixShHook(existing)) {
+        results.push({ toplevel, hookPath, hookType, action: 'skipped-foreign' });
+        continue;
       }
-      continue;
-    }
 
-    // Refuse to append to a hook written in a non-sh language — appending shell
-    // syntax would corrupt it. Updating our own existing block is always fine.
-    if (existing !== null && !existing.includes(BEGIN) && !isPosixShHook(existing)) {
-      results.push({ toplevel, hookPath, action: 'skipped-foreign' });
-      continue;
+      const action: HookAction =
+        existing === null ? 'created' : existing.includes(BEGIN) ? 'updated' : 'appended';
+      if (!opts.dry) {
+        mkdirSync(hooksDir, { recursive: true });
+        writeFileSync(hookPath, upsertBlock(existing, block));
+        chmodSync(hookPath, 0o755);
+      }
+      results.push({ toplevel, hookPath, hookType, action });
     }
-
-    const action: HookAction =
-      existing === null ? 'created' : existing.includes(BEGIN) ? 'updated' : 'appended';
-    if (!opts.dry) {
-      mkdirSync(hooksDir, { recursive: true });
-      writeFileSync(hookPath, upsertBlock(existing, block));
-      chmodSync(hookPath, 0o755);
-    }
-    results.push({ toplevel, hookPath, action });
   }
   return results;
 }
@@ -248,15 +274,16 @@ function main(): void {
     return;
   }
 
-  process.stdout.write(`rag-mcp post-commit hook — ${verb}${tag}\n`);
+  process.stdout.write(`rag-mcp hooks — ${verb}${tag}\n`);
   for (const r of results) {
-    process.stdout.write(`  ${r.action.padEnd(14)} ${r.hookPath}\n`);
+    process.stdout.write(`  ${r.action.padEnd(14)} ${r.hookType.padEnd(14)} ${r.hookPath}\n`);
   }
 
-  if (results.some((r) => r.action === 'skipped-foreign')) {
+  const skippedTypes = [...new Set(results.filter((r) => r.action === 'skipped-foreign').map((r) => r.hookType))];
+  if (skippedTypes.length > 0) {
     process.stderr.write(
-      `\nwarning: skipped repo(s) with a non-sh post-commit hook — appending shell ` +
-      `would corrupt them. Add the block manually or convert the hook to sh.\n`,
+      `\nwarning: skipped ${skippedTypes.join(', ')} hook(s) in repo(s) with a non-sh interpreter — ` +
+      `appending shell would corrupt them. Add the block manually or convert the hook to sh.\n`,
     );
   }
 
