@@ -1,0 +1,9 @@
+{
+  "segments": [
+    { "name": "oversized", "root": "src/__fixtures__/oversized", "include": ["**/*.{py,ts}"] }
+  ],
+  "exclude": [],
+  "embedder": { "provider": "local", "model": "Xenova/bge-small-en-v1.5" },
+  "chunk": { "maxTokens": 512, "overlapLines": 8 },
+  "store": { "path": ".rag/oversized/index.db" }
+}
