@@ -41,8 +41,20 @@ export function evaluate(ordered: readonly string[], expected: readonly string[]
   };
 }
 
-/** A ranked search hit reduced to what symbol-level scoring needs. */
-export type RankedChunk = { repoPath: string; symbol: string | undefined };
+/**
+ * A ranked search hit used by all scoring lenses.
+ * `startLine`/`endLine` are 1-based, inclusive — present only for tree-sitter
+ * chunks. Absent for line-chunker/markdown fallback chunks.
+ */
+export type RankedChunk = {
+  repoPath: string;
+  symbol: string | undefined;
+  startLine?: number;
+  endLine?: number;
+};
+
+/** A golden line-range region that answers a query (TASK-029 span-level GT). */
+export type ExpectedSpan = { file: string; start: number; end: number };
 
 /**
  * Does a retrieved chunk's symbol satisfy an expected symbol? True when:
@@ -79,6 +91,34 @@ export function evaluateSymbol(
     if (c && c.symbol !== undefined && files.has(c.repoPath)
       && expectedSymbols.some((exp) => symbolSatisfies(c.symbol as string, exp))) {
       return { hit: true, position: i + 1, reciprocalRank: 1 / (i + 1) };
+    }
+  }
+  return { hit: false, position: null, reciprocalRank: 0 };
+}
+
+/**
+ * Span-level outcome (TASK-029): the 1-based rank of the first top-k chunk whose
+ * `repoPath` matches the span's file AND whose line range overlaps the golden span.
+ * Overlap (1-based, inclusive): chunk.startLine <= span.end && chunk.endLine >= span.start.
+ * Chunks without startLine/endLine are skipped (line-chunker/markdown). Only called
+ * for queries that carry `expectedSpans`. A stricter lens than symbol-level — it
+ * distinguishes which sub-window of an oversized symbol was retrieved.
+ */
+export function evaluateSpan(
+  ordered: readonly RankedChunk[],
+  spans: readonly ExpectedSpan[],
+  k: number,
+): Outcome {
+  const top = ordered.slice(0, k);
+  for (let i = 0; i < top.length; i++) {
+    const c = top[i];
+    if (!c || c.startLine === undefined || c.endLine === undefined) continue;
+    for (const span of spans) {
+      if (c.repoPath === span.file
+        && c.startLine <= span.end
+        && c.endLine >= span.start) {
+        return { hit: true, position: i + 1, reciprocalRank: 1 / (i + 1) };
+      }
     }
   }
   return { hit: false, position: null, reciprocalRank: 0 };

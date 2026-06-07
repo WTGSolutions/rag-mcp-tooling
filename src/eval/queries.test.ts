@@ -46,6 +46,64 @@ describe('parseQuerySet', () => {
     const bad = { ...valid, queries: [{ ...valid.queries[0], expectedSymbols: [] }] };
     expect(() => parseQuerySet(bad)).toThrow(/expectedSymbols/);
   });
+
+  // expectedSpans (TASK-029) ──────────────────────────────────────────────────
+
+  it('accepts optional expectedSpans (TASK-029)', () => {
+    const withSpans = {
+      ...valid,
+      queries: [{ ...valid.queries[0], expectedSpans: [{ file: 'web/src/foo.ts', start: 10, end: 20 }] }],
+    };
+    expect(parseQuerySet(withSpans).queries[0]!.expectedSpans).toEqual([
+      { file: 'web/src/foo.ts', start: 10, end: 20 },
+    ]);
+  });
+
+  it('leaves expectedSpans undefined when absent (backward-compatible)', () => {
+    expect(parseQuerySet(valid).queries[0]!.expectedSpans).toBeUndefined();
+  });
+
+  it('rejects an empty expectedSpans array when the field is present', () => {
+    const bad = { ...valid, queries: [{ ...valid.queries[0], expectedSpans: [] }] };
+    expect(() => parseQuerySet(bad)).toThrow(/expectedSpans/);
+  });
+
+  it('rejects a non-object span entry', () => {
+    const bad = { ...valid, queries: [{ ...valid.queries[0], expectedSpans: ['bad'] }] };
+    expect(() => parseQuerySet(bad)).toThrow(/expectedSpans\[0\]/);
+  });
+
+  it('rejects a span with start > end', () => {
+    const bad = {
+      ...valid,
+      queries: [{ ...valid.queries[0], expectedSpans: [{ file: 'a.ts', start: 20, end: 10 }] }],
+    };
+    expect(() => parseQuerySet(bad)).toThrow(/start.*>.*end|start \(20\) > end \(10\)/);
+  });
+
+  it('rejects a span with non-positive start', () => {
+    const bad = {
+      ...valid,
+      queries: [{ ...valid.queries[0], expectedSpans: [{ file: 'a.ts', start: 0, end: 10 }] }],
+    };
+    expect(() => parseQuerySet(bad)).toThrow(/start must be a positive integer/);
+  });
+
+  it('rejects a span with non-integer end', () => {
+    const bad = {
+      ...valid,
+      queries: [{ ...valid.queries[0], expectedSpans: [{ file: 'a.ts', start: 1, end: 1.5 }] }],
+    };
+    expect(() => parseQuerySet(bad)).toThrow(/end must be a positive integer/);
+  });
+
+  it('rejects a span with an empty file string', () => {
+    const bad = {
+      ...valid,
+      queries: [{ ...valid.queries[0], expectedSpans: [{ file: '', start: 1, end: 10 }] }],
+    };
+    expect(() => parseQuerySet(bad)).toThrow(/file/);
+  });
 });
 
 describe('queries.json (acceptance set)', () => {

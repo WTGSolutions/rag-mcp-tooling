@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { mkdtempSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -142,6 +142,53 @@ describe('emit windowing — declaration is the anchor, not the leading comment'
     for (let i = 1; i < sorted.length; i++) {
       expect(sorted[i]!.startLine).toBe(sorted[i - 1]!.endLine + 1); // adjacent + disjoint
     }
+  });
+});
+
+// ── RAG_DISABLE_SYMBOL_WINDOWING toggle ───────────────────────────────────────
+
+describe('RAG_DISABLE_SYMBOL_WINDOWING toggle', () => {
+  afterEach(() => {
+    delete process.env['RAG_DISABLE_SYMBOL_WINDOWING'];
+  });
+
+  it('with flag=1, oversized symbol produces exactly one chunk (truncation mode)', async () => {
+    process.env['RAG_DISABLE_SYMBOL_WINDOWING'] = '1';
+    const text = readFileSync(join(FIXTURES, 'oversized.py'), 'utf-8');
+    const chunks = await chunkTreeSitter(text, makePy(), TIGHT, sha1(text));
+
+    // Both big() and documented() would window without the flag; with flag → 1 chunk each.
+    expect(chunks.filter((c) => c.symbol === 'big').length).toBe(1);
+    expect(chunks.filter((c) => c.symbol === 'documented').length).toBe(1);
+  });
+
+  it('with flag=1, the single chunk covers the full symbol range (no windowing)', async () => {
+    process.env['RAG_DISABLE_SYMBOL_WINDOWING'] = '1';
+    const text = readFileSync(join(FIXTURES, 'oversized.py'), 'utf-8');
+    const chunks = await chunkTreeSitter(text, makePy(), TIGHT, sha1(text));
+
+    const [bigChunk] = chunks.filter((c) => c.symbol === 'big');
+    expect(bigChunk).toBeDefined();
+    // The chunk must include the declaration line and extend to the end of the symbol.
+    expect(bigChunk!.text).toMatch(/^def big\(x\):/);
+    expect(bigChunk!.endLine).toBeGreaterThan(bigChunk!.startLine);
+  });
+
+  it('without flag (default), oversized symbol produces ≥2 sub-windows', async () => {
+    // Ensure env is unset (afterEach already handles cleanup between tests, but be explicit).
+    delete process.env['RAG_DISABLE_SYMBOL_WINDOWING'];
+    const text = readFileSync(join(FIXTURES, 'oversized.py'), 'utf-8');
+    const chunks = await chunkTreeSitter(text, makePy(), TIGHT, sha1(text));
+
+    expect(chunks.filter((c) => c.symbol === 'big').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('with flag=0 (explicit off), windowing still fires', async () => {
+    process.env['RAG_DISABLE_SYMBOL_WINDOWING'] = '0';
+    const text = readFileSync(join(FIXTURES, 'oversized.py'), 'utf-8');
+    const chunks = await chunkTreeSitter(text, makePy(), TIGHT, sha1(text));
+
+    expect(chunks.filter((c) => c.symbol === 'big').length).toBeGreaterThanOrEqual(2);
   });
 });
 
