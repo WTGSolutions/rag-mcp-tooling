@@ -1,11 +1,11 @@
 {
-  "groundTruthStatus": "VALIDATED 2026-06-06 PO (szymonwal) — Polyglot Phase-5 quality-gate set (Python/Go/Rust), 13 queries. ANTI-BIAS: expectedFiles derived by reading the fixtures (what each file implements), NOT from embedder/search output; reviewed and approved by the PO before measurement. Safe to freeze. NOTE (TASK-027): expectedSymbols are PROPOSED 2026-06-06 (agent) — symbol-level ground truth awaiting PO validation before the symbol-level measurement is treated as official.",
+  "groundTruthStatus": "VALIDATED 2026-06-06 PO (szymonwal) — Polyglot Phase-5/6 quality-gate set (Python/Go/Rust), 13 queries. ANTI-BIAS: expectedFiles AND expectedSymbols derived by reading the fixtures (what each file implements), NOT from embedder/search output; reviewed and approved by the PO before measurement. Safe to freeze. expectedSymbols (TASK-027 symbol-level GT): VALIDATED 2026-06-06 PO (szymonwal).",
   "notes": [
     "Queries are English to match the embedder (Xenova/bge-small-en-v1.5); `concept` carries the PL label.",
     "expectedFiles are config-relative (segment root src/__fixtures__/polyglot), matching the eval harness toRepoPath output.",
     "Several queries target a specific symbol inside a multi-symbol file (geo.py, tokens.py, tracker.go, quadtree.rs) — the case where AST-aware chunking can beat blind line windows at file-level retrieval.",
     "Baseline = line-chunker (Phase-5 'before'); treatment = tree-sitter ('after'). Same corpus, queries, model.",
-    "expectedSymbols (TASK-027): the symbol that answers each query, in chunk-symbol form (`Class.method` / `Receiver.method` / bare function/type name). Derived from the fixtures' implementation (anti-bias), PROPOSED pending PO validation. The line-chunker emits no symbols, so its symbol-level score is 0 by construction — that is the point (it measures the precision tree-sitter adds)."
+    "expectedSymbols (TASK-027): the symbol that answers each query, in chunk-symbol form (`Class.method` / `Receiver.method` / bare function/type name). Derived from the fixtures' implementation (anti-bias), VALIDATED 2026-06-06 PO. Matching is container-aware: a class chunk credits a query for its method and vice versa. The line-chunker emits no symbols, so its symbol-level score is 0 by construction — that is the point (it measures the precision tree-sitter adds)."
   ],
   "queries": [
     { "id": "q-poly-01-haversine", "concept": "great-circle distance (haversine) między dwoma punktami lat/lon", "query": "great-circle haversine distance between two latitude longitude points", "segment": "polyglot", "expectedFiles": ["src/__fixtures__/polyglot/py/geo.py"], "expectedSymbols": ["haversine"] },

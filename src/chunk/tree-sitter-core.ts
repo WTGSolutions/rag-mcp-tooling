@@ -9,7 +9,7 @@ import { Parser } from 'web-tree-sitter';
 import type { RagChunkConfig } from '../config.js';
 import type { WalkedFile } from '../walker.js';
 import { createChunk } from './chunk-factory.js';
-import { chunkLines, windowTrimmedSpan } from './line-chunker.js';
+import { chunkLines, estimateTokens, windowLineRanges, windowTrimmedSpan } from './line-chunker.js';
 import type { Chunk, ChunkKind } from './types.js';
 
 export type LineRange = { start: number; end: number };
@@ -50,6 +50,7 @@ export type EmitCtx = {
   commentPrefixes: readonly string[];
   chunks: Chunk[];
   topLevelRanges: LineRange[];
+  config: RagChunkConfig;
 };
 
 /** A per-language top-level walk: classify named children and emit chunks. */
@@ -79,9 +80,85 @@ function withLeadingComments(
 }
 
 /**
+ * Split an oversized symbol into disjoint sub-windows, each anchored by the
+ * symbol's **declaration** line (e.g. `def foo(...)` / `class X {`), mirroring
+ * the markdown chunker's heading-repeat pattern. The declaration — not a leading
+ * comment line — is the anchor, so every window carries the symbol's identity
+ * even when it has a leading docstring/JSDoc (the common case for large, well
+ * documented symbols). Leading comments ride along in the first window only.
+ * The body (lines after the declaration) is windowed with overlap=0 so ranges
+ * are disjoint and adjacent — a requirement for stable incremental reindex IDs.
+ *
+ * @param start    1-based first line of the span (a leading comment, if any).
+ * @param declLine 1-based declaration line — the repeated anchor.
+ * @param end      1-based last line of the symbol (inclusive).
+ */
+function emitWindowedSymbol(
+  start: number,
+  declLine: number,
+  end: number,
+  kind: ChunkKind,
+  symbol: string | undefined,
+  ctx: EmitCtx,
+): void {
+  const { lines } = ctx;
+  const signatureLine = lines[declLine - 1] ?? '';
+  const leading = lines.slice(start - 1, declLine - 1); // comment lines above the declaration (maybe empty)
+  const bodyLines = lines.slice(declLine, end);          // lines after the declaration (1-based declLine+1..end)
+
+  // Declaration with no body (rare: a giant single-line signature) — one chunk.
+  if (bodyLines.length === 0) {
+    ctx.chunks.push(createChunk({
+      file: ctx.file,
+      fileHash: ctx.fileHash,
+      startLine: start,
+      endLine: end,
+      text: [...leading, signatureLine].join('\n'),
+      kind,
+      symbol,
+    }));
+    return;
+  }
+
+  const budget = Math.max(1, ctx.config.maxTokens - estimateTokens(signatureLine + '\n'));
+  const bodyBase = declLine + 1; // 1-based line number of bodyLines[0]
+
+  windowLineRanges(bodyLines as string[], budget, 0).forEach(({ startIdx, endIdx }, w) => {
+    const slice = bodyLines.slice(startIdx, endIdx).join('\n');
+    if (w === 0) {
+      // First window: leading comments + declaration + first body slice, contiguous.
+      ctx.chunks.push(createChunk({
+        file: ctx.file,
+        fileHash: ctx.fileHash,
+        startLine: start,
+        endLine: bodyBase + endIdx - 1,
+        text: [...leading, signatureLine, slice].join('\n'),
+        kind,
+        symbol,
+      }));
+    } else {
+      // Later windows: repeat the declaration as a context anchor (text only).
+      ctx.chunks.push(createChunk({
+        file: ctx.file,
+        fileHash: ctx.fileHash,
+        startLine: bodyBase + startIdx,
+        endLine: bodyBase + endIdx - 1,
+        text: `${signatureLine}\n${slice}`,
+        kind,
+        symbol,
+      }));
+    }
+  });
+}
+
+/**
  * Emit one chunk for a node. `spanNode` defines the line span (1-based, inclusive,
  * extended upward over leading comments); `kind`/`symbol` classify it. Top-level
  * symbols record their range so gap filling can cover the loose code between them.
+ *
+ * When the symbol's text exceeds `config.maxTokens`, it is split into disjoint
+ * sub-windows via `emitWindowedSymbol` (TASK-028) so no tokens are silently
+ * truncated. Symbols that fit are emitted as a single chunk (parity with before).
  */
 export function emit(
   spanNode: SyntaxNode,
@@ -90,17 +167,24 @@ export function emit(
   ctx: EmitCtx,
   countAsTopLevel: boolean,
 ): void {
-  const end = spanNode.endPosition.row + 1; // tree-sitter rows are 0-based
-  const start = withLeadingComments(spanNode.startPosition.row + 1, ctx.lines, ctx.commentPrefixes);
-  ctx.chunks.push(createChunk({
-    file: ctx.file,
-    fileHash: ctx.fileHash,
-    startLine: start,
-    endLine: end,
-    text: ctx.lines.slice(start - 1, end).join('\n'),
-    kind,
-    symbol,
-  }));
+  const end = spanNode.endPosition.row + 1;        // tree-sitter rows are 0-based
+  const declLine = spanNode.startPosition.row + 1; // the declaration line, before leading comments
+  const start = withLeadingComments(declLine, ctx.lines, ctx.commentPrefixes);
+  const text = ctx.lines.slice(start - 1, end).join('\n');
+
+  if (estimateTokens(text) > ctx.config.maxTokens) {
+    emitWindowedSymbol(start, declLine, end, kind, symbol, ctx);
+  } else {
+    ctx.chunks.push(createChunk({
+      file: ctx.file,
+      fileHash: ctx.fileHash,
+      startLine: start,
+      endLine: end,
+      text,
+      kind,
+      symbol,
+    }));
+  }
   if (countAsTopLevel) ctx.topLevelRanges.push({ start, end });
 }
 
@@ -145,7 +229,7 @@ export async function runTreeSitterChunk(opts: RunChunkOptions): Promise<Chunk[]
     if (!tree) return chunkLines(text, file, config, fileHash);
 
     const lines = text.split('\n');
-    const ctx: EmitCtx = { lines, file, fileHash, commentPrefixes, chunks: [], topLevelRanges: [] };
+    const ctx: EmitCtx = { lines, file, fileHash, commentPrefixes, config, chunks: [], topLevelRanges: [] };
     walk(tree.rootNode, ctx);
 
     // Module-level loose code → block chunks filling the gaps between top-level
