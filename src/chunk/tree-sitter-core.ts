@@ -51,6 +51,13 @@ export type EmitCtx = {
   chunks: Chunk[];
   topLevelRanges: LineRange[];
   config: RagChunkConfig;
+  /**
+   * When true, oversized symbols are emitted as a single (truncated) chunk instead
+   * of sub-windows. Set from `RAG_DISABLE_SYMBOL_WINDOWING=1` — the Phase 6b A/B
+   * "before TASK-028" baseline. Read once in `runTreeSitterChunk` and propagated
+   * here so `emit` does not re-read the env on every call.
+   */
+  disableSymbolWindowing: boolean;
 };
 
 /** A per-language top-level walk: classify named children and emit chunks. */
@@ -172,7 +179,7 @@ export function emit(
   const start = withLeadingComments(declLine, ctx.lines, ctx.commentPrefixes);
   const text = ctx.lines.slice(start - 1, end).join('\n');
 
-  if (estimateTokens(text) > ctx.config.maxTokens) {
+  if (!ctx.disableSymbolWindowing && estimateTokens(text) > ctx.config.maxTokens) {
     emitWindowedSymbol(start, declLine, end, kind, symbol, ctx);
   } else {
     ctx.chunks.push(createChunk({
@@ -229,7 +236,10 @@ export async function runTreeSitterChunk(opts: RunChunkOptions): Promise<Chunk[]
     if (!tree) return chunkLines(text, file, config, fileHash);
 
     const lines = text.split('\n');
-    const ctx: EmitCtx = { lines, file, fileHash, commentPrefixes, config, chunks: [], topLevelRanges: [] };
+    const ctx: EmitCtx = {
+      lines, file, fileHash, commentPrefixes, config, chunks: [], topLevelRanges: [],
+      disableSymbolWindowing: process.env['RAG_DISABLE_SYMBOL_WINDOWING'] === '1',
+    };
     walk(tree.rootNode, ctx);
 
     // Module-level loose code → block chunks filling the gaps between top-level

@@ -4,11 +4,13 @@ import {
   firstHitPosition,
   evaluate,
   evaluateSymbol,
+  evaluateSpan,
   aggregate,
   extractKeywords,
   estimateTokens,
   type Outcome,
   type RankedChunk,
+  type ExpectedSpan,
 } from './metrics.js';
 
 describe('toRepoPath', () => {
@@ -97,6 +99,90 @@ describe('evaluateSymbol', () => {
   it('a sibling method does NOT satisfy (wrong symbol, same class)', () => {
     const ordered = [rc('target.ts', 'Calc.zero')];
     expect(evaluateSymbol(ordered, ['target.ts'], ['Calc.add'], 5).hit).toBe(false);
+  });
+});
+
+describe('evaluateSpan', () => {
+  const rc = (
+    repoPath: string,
+    startLine: number | undefined,
+    endLine: number | undefined,
+  ): RankedChunk => ({
+    repoPath,
+    symbol: undefined,
+    ...(startLine !== undefined ? { startLine } : {}),
+    ...(endLine !== undefined ? { endLine } : {}),
+  });
+
+  const span = (file: string, start: number, end: number): ExpectedSpan => ({ file, start, end });
+
+  it('hits when chunk range exactly matches the golden span', () => {
+    const ordered = [rc('target.ts', 10, 20)];
+    expect(evaluateSpan(ordered, [span('target.ts', 10, 20)], 5))
+      .toEqual({ hit: true, position: 1, reciprocalRank: 1 });
+  });
+
+  it('hits when chunk range fully contains the golden span (span inside chunk)', () => {
+    const ordered = [rc('target.ts', 5, 30)];
+    expect(evaluateSpan(ordered, [span('target.ts', 10, 20)], 5).hit).toBe(true);
+  });
+
+  it('hits when golden span fully contains the chunk range (chunk inside span)', () => {
+    const ordered = [rc('target.ts', 12, 18)];
+    expect(evaluateSpan(ordered, [span('target.ts', 10, 20)], 5).hit).toBe(true);
+  });
+
+  it('hits on left-edge overlap (chunk ends inside span)', () => {
+    // chunk: 5-15, span: 10-20 → overlap at 10-15
+    const ordered = [rc('target.ts', 5, 15)];
+    expect(evaluateSpan(ordered, [span('target.ts', 10, 20)], 5).hit).toBe(true);
+  });
+
+  it('hits on right-edge overlap (chunk starts inside span)', () => {
+    // chunk: 15-25, span: 10-20 → overlap at 15-20
+    const ordered = [rc('target.ts', 15, 25)];
+    expect(evaluateSpan(ordered, [span('target.ts', 10, 20)], 5).hit).toBe(true);
+  });
+
+  it('misses when chunk is immediately adjacent (no overlap)', () => {
+    // chunk ends at 9, span starts at 10
+    const ordered = [rc('target.ts', 1, 9)];
+    expect(evaluateSpan(ordered, [span('target.ts', 10, 20)], 5).hit).toBe(false);
+  });
+
+  it('misses when chunk starts after span ends (no overlap)', () => {
+    const ordered = [rc('target.ts', 21, 30)];
+    expect(evaluateSpan(ordered, [span('target.ts', 10, 20)], 5).hit).toBe(false);
+  });
+
+  it('misses when correct range but wrong file', () => {
+    const ordered = [rc('other.ts', 10, 20)];
+    expect(evaluateSpan(ordered, [span('target.ts', 10, 20)], 5).hit).toBe(false);
+  });
+
+  it('skips chunks without startLine/endLine (line-chunker case)', () => {
+    const ordered = [rc('target.ts', undefined, undefined)];
+    expect(evaluateSpan(ordered, [span('target.ts', 10, 20)], 5).hit).toBe(false);
+  });
+
+  it('returns correct 1-based rank when first hit is not at position 1', () => {
+    const ordered = [rc('target.ts', 50, 60), rc('target.ts', 10, 20)];
+    const out = evaluateSpan(ordered, [span('target.ts', 10, 20)], 5);
+    expect(out).toEqual({ hit: true, position: 2, reciprocalRank: 0.5 });
+  });
+
+  it('respects the k cutoff', () => {
+    const ordered = [
+      rc('x', 1, 5), rc('x', 6, 10), rc('x', 11, 15), rc('x', 16, 20), rc('x', 21, 25),
+      rc('target.ts', 10, 20), // rank 6, beyond k=5
+    ];
+    expect(evaluateSpan(ordered, [span('target.ts', 10, 20)], 5).hit).toBe(false);
+  });
+
+  it('accepts any matching span from a multi-span list', () => {
+    const ordered = [rc('target.ts', 100, 150)];
+    const spans = [span('target.ts', 10, 20), span('target.ts', 100, 150)];
+    expect(evaluateSpan(ordered, spans, 5).hit).toBe(true);
   });
 });
 

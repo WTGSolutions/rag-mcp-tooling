@@ -452,19 +452,23 @@ The log is in `.rag/` which is already gitignored. Reset it by deleting
   (`evaluateSymbol`, TASK-027) and the polyglot set carries `expectedSymbols`,
   but the 50-query acceptance set is still file-level (`hit@5`/`MRR` on files).
   A firmer multi-language verdict needs symbol GT on a larger corpus.
-- **Symbol windowing is not yet eval-validated at scale.** Oversized AST symbols
-  are now sub-windowed rather than truncated (TASK-028), but every current
-  fixture fits in a single window, so the large multi-chunk regime — where
-  windowing matters most — is still under-tested.
+- **Oversized symbols exercised only by a dedicated corpus.** Windowing is now
+  span-level eval-validated (TASK-029/030, Phase 6b): on a purpose-built oversized
+  corpus the symbol's *tail* goes 0% → 100% span hit@5 once windowed, at head
+  parity. But the production 50q/polyglot sets contain no >512-token symbols, so
+  windowing is unmeasured on the *live* index — only on the synthetic corpus.
 - **English-centric embedder.** `bge-small-en` is trained on English; heavily
   non-English identifiers/comments may retrieve worse (not stress-tested).
 - **Brute-force kNN.** `sqlite-vec` scans all vectors per query — excellent at
   repo scale, unproven on very large (100k-file) monorepos.
 
-**Recently addressed.** Oversized-symbol windowing (TASK-028) and a symbol-level
-eval metric (TASK-027) — formerly the top two directions — are implemented and
-measured; see [`eval/phase6-report.md`](eval/phase6-report.md) (tree-sitter 100%
-vs line 0% at symbol level, reconciling the Phase-5 file-level tie).
+**Recently addressed.** Oversized-symbol windowing (TASK-028), a symbol-level eval
+metric (TASK-027), and span-level windowing validation (TASK-029/030) — formerly
+the top directions — are implemented and measured. See
+[`eval/phase6-report.md`](eval/phase6-report.md) (symbol-level: tree-sitter 100%
+vs line 0%, reconciling the Phase-5 file-level tie) and
+[`eval/phase6b-report.md`](eval/phase6b-report.md) (span-level: windowing lifts the
+oversized symbol's tail 0% → 100% hit@5 at head parity).
 
 **Directions, roughly in value order.**
 

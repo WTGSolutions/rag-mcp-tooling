@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import type { ExpectedSpan } from './metrics.js';
 
 /**
  * One acceptance query. `query` is what gets embedded / grepped (English, to
@@ -19,6 +20,14 @@ export type EvalQuery = {
    * only (backward-compatible).
    */
   expectedSymbols?: string[];
+  /**
+   * Optional span-level ground truth (TASK-029): the golden line-range region(s)
+   * that answer the query. `file` is repo-relative (like `expectedFiles`); `start`
+   * and `end` are 1-based inclusive. When present, the harness also scores
+   * span-level retrieval — the only lens that distinguishes which sub-window of an
+   * oversized symbol was retrieved. Absent → file/symbol-level only.
+   */
+  expectedSpans?: ExpectedSpan[];
 };
 
 export type QuerySet = {
@@ -74,6 +83,40 @@ export function parseQuerySet(raw: unknown): QuerySet {
       );
     }
 
+    // Optional span-level ground truth (TASK-029). When present it must be a
+    // non-empty array of {file, start, end} objects with start<=end positive ints.
+    let expectedSpans: ExpectedSpan[] | undefined;
+    if (e['expectedSpans'] !== undefined) {
+      if (!Array.isArray(e['expectedSpans']) || e['expectedSpans'].length === 0) {
+        throw new Error(`[rag-mcp] queries: ${where}.expectedSpans must be a non-empty array when present`);
+      }
+      expectedSpans = e['expectedSpans'].map((s, j) => {
+        if (typeof s !== 'object' || s === null) {
+          throw new Error(`[rag-mcp] queries: ${where}.expectedSpans[${j}] must be an object`);
+        }
+        const sp = s as Record<string, unknown>;
+        const file = asNonEmptyString(sp['file'], `${where}.expectedSpans[${j}].file`);
+        const start = sp['start'];
+        const end = sp['end'];
+        if (typeof start !== 'number' || !Number.isInteger(start) || start < 1) {
+          throw new Error(
+            `[rag-mcp] queries: ${where}.expectedSpans[${j}].start must be a positive integer`,
+          );
+        }
+        if (typeof end !== 'number' || !Number.isInteger(end) || end < 1) {
+          throw new Error(
+            `[rag-mcp] queries: ${where}.expectedSpans[${j}].end must be a positive integer`,
+          );
+        }
+        if (start > end) {
+          throw new Error(
+            `[rag-mcp] queries: ${where}.expectedSpans[${j}] start (${start}) > end (${end})`,
+          );
+        }
+        return { file, start, end };
+      });
+    }
+
     return {
       id,
       concept: asNonEmptyString(e['concept'], `${where}.concept`),
@@ -81,6 +124,7 @@ export function parseQuerySet(raw: unknown): QuerySet {
       segment: asNonEmptyString(e['segment'], `${where}.segment`),
       expectedFiles,
       ...(expectedSymbols ? { expectedSymbols } : {}),
+      ...(expectedSpans ? { expectedSpans } : {}),
     };
   });
 

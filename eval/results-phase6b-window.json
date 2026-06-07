@@ -1,0 +1,372 @@
+{
+  "model": "Xenova/bge-small-en-v1.5",
+  "k": 5,
+  "generatedAt": "2026-06-07T10:06:23.238Z",
+  "groundTruthStatus": "VALIDATED 2026-06-07 PO — TASK-030 Phase 6b (spans derived from reading fixtures, frozen after PO acceptance)",
+  "rag": {
+    "count": 7,
+    "hits": 7,
+    "hitRate": 1,
+    "mrr": 0.7619047619047619
+  },
+  "ragSymbol": {
+    "count": 7,
+    "hits": 7,
+    "hitRate": 1,
+    "mrr": 0.7619047619047619
+  },
+  "ragSpan": {
+    "count": 7,
+    "hits": 7,
+    "hitRate": 1,
+    "mrr": 0.7619047619047619
+  },
+  "grep": {
+    "count": 7,
+    "hits": 7,
+    "hitRate": 1,
+    "mrr": 1
+  },
+  "tokenCost": {
+    "ragTotal": 2259,
+    "broadTotal": 29617,
+    "ratio": 13.110668437361664
+  },
+  "perQuery": [
+    {
+      "id": "t1-sensor-shoelace",
+      "concept": "OGON: pole wielokąta wzorem sznurowadłowym (shoelace)",
+      "query": "compute the area of a polygon from its vertex coordinates using the shoelace formula",
+      "segment": "oversized",
+      "expectedFiles": [
+        "src/__fixtures__/oversized/sensor_pipeline.py"
+      ],
+      "rag": {
+        "top": [
+          "src/__fixtures__/oversized/distractors.py",
+          "src/__fixtures__/oversized/sensor_pipeline.py",
+          "src/__fixtures__/oversized/distractors.py",
+          "src/__fixtures__/oversized/distractors.ts",
+          "src/__fixtures__/oversized/shift_roster.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 2,
+          "reciprocalRank": 0.5
+        },
+        "tokens": 341,
+        "symbolOutcome": {
+          "hit": true,
+          "position": 2,
+          "reciprocalRank": 0.5
+        },
+        "spanOutcome": {
+          "hit": true,
+          "position": 2,
+          "reciprocalRank": 0.5
+        }
+      },
+      "grep": {
+        "top": [
+          "src/__fixtures__/oversized/sensor_pipeline.py",
+          "src/__fixtures__/oversized/distractors.py",
+          "src/__fixtures__/oversized/digest_report.ts",
+          "src/__fixtures__/oversized/shift_roster.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 4760
+      }
+    },
+    {
+      "id": "t2-shift-hsl-rgb",
+      "concept": "OGON: konwersja koloru HSL na RGB (hex)",
+      "query": "convert an HSL colour value of hue saturation and lightness to an RGB hex colour code",
+      "segment": "oversized",
+      "expectedFiles": [
+        "src/__fixtures__/oversized/shift_roster.ts"
+      ],
+      "rag": {
+        "top": [
+          "src/__fixtures__/oversized/distractors.ts",
+          "src/__fixtures__/oversized/distractors.ts",
+          "src/__fixtures__/oversized/shift_roster.ts",
+          "src/__fixtures__/oversized/shift_roster.ts",
+          "src/__fixtures__/oversized/distractors.py"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 3,
+          "reciprocalRank": 0.3333333333333333
+        },
+        "tokens": 350,
+        "symbolOutcome": {
+          "hit": true,
+          "position": 3,
+          "reciprocalRank": 0.3333333333333333
+        },
+        "spanOutcome": {
+          "hit": true,
+          "position": 3,
+          "reciprocalRank": 0.3333333333333333
+        }
+      },
+      "grep": {
+        "top": [
+          "src/__fixtures__/oversized/shift_roster.ts",
+          "src/__fixtures__/oversized/distractors.ts",
+          "src/__fixtures__/oversized/distractors.py",
+          "src/__fixtures__/oversized/sensor_pipeline.py"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 3998
+      }
+    },
+    {
+      "id": "t3-digest-levenshtein",
+      "concept": "OGON: odległość edycyjna Levenshteina (did-you-mean)",
+      "query": "find the closest matching string using Levenshtein edit distance with insertions deletions and substitutions",
+      "segment": "oversized",
+      "expectedFiles": [
+        "src/__fixtures__/oversized/digest_report.ts"
+      ],
+      "rag": {
+        "top": [
+          "src/__fixtures__/oversized/digest_report.ts",
+          "src/__fixtures__/oversized/distractors.py",
+          "src/__fixtures__/oversized/digest_report.ts",
+          "src/__fixtures__/oversized/distractors.py",
+          "src/__fixtures__/oversized/distractors.py"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 346,
+        "symbolOutcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "spanOutcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        }
+      },
+      "grep": {
+        "top": [
+          "src/__fixtures__/oversized/digest_report.ts",
+          "src/__fixtures__/oversized/distractors.py",
+          "src/__fixtures__/oversized/distractors.ts",
+          "src/__fixtures__/oversized/sensor_pipeline.py",
+          "src/__fixtures__/oversized/shift_roster.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 5315
+      }
+    },
+    {
+      "id": "t4-sensor-ring-area",
+      "concept": "OGON: pole zamkniętego pierścienia wielokąta (suma iloczynów wektorowych krawędzi)",
+      "query": "calculate the enclosed area of a closed polygon ring by summing edge cross products",
+      "segment": "oversized",
+      "expectedFiles": [
+        "src/__fixtures__/oversized/sensor_pipeline.py"
+      ],
+      "rag": {
+        "top": [
+          "src/__fixtures__/oversized/distractors.py",
+          "src/__fixtures__/oversized/sensor_pipeline.py",
+          "src/__fixtures__/oversized/distractors.py",
+          "src/__fixtures__/oversized/shift_roster.ts",
+          "src/__fixtures__/oversized/digest_report.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 2,
+          "reciprocalRank": 0.5
+        },
+        "tokens": 341,
+        "symbolOutcome": {
+          "hit": true,
+          "position": 2,
+          "reciprocalRank": 0.5
+        },
+        "spanOutcome": {
+          "hit": true,
+          "position": 2,
+          "reciprocalRank": 0.5
+        }
+      },
+      "grep": {
+        "top": [
+          "src/__fixtures__/oversized/sensor_pipeline.py",
+          "src/__fixtures__/oversized/digest_report.ts",
+          "src/__fixtures__/oversized/distractors.py",
+          "src/__fixtures__/oversized/distractors.ts",
+          "src/__fixtures__/oversized/shift_roster.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 5315
+      }
+    },
+    {
+      "id": "h1-sensor-validate",
+      "concept": "GŁOWA (kontrola): walidacja i normalizacja odczytów, deduplikacja",
+      "query": "validate and normalize incoming sensor records and drop duplicate readings",
+      "segment": "oversized",
+      "expectedFiles": [
+        "src/__fixtures__/oversized/sensor_pipeline.py"
+      ],
+      "rag": {
+        "top": [
+          "src/__fixtures__/oversized/sensor_pipeline.py",
+          "src/__fixtures__/oversized/sensor_pipeline.py",
+          "src/__fixtures__/oversized/sensor_pipeline.py",
+          "src/__fixtures__/oversized/sensor_pipeline.py",
+          "src/__fixtures__/oversized/shift_roster.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 316,
+        "symbolOutcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "spanOutcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        }
+      },
+      "grep": {
+        "top": [
+          "src/__fixtures__/oversized/sensor_pipeline.py"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 1471
+      }
+    },
+    {
+      "id": "h2-shift-schedule",
+      "concept": "GŁOWA (kontrola): przydział do slotów, konflikty grafiku",
+      "query": "assign workers to time slots while avoiding overlapping shift conflicts",
+      "segment": "oversized",
+      "expectedFiles": [
+        "src/__fixtures__/oversized/shift_roster.ts"
+      ],
+      "rag": {
+        "top": [
+          "src/__fixtures__/oversized/shift_roster.ts",
+          "src/__fixtures__/oversized/shift_roster.ts",
+          "src/__fixtures__/oversized/shift_roster.ts",
+          "src/__fixtures__/oversized/shift_roster.ts",
+          "src/__fixtures__/oversized/shift_roster.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 266,
+        "symbolOutcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "spanOutcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        }
+      },
+      "grep": {
+        "top": [
+          "src/__fixtures__/oversized/shift_roster.ts",
+          "src/__fixtures__/oversized/distractors.py",
+          "src/__fixtures__/oversized/sensor_pipeline.py"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 3443
+      }
+    },
+    {
+      "id": "h3-digest-format",
+      "concept": "GŁOWA (kontrola): grupowanie i formatowanie tabeli o stałej szerokości",
+      "query": "group ledger entries by category and render an aligned fixed-width summary table",
+      "segment": "oversized",
+      "expectedFiles": [
+        "src/__fixtures__/oversized/digest_report.ts"
+      ],
+      "rag": {
+        "top": [
+          "src/__fixtures__/oversized/digest_report.ts",
+          "src/__fixtures__/oversized/digest_report.ts",
+          "src/__fixtures__/oversized/digest_report.ts",
+          "src/__fixtures__/oversized/distractors.ts",
+          "src/__fixtures__/oversized/digest_report.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 299,
+        "symbolOutcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "spanOutcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        }
+      },
+      "grep": {
+        "top": [
+          "src/__fixtures__/oversized/digest_report.ts",
+          "src/__fixtures__/oversized/distractors.py",
+          "src/__fixtures__/oversized/distractors.ts",
+          "src/__fixtures__/oversized/sensor_pipeline.py",
+          "src/__fixtures__/oversized/shift_roster.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 5315
+      }
+    }
+  ]
+}

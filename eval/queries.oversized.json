@@ -1,0 +1,68 @@
+{
+  "groundTruthStatus": "VALIDATED 2026-06-07 PO — TASK-030 Phase 6b (spans derived from reading fixtures, frozen after PO acceptance)",
+  "queries": [
+    {
+      "id": "t1-sensor-shoelace",
+      "concept": "OGON: pole wielokąta wzorem sznurowadłowym (shoelace)",
+      "query": "compute the area of a polygon from its vertex coordinates using the shoelace formula",
+      "segment": "oversized",
+      "expectedFiles": ["src/__fixtures__/oversized/sensor_pipeline.py"],
+      "expectedSymbols": ["normalize_sensor_batch"],
+      "expectedSpans": [{ "file": "src/__fixtures__/oversized/sensor_pipeline.py", "start": 103, "end": 122 }]
+    },
+    {
+      "id": "t2-shift-hsl-rgb",
+      "concept": "OGON: konwersja koloru HSL na RGB (hex)",
+      "query": "convert an HSL colour value of hue saturation and lightness to an RGB hex colour code",
+      "segment": "oversized",
+      "expectedFiles": ["src/__fixtures__/oversized/shift_roster.ts"],
+      "expectedSymbols": ["assignShiftRoster"],
+      "expectedSpans": [{ "file": "src/__fixtures__/oversized/shift_roster.ts", "start": 73, "end": 106 }]
+    },
+    {
+      "id": "t3-digest-levenshtein",
+      "concept": "OGON: odległość edycyjna Levenshteina (did-you-mean)",
+      "query": "find the closest matching string using Levenshtein edit distance with insertions deletions and substitutions",
+      "segment": "oversized",
+      "expectedFiles": ["src/__fixtures__/oversized/digest_report.ts"],
+      "expectedSymbols": ["renderDigestReport"],
+      "expectedSpans": [{ "file": "src/__fixtures__/oversized/digest_report.ts", "start": 69, "end": 110 }]
+    },
+    {
+      "id": "t4-sensor-ring-area",
+      "concept": "OGON: pole zamkniętego pierścienia wielokąta (suma iloczynów wektorowych krawędzi)",
+      "query": "calculate the enclosed area of a closed polygon ring by summing edge cross products",
+      "segment": "oversized",
+      "expectedFiles": ["src/__fixtures__/oversized/sensor_pipeline.py"],
+      "expectedSymbols": ["normalize_sensor_batch"],
+      "expectedSpans": [{ "file": "src/__fixtures__/oversized/sensor_pipeline.py", "start": 103, "end": 122 }]
+    },
+    {
+      "id": "h1-sensor-validate",
+      "concept": "GŁOWA (kontrola): walidacja i normalizacja odczytów, deduplikacja",
+      "query": "validate and normalize incoming sensor records and drop duplicate readings",
+      "segment": "oversized",
+      "expectedFiles": ["src/__fixtures__/oversized/sensor_pipeline.py"],
+      "expectedSymbols": ["normalize_sensor_batch"],
+      "expectedSpans": [{ "file": "src/__fixtures__/oversized/sensor_pipeline.py", "start": 20, "end": 102 }]
+    },
+    {
+      "id": "h2-shift-schedule",
+      "concept": "GŁOWA (kontrola): przydział do slotów, konflikty grafiku",
+      "query": "assign workers to time slots while avoiding overlapping shift conflicts",
+      "segment": "oversized",
+      "expectedFiles": ["src/__fixtures__/oversized/shift_roster.ts"],
+      "expectedSymbols": ["assignShiftRoster"],
+      "expectedSpans": [{ "file": "src/__fixtures__/oversized/shift_roster.ts", "start": 23, "end": 72 }]
+    },
+    {
+      "id": "h3-digest-format",
+      "concept": "GŁOWA (kontrola): grupowanie i formatowanie tabeli o stałej szerokości",
+      "query": "group ledger entries by category and render an aligned fixed-width summary table",
+      "segment": "oversized",
+      "expectedFiles": ["src/__fixtures__/oversized/digest_report.ts"],
+      "expectedSymbols": ["renderDigestReport"],
+      "expectedSpans": [{ "file": "src/__fixtures__/oversized/digest_report.ts", "start": 15, "end": 66 }]
+    }
+  ]
+}

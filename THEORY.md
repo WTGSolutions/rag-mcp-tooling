@@ -256,6 +256,97 @@ better. The model registry makes swapping a one-line config change.
 
 ---
 
+## 8. Measuring retrieval quality — the lens decides what you can see
+
+You tune chunking and retrieval by *measuring*: run a set of queries whose correct
+answers are known (the **ground truth**), and score how often the right answer lands
+in the top-k results (**hit@k**) and how high (**MRR**, mean reciprocal rank). But
+there is a subtlety that matters more than the numbers: the **granularity at which
+you define "a hit" — the lens — decides which differences are even visible.** A lens
+too coarse will report "no difference" between a good design and a mediocre one.
+
+### Three lenses, each strictly finer
+
+| Lens | A *hit* = a top-k chunk that… | Blind to |
+|---|---|---|
+| **file** | is in the right **file** | *where* in the file the answer is |
+| **symbol** | carries the right **symbol** (container-aware: a class chunk answers a query for its method, and vice-versa) | *which part* of a large symbol — its head vs its tail |
+| **span** | whose **line range overlaps** the answer region | nothing coarser — this is the finest lens |
+
+Each lens only credits hits the coarser one already would, plus distinguishes
+more. Picking the right one is not pedantry — twice now the coarse lens hid the
+very thing that mattered.
+
+### What the coarse lens hid #1 — precision is not file recall (Phase 6)
+
+Compare naive **line-window** chunking against **structure-aware (AST)** chunking
+(§6). At the **file** level they *tie*: both put the right file in the top-5 ~100%
+of the time (line-chunking even edged ahead on MRR). The file lens says "no
+difference — don't bother with AST."
+
+Switch to the **symbol** lens and the tie collapses: AST chunking retrieves the
+right *symbol* **100%** of the time (MRR ≈ 0.82); line-chunking scores **0%**. The
+reason is structural, not luck: a line-window chunk is a slab of whole-file text
+with **no symbol attached**, so it can never answer "did we retrieve the right
+function?" — however well the file ranks. AST chunking's value was always
+**precision** (pointing the agent at the answering function), not file recall. The
+file lens was simply blind to it. *The metric you choose can hide your best
+feature.*
+
+### What the coarse lens hid #2 — the silent tail of an oversized symbol (Phase 6b)
+
+Recall the embedder has a fixed input budget (§2, §5) — bge-small reads at most
+~512 tokens. A chunk longer than that is **truncated at vectorization**: the text
+past the limit is stored in the index but **never reaches the vector**, so it is
+unsearchable by meaning. A 300-line "god function" embedded as one chunk has a
+vector that represents only its *head*; its *tail* — the logic after the first ~512
+tokens — is invisible.
+
+**Windowing** (the chunker splitting an oversized symbol into adjacent sub-windows,
+each within budget and each re-anchored by the declaration line) gives the tail its
+own faithful vector. Does that actually make the tail retrievable? Only the **span**
+lens can answer — file- and symbol-level both credit *any* window of the right
+symbol, so they cannot tell a tail-window hit from a head-window hit.
+
+Measured on a corpus of oversized functions with a head concept and an unrelated
+tail concept, A/B *truncate* (one chunk, tail dropped) vs *window*:
+
+| span-level hit@5 | truncate | window |
+|---|---|---|
+| **tail** queries | **0%** | **100%** |
+| **head** queries (control) | 100% | 100% |
+
+Windowing lifts tail retrieval **0% → 100% at head parity**: the head (always within
+budget) is unaffected, the tail goes from invisible to reliably found. The benefit
+is real, tail-specific — and only the finest lens could see it.
+
+### Honest measurement is a corpus problem, not just a metric
+
+The span result hides a trap worth stating, because it generalizes. In *truncate*
+mode the single chunk's **line range still spans the whole symbol**, tail included —
+so an overlap-based span check *would* credit it as a tail hit **if it ranked in the
+top-k**. It does not, only because its head-only vector sits far from a tail query.
+The discrimination is therefore **retrieval-driven**: the proof rests on the tail
+concept being *genuinely distant* from the head. If the tail resembled the head — or
+was merely *named* in the head's docstring — the head vector would rank, the tail
+would appear "found" under truncation, and the windowing benefit would vanish into a
+**false parity**. That is a fact about the corpus, not about windowing.
+
+So a trustworthy measurement demands corpus discipline as much as a correct metric:
+
+- **Ground truth from reading the code, never from search output** — the answer
+  spans are where the logic *is*, decided by a human reading the source, then frozen
+  before any measurement (the model does not grade its own homework).
+- **Isolate the variable** — the tail concept must live *only* in the tail, distant
+  in meaning from the head; a leak (e.g. a docstring that pre-announces the tail)
+  silently re-routes the answer into the head and corrupts the experiment.
+
+These are the same anti-bias rules behind every eval in this tool; the oversized-
+symbol study is just where they bite hardest, because the effect being measured is
+exactly the kind a careless corpus would fake.
+
+---
+
 ## In one sentence
 
 RAG uses a small, cheap embedding model as a **semantic search engine** —

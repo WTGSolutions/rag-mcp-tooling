@@ -7,6 +7,7 @@ import {
   toRepoPath,
   evaluate,
   evaluateSymbol,
+  evaluateSpan,
   aggregate,
   estimateTokens,
   type SegmentRoots,
@@ -21,8 +22,8 @@ const K = 5;
 const SNIPPET_CHARS = 280; // mirrors search_codebase's snippet length
 
 type RankResult = { top: string[]; outcome: Outcome };
-/** RAG ranking also carries token cost and (TASK-027) an optional symbol-level outcome. */
-type RagRank = RankResult & { tokens: number; symbolOutcome: Outcome | null };
+/** RAG ranking also carries token cost, symbol-level (TASK-027) and span-level (TASK-029) outcomes. */
+type RagRank = RankResult & { tokens: number; symbolOutcome: Outcome | null; spanOutcome: Outcome | null };
 type PerQuery = {
   id: string;
   concept: string;
@@ -41,6 +42,8 @@ export type EvalResults = {
   rag: Aggregate | null;
   /** Symbol-level aggregate over queries that carry `expectedSymbols` (TASK-027). Null in --dry or when none do. */
   ragSymbol: Aggregate | null;
+  /** Span-level aggregate over queries that carry `expectedSpans` (TASK-029). Null in --dry or when none do. */
+  ragSpan: Aggregate | null;
   grep: Aggregate;
   tokenCost: { ragTotal: number; broadTotal: number; ratio: number } | null;
   perQuery: PerQuery[];
@@ -92,6 +95,8 @@ function rankRag(
   const ranked: RankedChunk[] = results.map((r) => ({
     repoPath: toRepoPath(roots, r.chunk.segment, r.chunk.filePath),
     symbol: r.chunk.symbol,
+    startLine: r.chunk.startLine,
+    endLine: r.chunk.endLine,
   }));
   const top = ranked.map((r) => r.repoPath);
   const tokens = results.reduce((s, r) => s + estimateTokens(r.chunk.text.slice(0, SNIPPET_CHARS)), 0);
@@ -99,7 +104,11 @@ function rankRag(
   const symbolOutcome = query.expectedSymbols && query.expectedSymbols.length > 0
     ? evaluateSymbol(ranked, query.expectedFiles, query.expectedSymbols, K)
     : null;
-  return { top, outcome: evaluate(top, query.expectedFiles, K), tokens, symbolOutcome };
+  // Span-level outcome only when the query carries span ground truth (TASK-029).
+  const spanOutcome = query.expectedSpans && query.expectedSpans.length > 0
+    ? evaluateSpan(ranked, query.expectedSpans, K)
+    : null;
+  return { top, outcome: evaluate(top, query.expectedFiles, K), tokens, symbolOutcome, spanOutcome };
 }
 
 export async function runEval(args: Args): Promise<EvalResults> {
@@ -143,6 +152,11 @@ export async function runEval(args: Args): Promise<EvalResults> {
       .map((p) => p.rag?.symbolOutcome)
       .filter((o): o is Outcome => o != null);
     const ragSymbolAgg = store && symbolOutcomes.length > 0 ? aggregate(symbolOutcomes) : null;
+    // Span-level aggregate over only the queries that carry span ground truth (TASK-029).
+    const spanOutcomes = perQuery
+      .map((p) => p.rag?.spanOutcome)
+      .filter((o): o is Outcome => o != null);
+    const ragSpanAgg = store && spanOutcomes.length > 0 ? aggregate(spanOutcomes) : null;
     const ragTotal = perQuery.reduce((s, p) => s + (p.rag?.tokens ?? 0), 0);
     const broadTotal = perQuery.reduce((s, p) => s + p.grep.tokens, 0);
 
@@ -153,6 +167,7 @@ export async function runEval(args: Args): Promise<EvalResults> {
       groundTruthStatus: querySet.groundTruthStatus,
       rag: ragAgg,
       ragSymbol: ragSymbolAgg,
+      ragSpan: ragSpanAgg,
       grep: aggregate(perQuery.map((p) => p.grep.outcome)),
       tokenCost: store && ragTotal > 0 ? { ragTotal, broadTotal, ratio: broadTotal / ragTotal } : null,
       perQuery,
@@ -180,6 +195,9 @@ function printSummary(r: EvalResults): void {
   if (r.rag) lines.push(`RAG   hit@${r.k}=${pct(r.rag.hitRate)}  MRR=${r.rag.mrr.toFixed(3)}`);
   if (r.ragSymbol) {
     lines.push(`RAG   symbol-level hit@${r.k}=${pct(r.ragSymbol.hitRate)}  MRR=${r.ragSymbol.mrr.toFixed(3)}  (${r.ragSymbol.count} q with symbol GT)`);
+  }
+  if (r.ragSpan) {
+    lines.push(`RAG   span-level   hit@${r.k}=${pct(r.ragSpan.hitRate)}  MRR=${r.ragSpan.mrr.toFixed(3)}  (${r.ragSpan.count} q with span GT)`);
   }
   lines.push(`grep  hit@${r.k}=${pct(r.grep.hitRate)}  MRR=${r.grep.mrr.toFixed(3)}`);
   if (r.tokenCost) {
