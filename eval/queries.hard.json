@@ -1,0 +1,145 @@
+{
+  "groundTruthStatus": "VALIDATED 2026-06-11 PO — TASK-031 Phase 7 headroom benchmark (GT from reading; 3 parallel-impl corrections h02/h03/h14 disclosed; frozen after PO acceptance)",
+  "queries": [
+    {
+      "id": "h01-web-retry-backoff",
+      "concept": "[PARAFRAZA] ponawianie błędu przejściowego z rosnącą przerwą (withServiceRetry)",
+      "query": "automatically re-attempt a failing external verification a few more times, waiting progressively longer after each failure before giving up",
+      "segment": "web",
+      "expectedFiles": ["web/src/lib/tax/retry.ts"],
+      "expectedSymbols": ["withServiceRetry"],
+      "expectedSpans": [{ "file": "web/src/lib/tax/retry.ts", "start": 22, "end": 39 }]
+    },
+    {
+      "id": "h02-web-nip-validate",
+      "concept": "[SYNONIM/SKRÓT] walidacja formatu polskiego NIP (dwie równoległe implementacje — PL i EN komentarze)",
+      "query": "check whether a Polish company tax identification number has a structurally valid format and checksum",
+      "segment": "web",
+      "expectedFiles": ["web/src/lib/tax/nip-format.ts", "web/src/lib/ksef-invoice-builder/validators/nip.validator.ts"],
+      "expectedSymbols": ["isValidNipFormat", "validateNIP"],
+      "expectedSpans": [
+        { "file": "web/src/lib/tax/nip-format.ts", "start": 35, "end": 52 },
+        { "file": "web/src/lib/ksef-invoice-builder/validators/nip.validator.ts", "start": 49, "end": 108 }
+      ]
+    },
+    {
+      "id": "h03-web-paginated-cursor",
+      "concept": "[PARAFRAZA] strona rekordów z GSI + nieprzezroczysty kursor (queryPaginated)",
+      "query": "retrieve a single page of rows from a secondary index and return an opaque token to continue from where the previous page ended",
+      "segment": "web",
+      "expectedFiles": ["web/src/lib/storage/dynamodb-storage/index.ts"],
+      "expectedSymbols": ["DynamoDBStorage.queryPaginated", "queryPaginated", "DynamoDBStorage.findPaginated", "findPaginated", "DynamoDBStorage._paginatedPartiQL", "_paginatedPartiQL"],
+      "expectedSpans": [
+        { "file": "web/src/lib/storage/dynamodb-storage/index.ts", "start": 429, "end": 452 },
+        { "file": "web/src/lib/storage/dynamodb-storage/index.ts", "start": 376, "end": 428 },
+        { "file": "web/src/lib/storage/dynamodb-storage/index.ts", "start": 280, "end": 334 }
+      ]
+    },
+    {
+      "id": "h04-web-image-dedupe",
+      "concept": "[PARAFRAZA] unikanie duplikatu zdjęcia po odcisku treści (findByHash)",
+      "query": "before saving an uploaded picture, look up whether an identical one already exists by comparing its content fingerprint",
+      "segment": "web",
+      "expectedFiles": ["web/src/lib/images/dedupe.ts"],
+      "expectedSymbols": ["findByHash"],
+      "expectedSpans": [{ "file": "web/src/lib/images/dedupe.ts", "start": 4, "end": 21 }]
+    },
+    {
+      "id": "h05-web-assistant-ratelimit",
+      "concept": "[SYNONIM] limit zapytań do asystenta AI w oknie czasowym (checkRateLimit)",
+      "query": "cap how many questions a user is allowed to send to the AI assistant within a rolling time window",
+      "segment": "web",
+      "expectedFiles": ["web/src/lib/assistant/rate-limit.ts"],
+      "expectedSymbols": ["checkRateLimit"],
+      "expectedSpans": [{ "file": "web/src/lib/assistant/rate-limit.ts", "start": 31, "end": 55 }]
+    },
+    {
+      "id": "h06-mobile-motion-change",
+      "concept": "[PARAFRAZA] zdarzenie zmiany ruch/postój w tle (onMotionChange)",
+      "query": "handle the event fired when the phone transitions between moving and stationary while tracking position in the background",
+      "segment": "mobile",
+      "expectedFiles": ["mobile/src/lib/background-geolocation-service/handlers/on-motion-change.ts"],
+      "expectedSymbols": ["onMotionChange"],
+      "expectedSpans": [{ "file": "mobile/src/lib/background-geolocation-service/handlers/on-motion-change.ts", "start": 9, "end": 11 }]
+    },
+    {
+      "id": "h07-mobile-push-reload",
+      "concept": "[PARAFRAZA] cichy push → odśwież lokalne dane wycieczki (onTokenDataReloadHandler)",
+      "query": "when a silent push notification arrives, fetch fresh tour status from the API and update the locally cached copy",
+      "segment": "mobile",
+      "expectedFiles": ["mobile/src/lib/push-notifications/listeners/handlers/on-token-data-reload.ts"],
+      "expectedSymbols": ["onTokenDataReloadHandler"],
+      "expectedSpans": [{ "file": "mobile/src/lib/push-notifications/listeners/handlers/on-token-data-reload.ts", "start": 21, "end": 68 }]
+    },
+    {
+      "id": "h08-mobile-notification-time",
+      "concept": "[PARAFRAZA] moment przypomnienia z uwzględnieniem strefy i offsetu (getNotificationTime)",
+      "query": "compute the exact moment at which to schedule a local reminder for an event, adjusting for the event timezone and an offset in minutes",
+      "segment": "mobile",
+      "expectedFiles": ["mobile/src/lib/local-notifications/notification-time/index.ts"],
+      "expectedSymbols": ["getNotificationTime"],
+      "expectedSpans": [{ "file": "mobile/src/lib/local-notifications/notification-time/index.ts", "start": 11, "end": 19 }]
+    },
+    {
+      "id": "h09-mobile-gtfetch",
+      "concept": "[LITERAŁ] wrapper gtFetch (base URL + nagłówek autoryzacji)",
+      "query": "the gtFetch helper that wraps the fetch call with the API base URL and an authorization header",
+      "segment": "mobile",
+      "expectedFiles": ["mobile/src/lib/gt-fetch/index.ts"],
+      "expectedSymbols": ["gtFetch"],
+      "expectedSpans": [{ "file": "mobile/src/lib/gt-fetch/index.ts", "start": 17, "end": 42 }]
+    },
+    {
+      "id": "h10-mobile-wmo-weather",
+      "concept": "[LITERAŁ/SKRÓT] kod pogodowy WMO → klucz warunku (wmoToConditionKey)",
+      "query": "translate a WMO weather interpretation code into an internal weather condition key",
+      "segment": "mobile",
+      "expectedFiles": ["mobile/src/lib/weather/weather.utils.ts"],
+      "expectedSymbols": ["wmoToConditionKey"],
+      "expectedSpans": [{ "file": "mobile/src/lib/weather/weather.utils.ts", "start": 50, "end": 53 }]
+    },
+    {
+      "id": "h11-cross-device-token",
+      "concept": "[PRZEKROJOWE web↔mobile] schemat device-token: mobile uwierzytelnia, web weryfikuje",
+      "query": "the device-token scheme by which the mobile app identifies itself to the backend and the web server validates that credential",
+      "segment": "web",
+      "expectedFiles": ["web/src/lib/auth/device-token.ts", "mobile/src/utils/device-id/index.ts"],
+      "expectedSymbols": ["validateDeviceToken", "deviceId"]
+    },
+    {
+      "id": "h12-wiki-tour-status",
+      "concept": "[PARAFRAZA] cykl życia / znaczenie stanów wycieczki",
+      "query": "the lifecycle and meaning of the different states a tour moves through from creation to completion",
+      "segment": "wiki",
+      "expectedFiles": ["wiki/models/Tour.md"]
+    },
+    {
+      "id": "h13-wiki-gsi-design",
+      "concept": "[PARAFRAZA/PRZEKROJOWE] jak jedna tabela DynamoDB jest odpytywana przez indeksy wtórne",
+      "query": "how the single backend table is queried efficiently using secondary indexes in the system architecture",
+      "segment": "wiki",
+      "expectedFiles": ["wiki/architecture/Overview.md"]
+    },
+    {
+      "id": "h14-tools-windowing-flag",
+      "concept": "[LITERAŁ] flaga RAG_DISABLE_SYMBOL_WINDOWING wyłączająca okienkowanie",
+      "query": "the environment flag that disables splitting an oversized symbol into windows so it is stored as one truncated chunk",
+      "segment": "tools",
+      "expectedFiles": ["tools/rag-mcp/src/chunk/tree-sitter-core.ts"],
+      "expectedSymbols": ["runTreeSitterChunk", "EmitCtx"],
+      "expectedSpans": [
+        { "file": "tools/rag-mcp/src/chunk/tree-sitter-core.ts", "start": 228, "end": 251 },
+        { "file": "tools/rag-mcp/src/chunk/tree-sitter-core.ts", "start": 45, "end": 61 }
+      ]
+    },
+    {
+      "id": "h15-tools-span-metric",
+      "concept": "[PARAFRAZA] trafienie = zakres linii chunku nachodzi na region odpowiedzi (evaluateSpan)",
+      "query": "score a retrieval result as correct only when the returned chunk's line range overlaps the expected answer region",
+      "segment": "tools",
+      "expectedFiles": ["tools/rag-mcp/src/eval/metrics.ts"],
+      "expectedSymbols": ["evaluateSpan"],
+      "expectedSpans": [{ "file": "tools/rag-mcp/src/eval/metrics.ts", "start": 107, "end": 125 }]
+    }
+  ]
+}
