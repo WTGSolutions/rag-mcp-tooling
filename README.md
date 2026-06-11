@@ -477,8 +477,13 @@ oversized symbol's tail 0% → 100% hit@5 at head parity).
    next: C#, C/C++, Ruby, PHP, Kotlin, Swift; config formats (YAML/JSON) for infra.
 2. **Hybrid retrieval** — fuse semantic kNN with a lexical signal; the eval
    harness already carries a `grep` baseline to measure any lift.
-3. **Optional reranking** — a small cross-encoder over the top-K to sharpen
-   ambiguous queries; adopt only behind an eval win (kept out so far by design).
+3. **Optional reranking** — built and measured (TASK-033): a local cross-encoder
+   over the top-K, behind `RAG_RERANK` (default off). On the Phase-7 headroom set the
+   standard `ms-marco-MiniLM-L-6-v2` **regressed** retrieval (file hit@5 87% → 67%) at
+   ~880 ms/query — a generic English web reranker demotes terse code, Markdown, and
+   Polish-commented chunks. **Rejected, off by default**; revisit only with a code- or
+   multilingual-aware cross-encoder (a `RAG_RERANK_MODEL` swap). See
+   [`eval/phase7-rerank-report.md`](eval/phase7-rerank-report.md).
 4. **Code- / multilingual embedder** — revisit a code-specialized or multilingual
    model if a non-English or very large repo shows embedder-attributable misses.
 5. **Scale & sharing** — benchmark very large monorepos (ANN tuning, per-segment

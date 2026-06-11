@@ -1,0 +1,754 @@
+{
+  "model": "Xenova/bge-small-en-v1.5",
+  "k": 5,
+  "generatedAt": "2026-06-11T14:18:24.880Z",
+  "groundTruthStatus": "VALIDATED 2026-06-11 PO — TASK-031 Phase 7 headroom benchmark (GT from reading; 3 parallel-impl corrections h02/h03/h14 disclosed; frozen after PO acceptance)",
+  "rag": {
+    "count": 15,
+    "hits": 10,
+    "hitRate": 0.6666666666666666,
+    "mrr": 0.5722222222222222
+  },
+  "ragSymbol": {
+    "count": 13,
+    "hits": 10,
+    "hitRate": 0.7692307692307693,
+    "mrr": 0.6089743589743589
+  },
+  "ragSpan": {
+    "count": 12,
+    "hits": 9,
+    "hitRate": 0.75,
+    "mrr": 0.5763888888888888
+  },
+  "grep": {
+    "count": 15,
+    "hits": 6,
+    "hitRate": 0.4,
+    "mrr": 0.1911111111111111
+  },
+  "tokenCost": {
+    "ragTotal": 4827,
+    "broadTotal": 267424,
+    "ratio": 55.401698777708724
+  },
+  "perQuery": [
+    {
+      "id": "h01-web-retry-backoff",
+      "concept": "[PARAFRAZA] ponawianie błędu przejściowego z rosnącą przerwą (withServiceRetry)",
+      "query": "automatically re-attempt a failing external verification a few more times, waiting progressively longer after each failure before giving up",
+      "segment": "web",
+      "expectedFiles": [
+        "web/src/lib/tax/retry.ts"
+      ],
+      "rag": {
+        "top": [
+          "web/src/components/views/register/form/vat-verification-section.tsx",
+          "web/src/lib/tax/providers/white-list.client.ts",
+          "wiki/.epics/EPIC-031-nip-validation-strategy.md",
+          "wiki/.epics/EPIC-031-nip-validation-strategy.md",
+          "web/src/lib/ksef/config/ksef.config.ts"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 246,
+        "symbolOutcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "spanOutcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        }
+      },
+      "grep": {
+        "top": [
+          "tools/rag-mcp/THEORY.md",
+          "tools/rag-mcp/README.md",
+          "web/src/lib/ksef/services/invoice-orchestrator.service.ts",
+          "web/src/lib/ksef/services/session.service.ts",
+          "mobile/src/setupTests.ts"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 20153
+      }
+    },
+    {
+      "id": "h02-web-nip-validate",
+      "concept": "[SYNONIM/SKRÓT] walidacja formatu polskiego NIP (dwie równoległe implementacje — PL i EN komentarze)",
+      "query": "check whether a Polish company tax identification number has a structurally valid format and checksum",
+      "segment": "web",
+      "expectedFiles": [
+        "web/src/lib/tax/nip-format.ts",
+        "web/src/lib/ksef-invoice-builder/validators/nip.validator.ts"
+      ],
+      "rag": {
+        "top": [
+          "web/src/lib/ksef-invoice-builder/validators/nip.validator.ts",
+          "web/src/lib/ksef-invoice-builder/types/common.ts",
+          "web/src/lib/ksef-invoice-builder/types/seller.ts",
+          "wiki/.epics/EPIC-031-nip-validation-strategy.md",
+          "wiki/.epics/EPIC-031-nip-validation-strategy.md"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 315,
+        "symbolOutcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "spanOutcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        }
+      },
+      "grep": {
+        "top": [
+          "web/src/lib/ksef-invoice-builder/builders/buyer.builder.ts",
+          "web/src/lib/ksef-invoice-builder/validators/nip.validator.ts",
+          "web/src/lib/ksef/services/invoice-orchestrator.service.ts",
+          "web/src/actions/auth/register.ts",
+          "web/src/app/api/vat/verify/route.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 2,
+          "reciprocalRank": 0.5
+        },
+        "tokens": 14415
+      }
+    },
+    {
+      "id": "h03-web-paginated-cursor",
+      "concept": "[PARAFRAZA] strona rekordów z GSI + nieprzezroczysty kursor (queryPaginated)",
+      "query": "retrieve a single page of rows from a secondary index and return an opaque token to continue from where the previous page ended",
+      "segment": "web",
+      "expectedFiles": [
+        "web/src/lib/storage/dynamodb-storage/index.ts"
+      ],
+      "rag": {
+        "top": [
+          "tools/rag-mcp/src/chunk/line-chunker.ts",
+          "tools/rag-mcp/src/store/vector-store.ts",
+          "web/src/components/forms/tour/new-tour/components/sections/summary/index.tsx",
+          "web/src/lib/storage/dynamodb-storage/index.ts",
+          "web/src/lib/storage/dynamodb-storage/index.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 4,
+          "reciprocalRank": 0.25
+        },
+        "tokens": 350,
+        "symbolOutcome": {
+          "hit": true,
+          "position": 4,
+          "reciprocalRank": 0.25
+        },
+        "spanOutcome": {
+          "hit": true,
+          "position": 4,
+          "reciprocalRank": 0.25
+        }
+      },
+      "grep": {
+        "top": [
+          "mobile/src/views/tours/:token/map/index.tsx",
+          "tools/rag-mcp/README.md",
+          "tools/rag-mcp/src/chunk/tree-sitter-core.ts",
+          "tools/rag-mcp/src/hooks/install-hooks.ts",
+          "web/src/app/api/cron/purge-location-data/route.ts"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 18451
+      }
+    },
+    {
+      "id": "h04-web-image-dedupe",
+      "concept": "[PARAFRAZA] unikanie duplikatu zdjęcia po odcisku treści (findByHash)",
+      "query": "before saving an uploaded picture, look up whether an identical one already exists by comparing its content fingerprint",
+      "segment": "web",
+      "expectedFiles": [
+        "web/src/lib/images/dedupe.ts"
+      ],
+      "rag": {
+        "top": [
+          "web/src/actions/images/upload-image.ts",
+          "wiki/.epics/EPIC-030-image-gallery.md",
+          "web/src/components/ui/image-picker/index.tsx",
+          "web/src/actions/images/upload-image.ts",
+          "web/src/utils/image/check-aspect-ratio.ts"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 309,
+        "symbolOutcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "spanOutcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        }
+      },
+      "grep": {
+        "top": [
+          "tools/rag-mcp/README.md",
+          "tools/rag-mcp/src/store/vector-store.ts",
+          "tools/rag-mcp/THEORY.md",
+          "tools/rag-mcp/src/indexer/reindex.ts",
+          "tools/rag-mcp/src/chunk/markdown-chunker.ts"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 16072
+      }
+    },
+    {
+      "id": "h05-web-assistant-ratelimit",
+      "concept": "[SYNONIM] limit zapytań do asystenta AI w oknie czasowym (checkRateLimit)",
+      "query": "cap how many questions a user is allowed to send to the AI assistant within a rolling time window",
+      "segment": "web",
+      "expectedFiles": [
+        "web/src/lib/assistant/rate-limit.ts"
+      ],
+      "rag": {
+        "top": [
+          "web/src/app/api/assistant/chat/route.ts",
+          "wiki/.epics/EPIC-033-interactive-chat-and-knowledge-base.md",
+          "wiki/.epics/EPIC-033-interactive-chat-and-knowledge-base.md",
+          "wiki/.epics/EPIC-033-interactive-chat-and-knowledge-base.md",
+          "web/src/lib/assistant/client.ts"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 319,
+        "symbolOutcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "spanOutcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        }
+      },
+      "grep": {
+        "top": [
+          "mobile/src/lib/background-geolocation-service/handlers/on-http.ts",
+          "wiki/workflow/AI-Development.en.md",
+          "tools/rag-mcp/README.md",
+          "web/src/app/api/cron/purge-location-data/route.ts",
+          "wiki/.epics/EPIC-001-user-lost-self-notification.md"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 20278
+      }
+    },
+    {
+      "id": "h06-mobile-motion-change",
+      "concept": "[PARAFRAZA] zdarzenie zmiany ruch/postój w tle (onMotionChange)",
+      "query": "handle the event fired when the phone transitions between moving and stationary while tracking position in the background",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/lib/background-geolocation-service/handlers/on-motion-change.ts"
+      ],
+      "rag": {
+        "top": [
+          "mobile/src/lib/background-geolocation-service/index.ts",
+          "mobile/src/lib/background-geolocation-service/handlers/on-heartbeat.ts",
+          "mobile/src/lib/background-geolocation-service/handlers/on-motion-change.ts",
+          "mobile/src/lib/background-geolocation-service/handlers/on-activity-change.ts",
+          "wiki/.epics/EPIC-021-geofencing.md"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 3,
+          "reciprocalRank": 0.3333333333333333
+        },
+        "tokens": 350,
+        "symbolOutcome": {
+          "hit": true,
+          "position": 3,
+          "reciprocalRank": 0.3333333333333333
+        },
+        "spanOutcome": {
+          "hit": true,
+          "position": 3,
+          "reciprocalRank": 0.3333333333333333
+        }
+      },
+      "grep": {
+        "top": [
+          "mobile/src/views/tours/:token/map/index.tsx",
+          "mobile/src/lib/background-geolocation-service/index.ts",
+          "wiki/.epics/EPIC-014-custom-background-geolocation-poc.md",
+          "tools/rag-mcp/README.md",
+          "wiki/.epics/EPIC-019-plugin-commercialization.md"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 25626
+      }
+    },
+    {
+      "id": "h07-mobile-push-reload",
+      "concept": "[PARAFRAZA] cichy push → odśwież lokalne dane wycieczki (onTokenDataReloadHandler)",
+      "query": "when a silent push notification arrives, fetch fresh tour status from the API and update the locally cached copy",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/lib/push-notifications/listeners/handlers/on-token-data-reload.ts"
+      ],
+      "rag": {
+        "top": [
+          "mobile/src/lib/push-notifications/listeners/handlers/on-token-data-reload.ts",
+          "mobile/src/hooks/tour/use-tour-data-update/index.ts",
+          "mobile/src/components/tour/tour-actions/handlers/on-tour-restart/index.ts",
+          "mobile/src/lib/tour-events/index.ts",
+          "mobile/src/lib/tour-events/index.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 326,
+        "symbolOutcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "spanOutcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        }
+      },
+      "grep": {
+        "top": [
+          "wiki/.epics/BUGS-001-found-in-mobile-app-version-1.99.1.md",
+          "wiki/.epics/EPIC-014-custom-background-geolocation-poc.md",
+          "mobile/src/lib/push-notifications/listeners/handlers/on-token-data-reload.ts",
+          "mobile/src/views/tours/:token/index.tsx",
+          "mobile/src/views/tours/:token/map/index.tsx"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 3,
+          "reciprocalRank": 0.3333333333333333
+        },
+        "tokens": 22410
+      }
+    },
+    {
+      "id": "h08-mobile-notification-time",
+      "concept": "[PARAFRAZA] moment przypomnienia z uwzględnieniem strefy i offsetu (getNotificationTime)",
+      "query": "compute the exact moment at which to schedule a local reminder for an event, adjusting for the event timezone and an offset in minutes",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/lib/local-notifications/notification-time/index.ts"
+      ],
+      "rag": {
+        "top": [
+          "mobile/src/lib/local-notifications/notification-time/index.ts",
+          "mobile/src/utils/registration/schedule-reminders/index.ts",
+          "web/src/lib/ksef-invoice-builder/xml/formatters/date.formatter.ts",
+          "web/src/lib/ksef-invoice-builder/xml/formatters/date.formatter.ts",
+          "mobile/src/utils/tour-date/index.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 350,
+        "symbolOutcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "spanOutcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        }
+      },
+      "grep": {
+        "top": [
+          "mobile/src/components/tour/tour-actions/handlers/on-tour-start/index.ts",
+          "mobile/src/utils/registration/schedule-reminders/index.ts",
+          "tools/rag-mcp/README.md",
+          "mobile/src/lib/background-geolocation-service/handlers/on-http.ts",
+          "mobile/src/lib/local-notifications/notification-time/index.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 5,
+          "reciprocalRank": 0.2
+        },
+        "tokens": 8644
+      }
+    },
+    {
+      "id": "h09-mobile-gtfetch",
+      "concept": "[LITERAŁ] wrapper gtFetch (base URL + nagłówek autoryzacji)",
+      "query": "the gtFetch helper that wraps the fetch call with the API base URL and an authorization header",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/lib/gt-fetch/index.ts"
+      ],
+      "rag": {
+        "top": [
+          "mobile/src/lib/gt-fetch/index.ts",
+          "mobile/src/components/tour/tour-actions/handlers/on-tour-join/index.ts",
+          "mobile/src/components/tour/tour-actions/handlers/on-tour-leave/index.ts",
+          "mobile/src/components/tour/tour-actions/handlers/on-tour-join/index.ts",
+          "web/src/lib/ksef/services/session.service.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 350,
+        "symbolOutcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "spanOutcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        }
+      },
+      "grep": {
+        "top": [
+          "wiki/.epics/EPIC-014-custom-background-geolocation-poc.md",
+          "mobile/src/components/tour/tour-actions/handlers/on-tour-join/index.ts",
+          "mobile/src/components/tour/tour-actions/handlers/on-tour-leave/index.ts",
+          "mobile/src/views/register/index.tsx",
+          "mobile/src/views/settings/index.tsx"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 12986
+      }
+    },
+    {
+      "id": "h10-mobile-wmo-weather",
+      "concept": "[LITERAŁ/SKRÓT] kod pogodowy WMO → klucz warunku (wmoToConditionKey)",
+      "query": "translate a WMO weather interpretation code into an internal weather condition key",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/lib/weather/weather.utils.ts"
+      ],
+      "rag": {
+        "top": [
+          "mobile/src/lib/weather/weather.utils.ts",
+          "wiki/.epics/EPIC-034-weather-forecast-tour-view.md",
+          "wiki/.epics/EPIC-034-weather-forecast-tour-view.md",
+          "mobile/src/lib/weather/weather.utils.ts",
+          "mobile/src/lib/weather/weather.utils.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 310,
+        "symbolOutcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "spanOutcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        }
+      },
+      "grep": {
+        "top": [
+          "mobile/src/components/tour/tour-weather/index.tsx",
+          "mobile/src/lib/weather/weather.utils.ts",
+          "wiki/.epics/EPIC-034-weather-forecast-tour-view.md",
+          "wiki/.epics/EPIC-014-custom-background-geolocation-poc.md",
+          "mobile/src/components/tour/no-tours-message/index.tsx"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 2,
+          "reciprocalRank": 0.5
+        },
+        "tokens": 11344
+      }
+    },
+    {
+      "id": "h11-cross-device-token",
+      "concept": "[PRZEKROJOWE web↔mobile] schemat device-token: mobile uwierzytelnia, web weryfikuje",
+      "query": "the device-token scheme by which the mobile app identifies itself to the backend and the web server validates that credential",
+      "segment": "web",
+      "expectedFiles": [
+        "web/src/lib/auth/device-token.ts",
+        "mobile/src/utils/device-id/index.ts"
+      ],
+      "rag": {
+        "top": [
+          "web/src/lib/auth/device-token.ts",
+          "web/src/lib/auth/index.ts",
+          "wiki/.epics/EPIC-001-user-lost-self-notification.md",
+          "web/src/lib/auth/device-token.ts",
+          "web/src/models/token.model.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 267,
+        "symbolOutcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "spanOutcome": null
+      },
+      "grep": {
+        "top": [
+          "wiki/.epics/EPIC-039-mobile-api-documentation-panel.md",
+          "wiki/.epics/EPIC-001-user-lost-self-notification.md",
+          "tools/rag-mcp/README.md",
+          "web/src/app/[locale]/(public)/cookie-policy/page.tsx",
+          "wiki/.epics/EPIC-015-background-location-test-app.md"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 30003
+      }
+    },
+    {
+      "id": "h12-wiki-tour-status",
+      "concept": "[PARAFRAZA] cykl życia / znaczenie stanów wycieczki",
+      "query": "the lifecycle and meaning of the different states a tour moves through from creation to completion",
+      "segment": "wiki",
+      "expectedFiles": [
+        "wiki/models/Tour.md"
+      ],
+      "rag": {
+        "top": [
+          "mobile/src/views/tours/:token/map/index.tsx",
+          "mobile/src/components/tour/tour-actions/handlers/on-tour-restart/index.ts",
+          "mobile/src/components/tour/tour-actions/handlers/on-tour-start/index.ts",
+          "mobile/src/components/tour/tour-actions/handlers/on-tour-stop/index.ts",
+          "mobile/src/utils/app/archive-finished-tokens/index.ts"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 350,
+        "symbolOutcome": null,
+        "spanOutcome": null
+      },
+      "grep": {
+        "top": [
+          "tools/rag-mcp/README.md",
+          "tools/rag-mcp/src/indexer/reindex.ts",
+          "tools/rag-mcp/THEORY.md",
+          "mobile/src/models/tour.model.ts",
+          "mobile/src/utils/map/route-target/index.ts"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 12936
+      }
+    },
+    {
+      "id": "h13-wiki-gsi-design",
+      "concept": "[PARAFRAZA/PRZEKROJOWE] jak jedna tabela DynamoDB jest odpytywana przez indeksy wtórne",
+      "query": "how the single backend table is queried efficiently using secondary indexes in the system architecture",
+      "segment": "wiki",
+      "expectedFiles": [
+        "wiki/architecture/Overview.md"
+      ],
+      "rag": {
+        "top": [
+          "web/src/lib/storage/dynamodb-storage/index.ts",
+          "tools/rag-mcp/THEORY.md",
+          "tools/rag-mcp/README.md",
+          "tools/rag-mcp/README.md",
+          "web/src/lib/storage/dynamodb-storage/index.ts"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 285,
+        "symbolOutcome": null,
+        "spanOutcome": null
+      },
+      "grep": {
+        "top": [
+          "wiki/.epics/EPIC-019-plugin-commercialization.md",
+          "tools/rag-mcp/src/indexer/reindex.ts",
+          "wiki/.epics/EPIC-021-geofencing.md",
+          "wiki/.epics/EPIC-033-interactive-chat-and-knowledge-base.md",
+          "wiki/workflow/AI-Development.en.md"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 23843
+      }
+    },
+    {
+      "id": "h14-tools-windowing-flag",
+      "concept": "[LITERAŁ] flaga RAG_DISABLE_SYMBOL_WINDOWING wyłączająca okienkowanie",
+      "query": "the environment flag that disables splitting an oversized symbol into windows so it is stored as one truncated chunk",
+      "segment": "tools",
+      "expectedFiles": [
+        "tools/rag-mcp/src/chunk/tree-sitter-core.ts"
+      ],
+      "rag": {
+        "top": [
+          "tools/rag-mcp/src/chunk/tree-sitter-core.ts",
+          "tools/rag-mcp/THEORY.md",
+          "tools/rag-mcp/src/chunk/tree-sitter-core.ts",
+          "tools/rag-mcp/src/chunk/markdown-chunker.ts",
+          "tools/rag-mcp/src/chunk/tree-sitter-core.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 350,
+        "symbolOutcome": {
+          "hit": true,
+          "position": 3,
+          "reciprocalRank": 0.3333333333333333
+        },
+        "spanOutcome": {
+          "hit": true,
+          "position": 3,
+          "reciprocalRank": 0.3333333333333333
+        }
+      },
+      "grep": {
+        "top": [
+          "tools/rag-mcp/README.md",
+          "tools/rag-mcp/THEORY.md",
+          "tools/rag-mcp/src/chunk/tree-sitter-core.ts",
+          "tools/rag-mcp/src/eval/metrics.ts",
+          "tools/rag-mcp/src/indexer/reindex.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 3,
+          "reciprocalRank": 0.3333333333333333
+        },
+        "tokens": 15527
+      }
+    },
+    {
+      "id": "h15-tools-span-metric",
+      "concept": "[PARAFRAZA] trafienie = zakres linii chunku nachodzi na region odpowiedzi (evaluateSpan)",
+      "query": "score a retrieval result as correct only when the returned chunk's line range overlaps the expected answer region",
+      "segment": "tools",
+      "expectedFiles": [
+        "tools/rag-mcp/src/eval/metrics.ts"
+      ],
+      "rag": {
+        "top": [
+          "tools/rag-mcp/src/eval/metrics.ts",
+          "tools/rag-mcp/src/eval/metrics.ts",
+          "tools/rag-mcp/THEORY.md",
+          "tools/rag-mcp/THEORY.md",
+          "tools/rag-mcp/src/eval/run-eval.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 350,
+        "symbolOutcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "spanOutcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        }
+      },
+      "grep": {
+        "top": [
+          "tools/rag-mcp/src/eval/metrics.ts",
+          "tools/rag-mcp/THEORY.md",
+          "tools/rag-mcp/README.md",
+          "tools/rag-mcp/src/eval/queries.ts",
+          "tools/rag-mcp/src/eval/run-eval.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 14736
+      }
+    }
+  ]
+}

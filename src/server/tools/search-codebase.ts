@@ -105,7 +105,12 @@ export function makeSearchCodebase(deps: ServerDeps) {
     }
 
     const filter = args.segment !== undefined ? { segment: args.segment } : undefined;
-    const results = deps.store.search(vector, k, filter);
+    // With a reranker (TASK-033), fetch a deeper candidate pool, re-score the
+    // (query, chunk) pairs with the cross-encoder, and keep the reordered top-k.
+    // Without one, plain top-k kNN (default).
+    const fetchN = deps.reranker ? Math.max(k, deps.reranker.candidates) : k;
+    const fetched = deps.store.search(vector, fetchN, filter);
+    const results = deps.reranker ? await deps.reranker.rerank(query, fetched, k) : fetched;
 
     return {
       content: [{ type: 'text' as const, text: formatResults(results, query) }],
