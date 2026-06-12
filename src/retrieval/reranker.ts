@@ -9,8 +9,7 @@
 // retriever: it reorders whatever ranked list it is given, so it composes with the
 // hybrid retriever (TASK-032) when that lands.
 
-import { resolve } from 'node:path';
-import { homedir } from 'node:os';
+import { modelCacheDir, offlineLoadError, remoteModelsAllowed } from '../model-cache.js';
 import type { SearchResult } from '../store/vector-store.js';
 
 /**
@@ -56,10 +55,6 @@ function resolveModel(model: string): string {
   return id;
 }
 
-function modelCacheDir(): string {
-  return process.env['RAG_MODEL_CACHE'] ?? resolve(homedir(), '.cache', 'rag-mcp', 'models');
-}
-
 const sigmoid = (x: number): number => 1 / (1 + Math.exp(-x));
 
 // Default scorer — lazily imports transformers.js so unit tests with a fake never
@@ -71,10 +66,17 @@ const defaultScorerFactory: ScorerFactory = async (modelId) => {
   );
   env.cacheDir = modelCacheDir();
   env.allowLocalModels = true;
-  env.allowRemoteModels = true; // needed only for the one-time download
+  env.allowRemoteModels = remoteModelsAllowed(); // offline by default; download is an explicit opt-in
 
-  const tokenizer = await AutoTokenizer.from_pretrained(modelId);
-  const model = await AutoModelForSequenceClassification.from_pretrained(modelId);
+  let tokenizer: Awaited<ReturnType<typeof AutoTokenizer.from_pretrained>>;
+  let model: Awaited<ReturnType<typeof AutoModelForSequenceClassification.from_pretrained>>;
+  try {
+    tokenizer = await AutoTokenizer.from_pretrained(modelId);
+    model = await AutoModelForSequenceClassification.from_pretrained(modelId);
+  } catch (e) {
+    if (!env.allowRemoteModels) throw offlineLoadError(modelId, e);
+    throw e;
+  }
 
   return async (query, passages) => {
     if (passages.length === 0) return [];

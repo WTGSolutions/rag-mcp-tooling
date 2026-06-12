@@ -107,10 +107,14 @@ picking the wrong one silently degrades quality.
 
 **Model cache.** Models are cached in `~/.cache/rag-mcp/models/` — a single
 user-wide location, so the model downloads once and is shared across every
-project and invocation (the model is identical everywhere). After the first
-download the tool works with no network — verify with
-`HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1`. Override the location with the
-`RAG_MODEL_CACHE` env var (useful in CI or sandboxes).
+project and invocation (the model is identical everywhere). Override the
+location with the `RAG_MODEL_CACHE` env var (useful in CI or sandboxes).
+
+**Offline by default.** The tool never downloads anything unless
+`RAG_ALLOW_DOWNLOAD=1` is set: a model missing from the cache fails with an
+actionable error instead of a silent network fetch. Fetch a model once with the
+flag set (e.g. `RAG_ALLOW_DOWNLOAD=1 npm run rag:index`); afterwards every run
+is fully offline — verify with `HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1`.
 
 > The model has a hard 512-token input limit. Every chunker keeps chunks within
 > `chunk.maxTokens` (default 512): the line and markdown chunkers window by
@@ -396,10 +400,12 @@ Only one `reindex` call runs at a time; a concurrent call is rejected with
 ## Monitoring usage
 
 The MCP server logs every tool call (query, result count, top score, latency) to
-`.rag/usage.jsonl` — one JSON line per call, appended in the background.
-Logging is always non-fatal: an I/O error is printed to stderr but never
-propagates to the caller. Disable it with `RAG_USAGE_LOG=0` in the server's
-environment.
+`.rag/usage.jsonl` — one JSON line per call, appended in the background. At
+~5 MB the file rotates to `.rag/usage.jsonl.1` (replacing the previous
+generation), so it never grows unbounded. Logging is always non-fatal: an I/O
+error is printed to stderr but never propagates to the caller. Disable it with
+`RAG_USAGE_LOG=0` in the server's environment. The log stores query text
+verbatim — keep `.rag/` gitignored (the hook installer warns when it isn't).
 
 Print a summary report from the monorepo root:
 
