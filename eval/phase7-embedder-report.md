@@ -1,8 +1,9 @@
 # Phase 7 — embedder A/B: multilingual fixes Polish, wrecks English → keep bge-small
 
-**TASK-034** · measured 2026-06-11 · k=5 · real index (web/mobile/wiki/tools) ·
-EN set = TASK-031 hard set (15 q, GT VALIDATED 2026-06-11 PO) · PL subgroup = 7 Polish
-translations of those targets (GT inherited) · all models **local/offline**
+**TASK-034** · measured 2026-06-11, bge-m3 follow-up 2026-06-12 · k=5 · real index
+(web/mobile/wiki/tools) · EN set = TASK-031 hard set (15 q, GT VALIDATED 2026-06-11 PO) ·
+PL subgroup = 7 Polish translations of those targets (GT inherited) · all models
+**local/offline**
 
 ## TL;DR — documented null for a wholesale swap; `bge-small-en` stays default
 
@@ -16,6 +17,7 @@ candidates were A/B'd against `bge-small-en`:
 | **`bge-small-en-v1.5`** (current) | **87% / 85% / 83%** | 14% / 14% / 14% |
 | `paraphrase-multilingual-MiniLM-L12-v2` | 40% / 23% / 25% | 43% / 14% / 14% |
 | `multilingual-e5-small` | 60% / 69% / 75% | 29% / 29% / 29% |
+| `bge-m3` (q8, follow-up 2026-06-12) | 60% / 69% / 75% | 29% / 29% / 29% |
 
 **The cross-lingual gap is real and model-fixable** — but **no small multilingual model
 pays for itself here.** Both fix the Polish-commented target (h01: bge **miss → #1**) and
@@ -87,12 +89,11 @@ small multilingual model.
 - **Keep `bge-small-en-v1.5` as the default embedder.** Both local multilingual
   candidates are a **documented null**: they regress the dominant English case more than
   they help the cross-lingual minority.
-- **Revisit only if PO prioritizes Polish-language querying**, and then with a bigger
-  lever, each its own gated A/B:
-  - a **stronger/larger multilingual retriever** (e.g. `bge-m3`, 1024d) that may keep
-    English *and* add Polish — untested here (heavier: ~4× storage, slower reindex);
-  - or a **dual-index / language-routed** setup (English model + multilingual model,
-    pick by detected query language) — more infrastructure.
+- **Revisit only if PO prioritizes Polish-language querying.** The "bigger lever"
+  (`bge-m3`) **has since been tested and also nulls** — see the follow-up section
+  below. The remaining untried option is a **dual-index / language-routed** setup
+  (English model + multilingual model, pick by detected query language) — more
+  infrastructure, and only worth it with a real Polish-query workload.
 - **The cheapest mitigation is non-technical** and was discussed with PO: most of the
   gap is Polish *comments* reached by English queries; identifiers are already English.
   Dropping Polish docs is **not** advised (it only moves the gap onto Polish-speaking
@@ -120,13 +121,50 @@ node dist/eval/run-eval.js -c ../../rag.config.json --queries eval/queries.hard.
 
 Frozen: `eval/results-phase7-{multilingual,e5}.json`, `eval/results-phase7-pl-{bge,multilingual,e5}.json`.
 
+## Follow-up (2026-06-12): bge-m3 (q8) — the bigger lever also nulls
+
+PO opened the gate for the flagged next step: `Xenova/bge-m3` (568M params, 1024d,
+CLS, no prefixes), the large multilingual retriever hypothesized to *keep* English
+while *adding* Polish. Loaded **q8-quantized** (the realistic production variant:
+560 MB download/resident vs ~2.3 GB fp32) via the new registry `dtype` mechanism;
+full reindex into its own store (`.rag/m3/index.db`, 6,182 chunks, **44 min** vs
+~9 min for the 384d models; index 36 MB vs 18 MB; query embedding ~13 ms — not a
+bottleneck).
+
+**Result: EN 60% / 69% / 75%, PL 29% / 29% / 29% — aggregate-identical to
+`multilingual-e5-small`,** a model 17× smaller. The hypothesis fails on its first
+half: English regresses 87% → 60% (h03, h04, h11, h12, h13 drop out; wiki/doc
+targets suffer most), the same failure mode as the small multilinguals. The
+cross-lingual win is real but no better than e5's: h01 (Polish-commented retry)
+found at **#2** from the English query; PL subgroup 2/7 (pl02, pl07 at #1).
+
+Per-query (file-level, bge → e5 → m3): h01 — → #1 → **#2**; h03 #2 → — → —;
+h04 #5 → #4 → —; h06 #3 → #4 → **#2**; h07 #2 → — → **#4**; h11/h12/h13
+#2/#2/#5 → all — → all —; h02/h08/h09/h10/h14 #1 under every model; h15 #1 → #4 → #1.
+
+**Verdict: null, again — and decisively.** At ~10× the size, ~5× the reindex time
+and 2× the index storage of e5-small, bge-m3-q8 buys *zero* aggregate retrieval
+quality over it, and both sit far below `bge-small-en` on the dominant English
+workload. `bge-small-en-v1.5` stays the default. Caveats: (a) q8 — an fp32 run
+might recover a few points, but the gap to close is ~27 pp on EN, far beyond
+plausible quantization loss, and fp32 is operationally a non-starter (2.3 GB
+resident); (b) transformers.js exposes only M3's dense head — its sparse/ColBERT
+signals, which carry much of M3's benchmark strength, are unavailable in this
+runtime. The honest conclusion: **in this stack, on this corpus, no available
+local multilingual embedder beats the English one where it matters.**
+
+Frozen: `eval/results-phase7-m3.json`, `eval/results-phase7-pl-m3.json`.
+Reproduce: `rag.config.m3.json` at the monorepo root, then the same commands as
+above with `-c ../../rag.config.m3.json`.
+
 ## Threats to validity
 
 - **EN-dominant benchmark.** The hard set is English by construction; that is also the
   realistic workload, but it structurally favors the English model. The PL subgroup is
   the counterweight, and even there the multilingual models are only modest.
-- **Two small candidates.** A larger multilingual retriever (bge-m3) is untested — the
-  null is for *small* multilingual models, the natural drop-ins. Flagged as the next
-  gated step.
+- **Two small candidates** *(resolved 2026-06-12)*: the larger multilingual retriever
+  (bge-m3, q8) was A/B'd in the follow-up below and nulls as well — the null now
+  covers small *and* large local multilingual models (in their quantized,
+  dense-only transformers.js form).
 - **PL subgroup GT is inherited** (translations of validated targets) — not separately
   PO-validated, as it reuses the same code regions; it supports, not gates, the verdict.

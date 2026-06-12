@@ -101,6 +101,12 @@ Supported models (each 384-dim):
 |---|---|---|
 | `Xenova/bge-small-en-v1.5` (`bge-small`) | CLS | Default. |
 | `Xenova/all-MiniLM-L6-v2` (`all-minilm`) | mean | Alternative. |
+| `Xenova/paraphrase-multilingual-MiniLM-L12-v2` (`multilingual-minilm`) | mean | Multilingual A/B candidate (TASK-034) — regresses English; not recommended. |
+| `Xenova/multilingual-e5-small` (`e5-small`) | mean | Multilingual A/B candidate (TASK-034), asymmetric `query:`/`passage:` prefixes — regresses English; not recommended. |
+| `Xenova/bge-m3` (`bge-m3`) | CLS | Large multilingual (1024d, loaded q8, 560 MB). A/B'd 2026-06-12 — no gain over e5-small; not recommended. |
+
+Changing `embedder.model` changes vector dimensions/semantics — rebuild the index
+with `rag-index --full --reset` afterwards.
 
 Pooling is pinned per model (it's a modeling choice and can't be auto-detected);
 picking the wrong one silently degrades quality.
