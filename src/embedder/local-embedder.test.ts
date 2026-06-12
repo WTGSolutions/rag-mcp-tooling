@@ -8,20 +8,26 @@ const DIM = 384;
  * encodes the first char code of its input in position 0, so order can be
  * verified. Captures the batch sizes and the last options passed.
  */
-function fakeFactory() {
-  const calls: { batchSizes: number[]; lastOptions?: { pooling: string; normalize: boolean }; factoryInvocations: number } = {
+function fakeFactory(dim: number = DIM) {
+  const calls: {
+    batchSizes: number[];
+    lastOptions?: { pooling: string; normalize: boolean };
+    lastLoadOptions?: { dtype?: string } | undefined;
+    factoryInvocations: number;
+  } = {
     batchSizes: [],
     factoryInvocations: 0,
   };
-  const factory: PipelineFactory = async () => {
+  const factory: PipelineFactory = async (_modelId, loadOptions) => {
     calls.factoryInvocations++;
+    calls.lastLoadOptions = loadOptions;
     return async (texts, options) => {
       calls.batchSizes.push(texts.length);
       calls.lastOptions = options;
       return {
         tolist: () =>
           texts.map((t) => {
-            const v = new Array<number>(DIM).fill(0);
+            const v = new Array<number>(dim).fill(0);
             v[0] = t.charCodeAt(0) || 0;
             return v;
           }),
@@ -48,6 +54,21 @@ describe('LocalEmbedder', () => {
 
       // Assert
       expect(e.modelId).toBe('Xenova/bge-small-en-v1.5');
+    });
+
+    it('resolves bge-m3 with 1024 dimensions and CLS pooling', async () => {
+      // Arrange
+      const { factory, calls } = fakeFactory(1024);
+      const e = new LocalEmbedder({ model: 'bge-m3', pipelineFactory: factory });
+
+      // Act
+      const vectors = await e.embed(['x']);
+
+      // Assert
+      expect(e.modelId).toBe('Xenova/bge-m3');
+      expect(e.dimensions).toBe(1024);
+      expect(vectors[0]!.length).toBe(1024);
+      expect(calls.lastOptions).toEqual({ pooling: 'cls', normalize: true });
     });
 
     it('throws a clear error for an unknown model, listing supported ones', () => {
@@ -80,6 +101,32 @@ describe('LocalEmbedder', () => {
 
       // Assert
       expect(calls.lastOptions?.pooling).toBe('mean');
+    });
+  });
+
+  describe('weight variant (dtype) per model', () => {
+    it('requests q8 weights for bge-m3', async () => {
+      // Arrange
+      const { factory, calls } = fakeFactory(1024);
+      const e = new LocalEmbedder({ model: 'bge-m3', pipelineFactory: factory });
+
+      // Act
+      await e.embed(['x']);
+
+      // Assert
+      expect(calls.lastLoadOptions).toEqual({ dtype: 'q8' });
+    });
+
+    it('passes no load options for models without a registry dtype', async () => {
+      // Arrange
+      const { factory, calls } = fakeFactory();
+      const e = new LocalEmbedder({ model: 'bge-small', pipelineFactory: factory });
+
+      // Act
+      await e.embed(['x']);
+
+      // Assert
+      expect(calls.lastLoadOptions).toBeUndefined();
     });
   });
 

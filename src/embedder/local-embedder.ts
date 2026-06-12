@@ -1,6 +1,5 @@
-import { resolve } from 'node:path';
-import { homedir } from 'node:os';
 import type { RagEmbedderConfig } from '../config.js';
+import { modelCacheDir, offlineLoadError, remoteModelsAllowed } from '../model-cache.js';
 import type { Embedder, EmbedKind, Pooling } from './types.js';
 
 // A loaded feature-extraction pipeline: callable, returns a tensor with tolist().
@@ -11,12 +10,21 @@ export type FeatureExtractor = (
 
 // Loads (and caches/downloads) a model and returns its extractor. Injectable so
 // unit tests run offline with a fake; the default uses transformers.js.
-export type PipelineFactory = (modelId: string) => Promise<FeatureExtractor>;
+export type PipelineLoadOptions = { dtype?: 'fp32' | 'fp16' | 'q8' | 'q4' };
+export type PipelineFactory = (modelId: string, loadOptions?: PipelineLoadOptions) => Promise<FeatureExtractor>;
 
 // Some models (E5 family) are trained with asymmetric instruction prefixes — the
 // query and the document must be prefixed differently or retrieval quality drops.
 // Empty/absent for symmetric models (BGE, MiniLM, paraphrase-multilingual).
-type ModelInfo = { dimensions: number; pooling: Pooling; queryPrefix?: string; passagePrefix?: string };
+// `dtype` picks the ONNX weight variant (fp32 when absent); large models set 'q8'
+// so the resident process stays in the hundreds of MB, not GB.
+type ModelInfo = {
+  dimensions: number;
+  pooling: Pooling;
+  queryPrefix?: string;
+  passagePrefix?: string;
+  dtype?: PipelineLoadOptions['dtype'];
+};
 
 // Known local models. dimensions + pooling cannot be auto-detected reliably
 // (pooling is a modeling choice), so they live here as the source of truth.
@@ -32,6 +40,10 @@ const MODEL_REGISTRY: Record<string, ModelInfo> = {
   'Xenova/multilingual-e5-small': {
     dimensions: 384, pooling: 'mean', queryPrefix: 'query: ', passagePrefix: 'passage: ',
   },
+  // Large multilingual retriever (TASK-034, gated bge-m3 A/B): dense head of BGE-M3,
+  // 1024d/cls, 100+ languages, no instruction prefixes. ~568M params — loaded q8
+  // (the realistic production variant; fp32 is ~2.3 GB resident).
+  'Xenova/bge-m3': { dimensions: 1024, pooling: 'cls', dtype: 'q8' },
 };
 
 const ALIASES: Record<string, string> = {
@@ -43,6 +55,7 @@ const ALIASES: Record<string, string> = {
   'paraphrase-multilingual-MiniLM-L12-v2': 'Xenova/paraphrase-multilingual-MiniLM-L12-v2',
   'multilingual-e5-small': 'Xenova/multilingual-e5-small',
   'e5-small': 'Xenova/multilingual-e5-small',
+  'bge-m3': 'Xenova/bge-m3',
 };
 
 function resolveModel(model: string): { id: string } & ModelInfo {
@@ -56,24 +69,21 @@ function resolveModel(model: string): { id: string } & ModelInfo {
   return { id, ...info };
 }
 
-// Stable, cwd-independent model cache. The model is identical across every
-// project and invocation, so a single shared user cache means it downloads once
-// and then works fully offline everywhere — unlike a cwd-relative path, which
-// re-downloads whenever the tool is run from a different directory. Override
-// with RAG_MODEL_CACHE for sandboxed/CI environments.
-function modelCacheDir(): string {
-  return process.env['RAG_MODEL_CACHE'] ?? resolve(homedir(), '.cache', 'rag-mcp', 'models');
-}
-
 // Default factory — lazily imports transformers.js so unit tests that inject a
 // fake never pull the heavy ONNX runtime.
-const defaultPipelineFactory: PipelineFactory = async (modelId) => {
+const defaultPipelineFactory: PipelineFactory = async (modelId, loadOptions) => {
   const { pipeline, env } = await import('@huggingface/transformers');
   env.cacheDir = modelCacheDir();
   env.allowLocalModels = true;
-  env.allowRemoteModels = true; // needed only for the one-time download
+  env.allowRemoteModels = remoteModelsAllowed(); // offline by default; download is an explicit opt-in
 
-  const extractor = await pipeline('feature-extraction', modelId);
+  let extractor;
+  try {
+    extractor = await pipeline('feature-extraction', modelId, loadOptions?.dtype ? { dtype: loadOptions.dtype } : undefined);
+  } catch (e) {
+    if (!env.allowRemoteModels) throw offlineLoadError(modelId, e);
+    throw e;
+  }
   return (texts, options) =>
     extractor(texts, options) as unknown as Promise<{ tolist(): number[][] }>;
 };
@@ -93,6 +103,7 @@ export class LocalEmbedder implements Embedder {
   private readonly pooling: Pooling;
   private readonly queryPrefix: string;
   private readonly passagePrefix: string;
+  private readonly dtype: PipelineLoadOptions['dtype'];
   private readonly batchSize: number;
   private readonly createPipeline: PipelineFactory;
   private extractor: FeatureExtractor | undefined;
@@ -105,6 +116,7 @@ export class LocalEmbedder implements Embedder {
     this.pooling = options.pooling ?? resolved.pooling;
     this.queryPrefix = resolved.queryPrefix ?? '';
     this.passagePrefix = resolved.passagePrefix ?? '';
+    this.dtype = resolved.dtype;
 
     const batchSize = options.batchSize ?? 32;
     if (!Number.isInteger(batchSize) || batchSize < 1) {
@@ -118,7 +130,7 @@ export class LocalEmbedder implements Embedder {
   // Loads the model once; concurrent callers share the same in-flight load.
   private async ready(): Promise<FeatureExtractor> {
     if (this.extractor) return this.extractor;
-    if (!this.loading) this.loading = this.createPipeline(this.modelId);
+    if (!this.loading) this.loading = this.createPipeline(this.modelId, this.dtype ? { dtype: this.dtype } : undefined);
     try {
       this.extractor = await this.loading;
     } catch (e) {
