@@ -261,3 +261,48 @@ describe.skipIf(process.env['RAG_RUN_MODEL_TESTS'] !== '1')('LocalEmbedder (real
     expect(vector!.length).toBe(384);
   }, 120_000);
 });
+
+// TASK-034: multilingual candidates + the E5 instruction-prefix mechanism.
+describe('multilingual models and instruction prefixes', () => {
+  // A fake pipeline that records the exact texts it was handed (to assert prefixing).
+  function capturingFactory() {
+    const seen: string[][] = [];
+    const factory: PipelineFactory = async () => async (texts) => {
+      seen.push([...texts]);
+      return { tolist: () => texts.map(() => new Array<number>(DIM).fill(0).map((_, i) => (i === 0 ? 1 : 0))) };
+    };
+    return { factory, seen };
+  }
+
+  it('registers the multilingual candidates with their dims', () => {
+    expect(new LocalEmbedder({ model: 'multilingual-minilm' }).modelId)
+      .toBe('Xenova/paraphrase-multilingual-MiniLM-L12-v2');
+    expect(new LocalEmbedder({ model: 'e5-small' }).modelId).toBe('Xenova/multilingual-e5-small');
+    expect(new LocalEmbedder({ model: 'multilingual-e5-small' }).dimensions).toBe(384);
+  });
+
+  it('E5 prefixes a query with "query: " and a passage with "passage: "', async () => {
+    const { factory, seen } = capturingFactory();
+    const e = new LocalEmbedder({ model: 'multilingual-e5-small', pipelineFactory: factory });
+    await e.embed(['retry logic'], 'query');
+    await e.embed(['some code'], 'passage');
+    expect(seen[0]).toEqual(['query: retry logic']);
+    expect(seen[1]).toEqual(['passage: some code']);
+  });
+
+  it('defaults to the passage prefix when kind is omitted (the indexer path)', async () => {
+    const { factory, seen } = capturingFactory();
+    const e = new LocalEmbedder({ model: 'multilingual-e5-small', pipelineFactory: factory });
+    await e.embed(['a chunk']); // no kind → passage
+    expect(seen[0]).toEqual(['passage: a chunk']);
+  });
+
+  it('a symmetric model (bge) applies no prefix for either kind', async () => {
+    const { factory, seen } = capturingFactory();
+    const e = new LocalEmbedder({ model: 'bge-small', pipelineFactory: factory });
+    await e.embed(['x'], 'query');
+    await e.embed(['y'], 'passage');
+    expect(seen[0]).toEqual(['x']);
+    expect(seen[1]).toEqual(['y']);
+  });
+});

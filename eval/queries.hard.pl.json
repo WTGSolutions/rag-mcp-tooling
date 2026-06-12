@@ -1,0 +1,71 @@
+{
+  "groundTruthStatus": "GT inherited from TASK-031 (VALIDATED 2026-06-11 PO) — Polish translations of a subset of the hard targets, for the non-English subgroup measurement (TASK-034). Same code/files/symbols/spans; only the query language differs.",
+  "queries": [
+    {
+      "id": "pl01-retry-backoff",
+      "concept": "[PL] ponawianie weryfikacji z rosnącym odstępem (withServiceRetry)",
+      "query": "ponów nieudane żądanie weryfikacji kilka razy, czekając coraz dłużej po każdej porażce",
+      "segment": "web",
+      "expectedFiles": ["web/src/lib/tax/retry.ts"],
+      "expectedSymbols": ["withServiceRetry"],
+      "expectedSpans": [{ "file": "web/src/lib/tax/retry.ts", "start": 22, "end": 39 }]
+    },
+    {
+      "id": "pl02-nip-validate",
+      "concept": "[PL] walidacja formatu i sumy kontrolnej NIP",
+      "query": "sprawdź czy polski NIP ma poprawny format i sumę kontrolną",
+      "segment": "web",
+      "expectedFiles": ["web/src/lib/tax/nip-format.ts", "web/src/lib/ksef-invoice-builder/validators/nip.validator.ts"],
+      "expectedSymbols": ["isValidNipFormat", "validateNIP"],
+      "expectedSpans": [
+        { "file": "web/src/lib/tax/nip-format.ts", "start": 35, "end": 52 },
+        { "file": "web/src/lib/ksef-invoice-builder/validators/nip.validator.ts", "start": 49, "end": 108 }
+      ]
+    },
+    {
+      "id": "pl03-image-dedupe",
+      "concept": "[PL] unikanie duplikatu zdjęcia po odcisku treści (findByHash)",
+      "query": "zanim zapiszesz przesłane zdjęcie, sprawdź po odcisku treści czy identyczne już istnieje",
+      "segment": "web",
+      "expectedFiles": ["web/src/lib/images/dedupe.ts"],
+      "expectedSymbols": ["findByHash"],
+      "expectedSpans": [{ "file": "web/src/lib/images/dedupe.ts", "start": 4, "end": 21 }]
+    },
+    {
+      "id": "pl04-assistant-ratelimit",
+      "concept": "[PL] limit zapytań do asystenta AI w oknie czasowym (checkRateLimit)",
+      "query": "ogranicz liczbę pytań, które użytkownik może wysłać do asystenta AI w przesuwnym oknie czasowym",
+      "segment": "web",
+      "expectedFiles": ["web/src/lib/assistant/rate-limit.ts"],
+      "expectedSymbols": ["checkRateLimit"],
+      "expectedSpans": [{ "file": "web/src/lib/assistant/rate-limit.ts", "start": 31, "end": 55 }]
+    },
+    {
+      "id": "pl05-motion-change",
+      "concept": "[PL] zdarzenie zmiany ruch/postój w tle (onMotionChange)",
+      "query": "obsłuż zdarzenie wyzwalane gdy telefon przechodzi między ruchem a bezruchem podczas śledzenia lokalizacji w tle",
+      "segment": "mobile",
+      "expectedFiles": ["mobile/src/lib/background-geolocation-service/handlers/on-motion-change.ts"],
+      "expectedSymbols": ["onMotionChange"],
+      "expectedSpans": [{ "file": "mobile/src/lib/background-geolocation-service/handlers/on-motion-change.ts", "start": 9, "end": 11 }]
+    },
+    {
+      "id": "pl06-push-reload",
+      "concept": "[PL] cichy push → odśwież lokalne dane wycieczki (onTokenDataReloadHandler)",
+      "query": "po otrzymaniu cichego powiadomienia push pobierz świeży status wycieczki z API i zaktualizuj lokalną kopię",
+      "segment": "mobile",
+      "expectedFiles": ["mobile/src/lib/push-notifications/listeners/handlers/on-token-data-reload.ts"],
+      "expectedSymbols": ["onTokenDataReloadHandler"],
+      "expectedSpans": [{ "file": "mobile/src/lib/push-notifications/listeners/handlers/on-token-data-reload.ts", "start": 21, "end": 68 }]
+    },
+    {
+      "id": "pl07-notification-time",
+      "concept": "[PL] moment przypomnienia ze strefą i offsetem (getNotificationTime)",
+      "query": "wylicz dokładny moment zaplanowania lokalnego przypomnienia o wydarzeniu, z uwzględnieniem strefy czasowej i przesunięcia w minutach",
+      "segment": "mobile",
+      "expectedFiles": ["mobile/src/lib/local-notifications/notification-time/index.ts"],
+      "expectedSymbols": ["getNotificationTime"],
+      "expectedSpans": [{ "file": "mobile/src/lib/local-notifications/notification-time/index.ts", "start": 11, "end": 19 }]
+    }
+  ]
+}

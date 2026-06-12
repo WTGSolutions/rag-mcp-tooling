@@ -484,8 +484,14 @@ oversized symbol's tail 0% → 100% hit@5 at head parity).
    Polish-commented chunks. **Rejected, off by default**; revisit only with a code- or
    multilingual-aware cross-encoder (a `RAG_RERANK_MODEL` swap). See
    [`eval/phase7-rerank-report.md`](eval/phase7-rerank-report.md).
-4. **Code- / multilingual embedder** — revisit a code-specialized or multilingual
-   model if a non-English or very large repo shows embedder-attributable misses.
+4. **Code- / multilingual embedder** — measured (TASK-034): two local multilingual
+   models (`paraphrase-multilingual-MiniLM-L12-v2`, `multilingual-e5-small`, both in the
+   registry; E5 query/passage prefixes supported) A/B'd vs `bge-small-en`. They fix the
+   cross-lingual gap (Polish-commented code, Polish queries) but **regress the dominant
+   English case** (file hit@5 87% → 40–60%) — **null, `bge-small-en` stays default**.
+   Revisit only with a larger multilingual model (`bge-m3`) or a dual / language-routed
+   index if Polish querying is prioritized. See
+   [`eval/phase7-embedder-report.md`](eval/phase7-embedder-report.md).
 5. **Scale & sharing** — benchmark very large monorepos (ANN tuning, per-segment
    stores) and a shared / CI-built index cache so developers don't each rebuild.
 6. **Richer chunk metadata** — surface imports, callers and doc links via

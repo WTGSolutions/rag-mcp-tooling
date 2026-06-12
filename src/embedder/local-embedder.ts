@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
 import { homedir } from 'node:os';
 import type { RagEmbedderConfig } from '../config.js';
-import type { Embedder, Pooling } from './types.js';
+import type { Embedder, EmbedKind, Pooling } from './types.js';
 
 // A loaded feature-extraction pipeline: callable, returns a tensor with tolist().
 export type FeatureExtractor = (
@@ -13,13 +13,25 @@ export type FeatureExtractor = (
 // unit tests run offline with a fake; the default uses transformers.js.
 export type PipelineFactory = (modelId: string) => Promise<FeatureExtractor>;
 
-type ModelInfo = { dimensions: number; pooling: Pooling };
+// Some models (E5 family) are trained with asymmetric instruction prefixes — the
+// query and the document must be prefixed differently or retrieval quality drops.
+// Empty/absent for symmetric models (BGE, MiniLM, paraphrase-multilingual).
+type ModelInfo = { dimensions: number; pooling: Pooling; queryPrefix?: string; passagePrefix?: string };
 
 // Known local models. dimensions + pooling cannot be auto-detected reliably
 // (pooling is a modeling choice), so they live here as the source of truth.
 const MODEL_REGISTRY: Record<string, ModelInfo> = {
   'Xenova/bge-small-en-v1.5': { dimensions: 384, pooling: 'cls' },
   'Xenova/all-MiniLM-L6-v2': { dimensions: 384, pooling: 'mean' },
+  // Multilingual (TASK-034): the cross-lingual analog of all-MiniLM — same 384d /
+  // mean pooling / no query-vs-passage prefix, but trained on 50+ languages incl.
+  // Polish. A paraphrase model (not retrieval-tuned) — the weak multilingual baseline.
+  'Xenova/paraphrase-multilingual-MiniLM-L12-v2': { dimensions: 384, pooling: 'mean' },
+  // Retrieval-grade multilingual (TASK-034): E5-small, 384d/mean, 100+ languages.
+  // Requires the asymmetric "query:" / "passage:" prefixes (omitting them degrades it).
+  'Xenova/multilingual-e5-small': {
+    dimensions: 384, pooling: 'mean', queryPrefix: 'query: ', passagePrefix: 'passage: ',
+  },
 };
 
 const ALIASES: Record<string, string> = {
@@ -27,6 +39,10 @@ const ALIASES: Record<string, string> = {
   'bge-small-en-v1.5': 'Xenova/bge-small-en-v1.5',
   'all-minilm': 'Xenova/all-MiniLM-L6-v2',
   'all-MiniLM-L6-v2': 'Xenova/all-MiniLM-L6-v2',
+  'multilingual-minilm': 'Xenova/paraphrase-multilingual-MiniLM-L12-v2',
+  'paraphrase-multilingual-MiniLM-L12-v2': 'Xenova/paraphrase-multilingual-MiniLM-L12-v2',
+  'multilingual-e5-small': 'Xenova/multilingual-e5-small',
+  'e5-small': 'Xenova/multilingual-e5-small',
 };
 
 function resolveModel(model: string): { id: string } & ModelInfo {
@@ -75,6 +91,8 @@ export class LocalEmbedder implements Embedder {
   readonly modelId: string;
   readonly dimensions: number;
   private readonly pooling: Pooling;
+  private readonly queryPrefix: string;
+  private readonly passagePrefix: string;
   private readonly batchSize: number;
   private readonly createPipeline: PipelineFactory;
   private extractor: FeatureExtractor | undefined;
@@ -85,6 +103,8 @@ export class LocalEmbedder implements Embedder {
     this.modelId = resolved.id;
     this.dimensions = options.dimensions ?? resolved.dimensions;
     this.pooling = options.pooling ?? resolved.pooling;
+    this.queryPrefix = resolved.queryPrefix ?? '';
+    this.passagePrefix = resolved.passagePrefix ?? '';
 
     const batchSize = options.batchSize ?? 32;
     if (!Number.isInteger(batchSize) || batchSize < 1) {
@@ -110,14 +130,19 @@ export class LocalEmbedder implements Embedder {
     return this.extractor;
   }
 
-  async embed(texts: string[]): Promise<Float32Array[]> {
+  async embed(texts: string[], kind: EmbedKind = 'passage'): Promise<Float32Array[]> {
     if (texts.length === 0) return [];
+
+    // Instruction prefix (E5): query vs passage embed differently. Empty for
+    // symmetric models, so this is a no-op for BGE/MiniLM/paraphrase-multilingual.
+    const prefix = kind === 'query' ? this.queryPrefix : this.passagePrefix;
+    const inputs = prefix ? texts.map((t) => prefix + t) : texts;
 
     const extractor = await this.ready();
     const vectors: Float32Array[] = [];
 
-    for (let i = 0; i < texts.length; i += this.batchSize) {
-      const batch = texts.slice(i, i + this.batchSize);
+    for (let i = 0; i < inputs.length; i += this.batchSize) {
+      const batch = inputs.slice(i, i + this.batchSize);
       const result = await extractor(batch, { pooling: this.pooling, normalize: true });
       for (const row of result.tolist()) {
         if (row.length !== this.dimensions) {

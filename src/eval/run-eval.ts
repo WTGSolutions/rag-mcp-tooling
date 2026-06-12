@@ -145,7 +145,7 @@ export async function runEval(args: Args): Promise<EvalResults> {
     embedder = createEmbedder(config.embedder);
     modelId = embedder.modelId;
     store = VectorStore.open(resolveStorePath(configPath, config), embedder.dimensions, embedder.modelId);
-    vectors = await embedder.embed(querySet.queries.map((q) => q.query));
+    vectors = await embedder.embed(querySet.queries.map((q) => q.query), 'query');
     reranker = createReranker();
   }
 

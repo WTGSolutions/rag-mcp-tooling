@@ -90,7 +90,7 @@ export function makeSearchCodebase(deps: ServerDeps) {
 
     let vectors: Float32Array[];
     try {
-      vectors = await deps.embedder.embed([query]);
+      vectors = await deps.embedder.embed([query], 'query');
     } catch (e) {
       // Surface a branded, actionable error instead of a raw transformers.js
       // message (e.g. a missing-model/ONNX error on a cold/offline cache).
