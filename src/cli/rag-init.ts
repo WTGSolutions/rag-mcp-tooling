@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, realpathSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs as nodeParseArgs } from 'node:util';
@@ -354,6 +354,11 @@ async function main(): Promise<void> {
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  void main();
+if (process.argv[1]) {
+  // Resolve symlinks before comparing: npm's .bin/ entries are symlinks so the
+  // unresolved argv[1] path would never match import.meta.url (the real path).
+  let calledUrl: string;
+  try { calledUrl = pathToFileURL(realpathSync(process.argv[1])).href; }
+  catch { calledUrl = pathToFileURL(process.argv[1]).href; }
+  if (import.meta.url === calledUrl) void main();
 }

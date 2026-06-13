@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -157,8 +157,12 @@ async function main(): Promise<void> {
 
 // Only run when invoked directly (not when imported by tests). A bare main()
 // would drop an unhandled rejection for any throw outside its inner try/catch.
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  main().catch((e) => {
+// Resolve symlinks: npm's .bin/ entries are symlinks, so process.argv[1] is the
+// symlink path while import.meta.url is the real path — direct comparison fails.
+if (process.argv[1]) {
+  let calledFile: string;
+  try { calledFile = realpathSync(process.argv[1]); } catch { calledFile = process.argv[1]; }
+  if (fileURLToPath(import.meta.url) === calledFile) main().catch((e) => {
     logStderr(`[rag-mcp] fatal — ${(e as Error)?.message ?? String(e)}`);
     process.exit(1);
   });
