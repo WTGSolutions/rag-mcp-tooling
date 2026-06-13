@@ -48,7 +48,23 @@ Acceptance: a full index of GuideTrackee (`web` + `mobile` + `wiki` + `tools`)
 processes **~1,150 files → ~5,500 chunks** offline with no errors; the PO-validated
 50-query acceptance set scores **hit@5 84% / MRR 0.69** with `bge-small-en`.
 
-## Install & build
+## Quick start (published package)
+
+```bash
+cd /your-project
+npx @wtgsolutions/rag-mcp rag-init
+```
+
+`rag-init` detects your project layout, writes `rag.config.json` + `.mcp.json`
+(with `mcpServers.rag`), patches `.gitignore`, and installs git hooks — then asks
+whether to build the index now. One command, no manual config required.
+
+Flags: `--dry` (preview only), `--yes` (build index without asking),
+`--no-index` (skip index step — CI).
+
+---
+
+## Install & build (development / monorepo)
 
 Requires Node ≥ 20.
 
@@ -237,7 +253,7 @@ The package exposes its pipeline as a library (the MCP server will consume the
 same API):
 
 ```ts
-import { loadConfig, createEmbedder, reindex, VectorStore } from '@guidetrackee/rag-mcp';
+import { loadConfig, createEmbedder, reindex, VectorStore } from '@wtgsolutions/rag-mcp';
 
 const config = loadConfig('rag.config.json');
 const embedder = createEmbedder(config.embedder);
