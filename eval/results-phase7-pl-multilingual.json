@@ -1,0 +1,381 @@
+{
+  "model": "Xenova/paraphrase-multilingual-MiniLM-L12-v2",
+  "k": 5,
+  "generatedAt": "2026-06-11T15:05:49.013Z",
+  "groundTruthStatus": "GT inherited from TASK-031 (VALIDATED 2026-06-11 PO) — Polish translations of a subset of the hard targets, for the non-English subgroup measurement (TASK-034). Same code/files/symbols/spans; only the query language differs.",
+  "rag": {
+    "count": 7,
+    "hits": 3,
+    "hitRate": 0.42857142857142855,
+    "mrr": 0.35714285714285715
+  },
+  "ragSymbol": {
+    "count": 7,
+    "hits": 1,
+    "hitRate": 0.14285714285714285,
+    "mrr": 0.14285714285714285
+  },
+  "ragSpan": {
+    "count": 7,
+    "hits": 1,
+    "hitRate": 0.14285714285714285,
+    "mrr": 0.14285714285714285
+  },
+  "grep": {
+    "count": 7,
+    "hits": 1,
+    "hitRate": 0.14285714285714285,
+    "mrr": 0.14285714285714285
+  },
+  "tokenCost": {
+    "ragTotal": 2046,
+    "broadTotal": 237680,
+    "ratio": 116.1681329423265
+  },
+  "perQuery": [
+    {
+      "id": "pl01-retry-backoff",
+      "concept": "[PL] ponawianie weryfikacji z rosnącym odstępem (withServiceRetry)",
+      "query": "ponów nieudane żądanie weryfikacji kilka razy, czekając coraz dłużej po każdej porażce",
+      "segment": "web",
+      "expectedFiles": [
+        "web/src/lib/tax/retry.ts"
+      ],
+      "rag": {
+        "top": [
+          "tools/rag-mcp/src/eval/metrics.ts",
+          "web/src/lib/tax/retry.ts",
+          "wiki/workflow/AI-Development.md",
+          "wiki/.epics/EPIC-007-mobile-cicd-auto-deploy.md",
+          "wiki/.epics/EPIC-040-lost-detection-hysteresis.md"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 2,
+          "reciprocalRank": 0.5
+        },
+        "tokens": 312,
+        "symbolOutcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "spanOutcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        }
+      },
+      "grep": {
+        "top": [
+          "wiki/.epics/EPIC-005-route-navigation-to-guide.md",
+          "wiki/.epics/EPIC-014-custom-background-geolocation-poc.md",
+          "wiki/.epics/EPIC-037-recurring-tours.md",
+          "wiki/.epics/EPIC-039-mobile-api-documentation-panel.md",
+          "wiki/.epics/EPIC-041-mcp-rag-semantic-code-index.md"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 46021
+      }
+    },
+    {
+      "id": "pl02-nip-validate",
+      "concept": "[PL] walidacja formatu i sumy kontrolnej NIP",
+      "query": "sprawdź czy polski NIP ma poprawny format i sumę kontrolną",
+      "segment": "web",
+      "expectedFiles": [
+        "web/src/lib/tax/nip-format.ts",
+        "web/src/lib/ksef-invoice-builder/validators/nip.validator.ts"
+      ],
+      "rag": {
+        "top": [
+          "web/src/lib/ksef-invoice-builder/validators/nip.validator.ts",
+          "web/src/lib/tax/nip-format.ts",
+          "web/src/lib/ksef-invoice-builder/validators/nip.validator.ts",
+          "web/src/lib/ksef-invoice-builder/types/buyer.ts",
+          "web/src/lib/ksef-invoice-builder/builders/buyer.builder.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 261,
+        "symbolOutcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "spanOutcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        }
+      },
+      "grep": {
+        "top": [
+          "web/src/lib/tax/nip-format.ts",
+          "wiki/.epics/EPIC-031-nip-validation-strategy.md",
+          "wiki/.epics/EPIC-041-mcp-rag-semantic-code-index.md",
+          "web/src/lib/ksef-invoice-builder/builders/electronic-service.builder.ts",
+          "web/src/lib/ksef-invoice-builder/validators/xsd.validator.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 23287
+      }
+    },
+    {
+      "id": "pl03-image-dedupe",
+      "concept": "[PL] unikanie duplikatu zdjęcia po odcisku treści (findByHash)",
+      "query": "zanim zapiszesz przesłane zdjęcie, sprawdź po odcisku treści czy identyczne już istnieje",
+      "segment": "web",
+      "expectedFiles": [
+        "web/src/lib/images/dedupe.ts"
+      ],
+      "rag": {
+        "top": [
+          "wiki/.epics/EPIC-030-image-gallery.md",
+          "wiki/.epics/EPIC-030-image-gallery.md",
+          "web/src/actions/images/upload-image.ts",
+          "wiki/.epics/EPIC-030-image-gallery.md",
+          "wiki/.epics/EPIC-030-image-gallery.md"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 312,
+        "symbolOutcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "spanOutcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        }
+      },
+      "grep": {
+        "top": [
+          "wiki/.epics/EPIC-030-image-gallery.md",
+          "wiki/.epics/EPIC-032-more-bug-fixing.md",
+          "wiki/.epics/EPIC-037-recurring-tours.md",
+          "wiki/.epics/BUGS-001-found-in-mobile-app-version-1.99.1.md",
+          "wiki/.epics/EPIC-036-short-access-code.md"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 25128
+      }
+    },
+    {
+      "id": "pl04-assistant-ratelimit",
+      "concept": "[PL] limit zapytań do asystenta AI w oknie czasowym (checkRateLimit)",
+      "query": "ogranicz liczbę pytań, które użytkownik może wysłać do asystenta AI w przesuwnym oknie czasowym",
+      "segment": "web",
+      "expectedFiles": [
+        "web/src/lib/assistant/rate-limit.ts"
+      ],
+      "rag": {
+        "top": [
+          "wiki/.epics/EPIC-033-interactive-chat-and-knowledge-base.md",
+          "wiki/.epics/EPIC-013-snap-to-road-position-accuracy.md",
+          "wiki/.epics/EPIC-041-mcp-rag-semantic-code-index.md",
+          "wiki/.epics/EPIC-033-interactive-chat-and-knowledge-base.md",
+          "wiki/.epics/EPIC-033-interactive-chat-and-knowledge-base.md"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 350,
+        "symbolOutcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "spanOutcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        }
+      },
+      "grep": {
+        "top": [
+          "wiki/.epics/EPIC-033-interactive-chat-and-knowledge-base.md",
+          "wiki/.epics/EPIC-012-partiql-storage-migration.md",
+          "wiki/.epics/EPIC-041-mcp-rag-semantic-code-index.md",
+          "wiki/.epics/BUGS-001-found-in-mobile-app-version-1.99.1.md",
+          "wiki/.epics/EPIC-006-address-map-geocoding-sync.md"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 36235
+      }
+    },
+    {
+      "id": "pl05-motion-change",
+      "concept": "[PL] zdarzenie zmiany ruch/postój w tle (onMotionChange)",
+      "query": "obsłuż zdarzenie wyzwalane gdy telefon przechodzi między ruchem a bezruchem podczas śledzenia lokalizacji w tle",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/lib/background-geolocation-service/handlers/on-motion-change.ts"
+      ],
+      "rag": {
+        "top": [
+          "wiki/.epics/EPIC-033-interactive-chat-and-knowledge-base.md",
+          "wiki/.epics/EPIC-013-snap-to-road-position-accuracy.md",
+          "wiki/.epics/EPIC-011-tours-filter-panel.md",
+          "wiki/.epics/EPIC-013-snap-to-road-position-accuracy.md",
+          "wiki/.epics/EPIC-002-deep-link-notification-navigation.md"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 189,
+        "symbolOutcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "spanOutcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        }
+      },
+      "grep": {
+        "top": [
+          "wiki/.epics/EPIC-003-tour-archive.md",
+          "wiki/.epics/EPIC-014-custom-background-geolocation-poc.md",
+          "wiki/.epics/BUGS-001-found-in-mobile-app-version-1.99.1.md",
+          "wiki/.epics/EPIC-005-route-navigation-to-guide.md",
+          "wiki/.epics/EPIC-021-geofencing.md"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 38364
+      }
+    },
+    {
+      "id": "pl06-push-reload",
+      "concept": "[PL] cichy push → odśwież lokalne dane wycieczki (onTokenDataReloadHandler)",
+      "query": "po otrzymaniu cichego powiadomienia push pobierz świeży status wycieczki z API i zaktualizuj lokalną kopię",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/lib/push-notifications/listeners/handlers/on-token-data-reload.ts"
+      ],
+      "rag": {
+        "top": [
+          "mobile/src/lib/tour-events/index.ts",
+          "wiki/.epics/EPIC-003-tour-archive.md",
+          "mobile/src/lib/tour-events/index.ts",
+          "wiki/.epics/BUGS-002-mobile-app-1.99.1-20260308.md",
+          "wiki/.epics/EPIC-040-lost-detection-hysteresis.md"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 292,
+        "symbolOutcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "spanOutcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        }
+      },
+      "grep": {
+        "top": [
+          "wiki/.epics/EPIC-001-user-lost-self-notification.md",
+          "wiki/.epics/EPIC-005-route-navigation-to-guide.md",
+          "wiki/.epics/EPIC-038-terms-and-services-mobile-live-data.md",
+          "wiki/.epics/BUGS-001-found-in-mobile-app-version-1.99.1.md",
+          "wiki/.epics/BUGS-003-discovered-by-qa.md"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 37382
+      }
+    },
+    {
+      "id": "pl07-notification-time",
+      "concept": "[PL] moment przypomnienia ze strefą i offsetem (getNotificationTime)",
+      "query": "wylicz dokładny moment zaplanowania lokalnego przypomnienia o wydarzeniu, z uwzględnieniem strefy czasowej i przesunięcia w minutach",
+      "segment": "mobile",
+      "expectedFiles": [
+        "mobile/src/lib/local-notifications/notification-time/index.ts"
+      ],
+      "rag": {
+        "top": [
+          "mobile/src/lib/local-notifications/notification-time/index.ts",
+          "wiki/.epics/EPIC-005-route-navigation-to-guide.md",
+          "wiki/workflow/AI-Development.md",
+          "wiki/workflow/AI-Development.en.md",
+          "mobile/src/components/tour/tour-actions/configs/constants.ts"
+        ],
+        "outcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "tokens": 330,
+        "symbolOutcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        },
+        "spanOutcome": {
+          "hit": true,
+          "position": 1,
+          "reciprocalRank": 1
+        }
+      },
+      "grep": {
+        "top": [
+          "wiki/.epics/EPIC-036-short-access-code.md",
+          "wiki/.epics/EPIC-021-geofencing.md",
+          "wiki/.epics/EPIC-038-terms-and-services-mobile-live-data.md",
+          "wiki/.epics/BUGS-003-discovered-by-qa.md",
+          "wiki/.epics/EPIC-005-route-navigation-to-guide.md"
+        ],
+        "outcome": {
+          "hit": false,
+          "position": null,
+          "reciprocalRank": 0
+        },
+        "tokens": 31263
+      }
+    }
+  ]
+}

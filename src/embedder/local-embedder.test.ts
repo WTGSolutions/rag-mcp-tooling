@@ -8,20 +8,26 @@ const DIM = 384;
  * encodes the first char code of its input in position 0, so order can be
  * verified. Captures the batch sizes and the last options passed.
  */
-function fakeFactory() {
-  const calls: { batchSizes: number[]; lastOptions?: { pooling: string; normalize: boolean }; factoryInvocations: number } = {
+function fakeFactory(dim: number = DIM) {
+  const calls: {
+    batchSizes: number[];
+    lastOptions?: { pooling: string; normalize: boolean };
+    lastLoadOptions?: { dtype?: string } | undefined;
+    factoryInvocations: number;
+  } = {
     batchSizes: [],
     factoryInvocations: 0,
   };
-  const factory: PipelineFactory = async () => {
+  const factory: PipelineFactory = async (_modelId, loadOptions) => {
     calls.factoryInvocations++;
+    calls.lastLoadOptions = loadOptions;
     return async (texts, options) => {
       calls.batchSizes.push(texts.length);
       calls.lastOptions = options;
       return {
         tolist: () =>
           texts.map((t) => {
-            const v = new Array<number>(DIM).fill(0);
+            const v = new Array<number>(dim).fill(0);
             v[0] = t.charCodeAt(0) || 0;
             return v;
           }),
@@ -48,6 +54,21 @@ describe('LocalEmbedder', () => {
 
       // Assert
       expect(e.modelId).toBe('Xenova/bge-small-en-v1.5');
+    });
+
+    it('resolves bge-m3 with 1024 dimensions and CLS pooling', async () => {
+      // Arrange
+      const { factory, calls } = fakeFactory(1024);
+      const e = new LocalEmbedder({ model: 'bge-m3', pipelineFactory: factory });
+
+      // Act
+      const vectors = await e.embed(['x']);
+
+      // Assert
+      expect(e.modelId).toBe('Xenova/bge-m3');
+      expect(e.dimensions).toBe(1024);
+      expect(vectors[0]!.length).toBe(1024);
+      expect(calls.lastOptions).toEqual({ pooling: 'cls', normalize: true });
     });
 
     it('throws a clear error for an unknown model, listing supported ones', () => {
@@ -80,6 +101,32 @@ describe('LocalEmbedder', () => {
 
       // Assert
       expect(calls.lastOptions?.pooling).toBe('mean');
+    });
+  });
+
+  describe('weight variant (dtype) per model', () => {
+    it('requests q8 weights for bge-m3', async () => {
+      // Arrange
+      const { factory, calls } = fakeFactory(1024);
+      const e = new LocalEmbedder({ model: 'bge-m3', pipelineFactory: factory });
+
+      // Act
+      await e.embed(['x']);
+
+      // Assert
+      expect(calls.lastLoadOptions).toEqual({ dtype: 'q8' });
+    });
+
+    it('passes no load options for models without a registry dtype', async () => {
+      // Arrange
+      const { factory, calls } = fakeFactory();
+      const e = new LocalEmbedder({ model: 'bge-small', pipelineFactory: factory });
+
+      // Act
+      await e.embed(['x']);
+
+      // Assert
+      expect(calls.lastLoadOptions).toBeUndefined();
     });
   });
 
@@ -260,4 +307,49 @@ describe.skipIf(process.env['RAG_RUN_MODEL_TESTS'] !== '1')('LocalEmbedder (real
     // Assert — silently truncated to 512 tokens, still a valid 384-dim vector
     expect(vector!.length).toBe(384);
   }, 120_000);
+});
+
+// TASK-034: multilingual candidates + the E5 instruction-prefix mechanism.
+describe('multilingual models and instruction prefixes', () => {
+  // A fake pipeline that records the exact texts it was handed (to assert prefixing).
+  function capturingFactory() {
+    const seen: string[][] = [];
+    const factory: PipelineFactory = async () => async (texts) => {
+      seen.push([...texts]);
+      return { tolist: () => texts.map(() => new Array<number>(DIM).fill(0).map((_, i) => (i === 0 ? 1 : 0))) };
+    };
+    return { factory, seen };
+  }
+
+  it('registers the multilingual candidates with their dims', () => {
+    expect(new LocalEmbedder({ model: 'multilingual-minilm' }).modelId)
+      .toBe('Xenova/paraphrase-multilingual-MiniLM-L12-v2');
+    expect(new LocalEmbedder({ model: 'e5-small' }).modelId).toBe('Xenova/multilingual-e5-small');
+    expect(new LocalEmbedder({ model: 'multilingual-e5-small' }).dimensions).toBe(384);
+  });
+
+  it('E5 prefixes a query with "query: " and a passage with "passage: "', async () => {
+    const { factory, seen } = capturingFactory();
+    const e = new LocalEmbedder({ model: 'multilingual-e5-small', pipelineFactory: factory });
+    await e.embed(['retry logic'], 'query');
+    await e.embed(['some code'], 'passage');
+    expect(seen[0]).toEqual(['query: retry logic']);
+    expect(seen[1]).toEqual(['passage: some code']);
+  });
+
+  it('defaults to the passage prefix when kind is omitted (the indexer path)', async () => {
+    const { factory, seen } = capturingFactory();
+    const e = new LocalEmbedder({ model: 'multilingual-e5-small', pipelineFactory: factory });
+    await e.embed(['a chunk']); // no kind → passage
+    expect(seen[0]).toEqual(['passage: a chunk']);
+  });
+
+  it('a symmetric model (bge) applies no prefix for either kind', async () => {
+    const { factory, seen } = capturingFactory();
+    const e = new LocalEmbedder({ model: 'bge-small', pipelineFactory: factory });
+    await e.embed(['x'], 'query');
+    await e.embed(['y'], 'passage');
+    expect(seen[0]).toEqual(['x']);
+    expect(seen[1]).toEqual(['y']);
+  });
 });

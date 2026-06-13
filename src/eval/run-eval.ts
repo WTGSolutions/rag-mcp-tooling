@@ -17,6 +17,7 @@ import {
 } from './metrics.js';
 import { grepRank, type CorpusFile } from './grep-baseline.js';
 import { loadQuerySet, type EvalQuery } from './queries.js';
+import { createReranker, type Reranker } from '../retrieval/reranker.js';
 
 const K = 5;
 const SNIPPET_CHARS = 280; // mirrors search_codebase's snippet length
@@ -84,14 +85,22 @@ function parseArgs(argv: string[]): Args {
   return args;
 }
 
-/** Run RAG search for one query and score it against the ground truth. */
-function rankRag(
+/**
+ * Run RAG search for one query and score it against the ground truth. With a
+ * reranker (TASK-033), fetch the cheap retriever's top-N, re-score the pairs with
+ * the cross-encoder, and keep the reordered top-K — the only difference from the
+ * baseline is the ordering of those K. Without one, plain top-K (baseline).
+ */
+async function rankRag(
   query: EvalQuery,
   store: VectorStore,
   vector: Float32Array,
   roots: SegmentRoots,
-): RagRank {
-  const results = store.search(vector, K);
+  reranker: Reranker | null,
+): Promise<RagRank> {
+  const fetchN = reranker ? Math.max(K, reranker.candidates) : K;
+  const fetched = store.search(vector, fetchN);
+  const results = reranker ? await reranker.rerank(query.query, fetched, K) : fetched.slice(0, K);
   const ranked: RankedChunk[] = results.map((r) => ({
     repoPath: toRepoPath(roots, r.chunk.segment, r.chunk.filePath),
     symbol: r.chunk.symbol,
@@ -130,20 +139,27 @@ export async function runEval(args: Args): Promise<EvalResults> {
   let store: VectorStore | null = null;
   let vectors: Float32Array[] = [];
   let modelId = args.model ?? config.embedder.model;
+  // Optional cross-encoder reranker (TASK-033) — only when RAG_RERANK=1 and not --dry.
+  let reranker: Reranker | null = null;
   if (!args.dry) {
     embedder = createEmbedder(config.embedder);
     modelId = embedder.modelId;
     store = VectorStore.open(resolveStorePath(configPath, config), embedder.dimensions, embedder.modelId);
-    vectors = await embedder.embed(querySet.queries.map((q) => q.query));
+    vectors = await embedder.embed(querySet.queries.map((q) => q.query), 'query');
+    reranker = createReranker();
   }
 
   try {
-    const perQuery: PerQuery[] = querySet.queries.map((q, i) => {
+    // Sequential (not Promise.all): the reranker is a single ONNX model instance,
+    // so concurrent calls would only contend; sequential also makes latency legible.
+    const perQuery: PerQuery[] = [];
+    for (let i = 0; i < querySet.queries.length; i++) {
+      const q = querySet.queries[i] as EvalQuery;
       const grepTop = grepRank(corpus, q.query, K);
       const grep = { top: grepTop, outcome: evaluate(grepTop, q.expectedFiles, K), tokens: tokensFor(grepTop, byPath) };
-      const rag = store ? rankRag(q, store, vectors[i] as Float32Array, roots) : null;
-      return { id: q.id, concept: q.concept, query: q.query, segment: q.segment, expectedFiles: q.expectedFiles, rag, grep };
-    });
+      const rag = store ? await rankRag(q, store, vectors[i] as Float32Array, roots, reranker) : null;
+      perQuery.push({ id: q.id, concept: q.concept, query: q.query, segment: q.segment, expectedFiles: q.expectedFiles, rag, grep });
+    }
 
     const ragOutcomes = perQuery.map((p) => p.rag?.outcome).filter((o): o is Outcome => o != null);
     const ragAgg = store ? aggregate(ragOutcomes) : null;

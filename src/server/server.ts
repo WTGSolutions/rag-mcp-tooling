@@ -8,6 +8,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import { loadConfig, resolveStorePath } from '../config.js';
 import { createEmbedder } from '../embedder/local-embedder.js';
+import { createReranker } from '../retrieval/reranker.js';
 import { VectorStore } from '../store/vector-store.js';
 import { registerTools, type ServerDeps } from './tools/index.js';
 import { UsageLogger, createUsageLogger } from './usage-logger.js';
@@ -72,12 +73,15 @@ export async function startServer(
     // the index was built with), so reindex walks the right tree.
     const cwd = dirname(absConfigPath);
     const usageLogger = createUsageLogger(resolve(cwd, '.rag', 'usage.jsonl'));
-    const server = createMcpServer({ config, store, embedder, cwd }, usageLogger);
+    // Optional cross-encoder reranker (TASK-033): enabled only by RAG_RERANK=1.
+    const reranker = createReranker();
+    const server = createMcpServer({ config, store, embedder, cwd, reranker }, usageLogger);
 
     const stats = store.stats();
     logStderr(
       `[rag-mcp] server ${SERVER_VERSION} ready — model ${embedder.modelId} ` +
-        `(${embedder.dimensions}d), ${stats.chunks} chunks across ${stats.files} files`,
+        `(${embedder.dimensions}d), ${stats.chunks} chunks across ${stats.files} files` +
+        (reranker ? `, reranker ${reranker.modelId} (top-${reranker.candidates})` : ''),
     );
 
     await server.connect(createTransport());

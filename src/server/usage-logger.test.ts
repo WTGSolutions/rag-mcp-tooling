@@ -76,6 +76,35 @@ describe('UsageLogger', () => {
     expect(readLines()).toHaveLength(3);
   });
 
+  it('rotates the file to .1 when it reaches maxBytes, then starts a fresh one', () => {
+    // Arrange — tiny cap so the second append crosses it
+    const record: UsageRecord = { ts: '2026-01-01T00:00:00.000Z', tool: 'get_chunk', id: 'a', found: true, latencyMs: 1 };
+    const cap = JSON.stringify(record).length; // first line alone reaches the cap
+    const logger = new UsageLogger(logPath(), true, cap);
+
+    // Act
+    logger.append(record);
+    logger.append(record); // triggers rotation before writing
+
+    // Assert — old line moved aside, new file holds exactly the post-rotation line
+    expect(readLines()).toHaveLength(1);
+    const rotated = readFileSync(`${logPath()}.1`, 'utf8').split('\n').filter((l) => l.trim());
+    expect(rotated).toHaveLength(1);
+  });
+
+  it('rotation replaces a previous .1 generation (disk usage stays bounded)', () => {
+    const record: UsageRecord = { ts: '', tool: 'get_chunk', id: 'b', found: true, latencyMs: 1 };
+    const cap = JSON.stringify(record).length;
+    const logger = new UsageLogger(logPath(), true, cap);
+
+    logger.append(record);
+    logger.append(record); // rotation #1
+    logger.append(record); // rotation #2 — overwrites .1
+
+    expect(readLines()).toHaveLength(1);
+    expect(existsSync(`${logPath()}.2`)).toBe(false);
+  });
+
   it('is non-fatal on I/O error (writes to stderr)', () => {
     const stderrSpy = vi.spyOn(process.stderr, 'write').mockReturnValue(true);
     // Use a path whose parent cannot be created (empty string dirname resolves to '.')

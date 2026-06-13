@@ -3,6 +3,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { RagConfig } from '../../config.js';
 import type { Embedder } from '../../embedder/types.js';
 import type { VectorStore } from '../../store/vector-store.js';
+import type { Reranker } from '../../retrieval/reranker.js';
 import {
   makeSearchCodebase,
   searchOutputShape,
@@ -26,6 +27,8 @@ export type ServerDeps = {
   embedder: Embedder;
   /** Directory for resolving relative segment roots (= the config file's dir). */
   cwd: string;
+  /** Optional cross-encoder reranker (TASK-033). Null/absent → plain kNN (default). */
+  reranker?: Reranker | null;
 };
 
 /**

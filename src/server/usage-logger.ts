@@ -1,5 +1,11 @@
-import { appendFileSync, mkdirSync } from 'node:fs';
+import { appendFileSync, mkdirSync, renameSync, statSync } from 'node:fs';
 import { dirname } from 'node:path';
+
+// Rotation threshold. The log grows one line per tool call across months of
+// sessions; at the cap the file is renamed to `<path>.1` (replacing the previous
+// generation), so disk usage is bounded at ~2× the cap while recent history —
+// the only part the usage report mines — stays available.
+const MAX_LOG_BYTES = 5 * 1024 * 1024;
 
 export type SearchRecord = {
   ts: string;
@@ -33,7 +39,8 @@ export type ReindexRecord = {
 export type UsageRecord = SearchRecord | GetChunkRecord | ReindexRecord;
 
 /**
- * Appends one JSONL line per tool call to `.rag/usage.jsonl`.
+ * Appends one JSONL line per tool call to `.rag/usage.jsonl`, rotating the file
+ * to `.rag/usage.jsonl.1` once it exceeds `maxBytes` so it never grows unbounded.
  * All writes are non-fatal: I/O errors go to stderr, never propagate.
  * Disabled entirely when `RAG_USAGE_LOG=0`.
  */
@@ -43,6 +50,7 @@ export class UsageLogger {
   constructor(
     readonly logPath: string,
     private readonly enabled: boolean,
+    private readonly maxBytes: number = MAX_LOG_BYTES,
   ) {}
 
   append(record: UsageRecord): void {
@@ -52,10 +60,24 @@ export class UsageLogger {
         mkdirSync(dirname(this.logPath), { recursive: true });
         this.dirEnsured = true;
       }
+      this.rotateIfNeeded();
       appendFileSync(this.logPath, JSON.stringify(record) + '\n');
     } catch {
       process.stderr.write('[rag-mcp] usage log write failed\n');
     }
+  }
+
+  // Size check + rename, both before the append: the cap is enforced between
+  // records, so a rotated file always ends on a complete JSONL line.
+  private rotateIfNeeded(): void {
+    let size: number;
+    try {
+      size = statSync(this.logPath).size;
+    } catch {
+      return; // no log file yet — nothing to rotate
+    }
+    if (size < this.maxBytes) return;
+    renameSync(this.logPath, `${this.logPath}.1`);
   }
 }
 

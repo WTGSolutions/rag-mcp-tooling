@@ -101,16 +101,26 @@ Supported models (each 384-dim):
 |---|---|---|
 | `Xenova/bge-small-en-v1.5` (`bge-small`) | CLS | Default. |
 | `Xenova/all-MiniLM-L6-v2` (`all-minilm`) | mean | Alternative. |
+| `Xenova/paraphrase-multilingual-MiniLM-L12-v2` (`multilingual-minilm`) | mean | Multilingual A/B candidate (TASK-034) — regresses English; not recommended. |
+| `Xenova/multilingual-e5-small` (`e5-small`) | mean | Multilingual A/B candidate (TASK-034), asymmetric `query:`/`passage:` prefixes — regresses English; not recommended. |
+| `Xenova/bge-m3` (`bge-m3`) | CLS | Large multilingual (1024d, loaded q8, 560 MB). A/B'd 2026-06-12 — no gain over e5-small; not recommended. |
+
+Changing `embedder.model` changes vector dimensions/semantics — rebuild the index
+with `rag-index --full --reset` afterwards.
 
 Pooling is pinned per model (it's a modeling choice and can't be auto-detected);
 picking the wrong one silently degrades quality.
 
 **Model cache.** Models are cached in `~/.cache/rag-mcp/models/` — a single
 user-wide location, so the model downloads once and is shared across every
-project and invocation (the model is identical everywhere). After the first
-download the tool works with no network — verify with
-`HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1`. Override the location with the
-`RAG_MODEL_CACHE` env var (useful in CI or sandboxes).
+project and invocation (the model is identical everywhere). Override the
+location with the `RAG_MODEL_CACHE` env var (useful in CI or sandboxes).
+
+**Offline by default.** The tool never downloads anything unless
+`RAG_ALLOW_DOWNLOAD=1` is set: a model missing from the cache fails with an
+actionable error instead of a silent network fetch. Fetch a model once with the
+flag set (e.g. `RAG_ALLOW_DOWNLOAD=1 npm run rag:index`); afterwards every run
+is fully offline — verify with `HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1`.
 
 > The model has a hard 512-token input limit. Every chunker keeps chunks within
 > `chunk.maxTokens` (default 512): the line and markdown chunkers window by
@@ -396,10 +406,12 @@ Only one `reindex` call runs at a time; a concurrent call is rejected with
 ## Monitoring usage
 
 The MCP server logs every tool call (query, result count, top score, latency) to
-`.rag/usage.jsonl` — one JSON line per call, appended in the background.
-Logging is always non-fatal: an I/O error is printed to stderr but never
-propagates to the caller. Disable it with `RAG_USAGE_LOG=0` in the server's
-environment.
+`.rag/usage.jsonl` — one JSON line per call, appended in the background. At
+~5 MB the file rotates to `.rag/usage.jsonl.1` (replacing the previous
+generation), so it never grows unbounded. Logging is always non-fatal: an I/O
+error is printed to stderr but never propagates to the caller. Disable it with
+`RAG_USAGE_LOG=0` in the server's environment. The log stores query text
+verbatim — keep `.rag/` gitignored (the hook installer warns when it isn't).
 
 Print a summary report from the monorepo root:
 
@@ -477,10 +489,21 @@ oversized symbol's tail 0% → 100% hit@5 at head parity).
    next: C#, C/C++, Ruby, PHP, Kotlin, Swift; config formats (YAML/JSON) for infra.
 2. **Hybrid retrieval** — fuse semantic kNN with a lexical signal; the eval
    harness already carries a `grep` baseline to measure any lift.
-3. **Optional reranking** — a small cross-encoder over the top-K to sharpen
-   ambiguous queries; adopt only behind an eval win (kept out so far by design).
-4. **Code- / multilingual embedder** — revisit a code-specialized or multilingual
-   model if a non-English or very large repo shows embedder-attributable misses.
+3. **Optional reranking** — built and measured (TASK-033): a local cross-encoder
+   over the top-K, behind `RAG_RERANK` (default off). On the Phase-7 headroom set the
+   standard `ms-marco-MiniLM-L-6-v2` **regressed** retrieval (file hit@5 87% → 67%) at
+   ~880 ms/query — a generic English web reranker demotes terse code, Markdown, and
+   Polish-commented chunks. **Rejected, off by default**; revisit only with a code- or
+   multilingual-aware cross-encoder (a `RAG_RERANK_MODEL` swap). See
+   [`eval/phase7-rerank-report.md`](eval/phase7-rerank-report.md).
+4. **Code- / multilingual embedder** — measured (TASK-034): two local multilingual
+   models (`paraphrase-multilingual-MiniLM-L12-v2`, `multilingual-e5-small`, both in the
+   registry; E5 query/passage prefixes supported) A/B'd vs `bge-small-en`. They fix the
+   cross-lingual gap (Polish-commented code, Polish queries) but **regress the dominant
+   English case** (file hit@5 87% → 40–60%) — **null, `bge-small-en` stays default**.
+   Revisit only with a larger multilingual model (`bge-m3`) or a dual / language-routed
+   index if Polish querying is prioritized. See
+   [`eval/phase7-embedder-report.md`](eval/phase7-embedder-report.md).
 5. **Scale & sharing** — benchmark very large monorepos (ANN tuning, per-segment
    stores) and a shared / CI-built index cache so developers don't each rebuild.
 6. **Richer chunk metadata** — surface imports, callers and doc links via
