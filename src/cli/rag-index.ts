@@ -2,7 +2,7 @@
 import { parseArgs } from 'node:util';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { rmSync } from 'node:fs';
+import { rmSync, realpathSync } from 'node:fs';
 import { loadConfig, ConfigError, resolveStorePath } from '../config.js';
 import { createEmbedder } from '../embedder/local-embedder.js';
 import { reindex } from '../indexer/reindex.js';
@@ -170,6 +170,8 @@ async function main(): Promise<void> {
 
 // Only run when invoked directly (not when imported by tests or other modules).
 // ESM equivalent of `if (require.main === module)`.
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  main();
+if (process.argv[1]) {
+  let calledFile: string;
+  try { calledFile = realpathSync(process.argv[1]); } catch { calledFile = process.argv[1]; }
+  if (fileURLToPath(import.meta.url) === calledFile) main();
 }

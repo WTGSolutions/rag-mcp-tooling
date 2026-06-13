@@ -1,0 +1,14 @@
+// Build config for the PUBLISHED artifact. Extends the dev tsconfig but strips
+// everything a consumer never needs: unit tests, fixtures, and the eval harness.
+// `npm run build` (plain tsc) still compiles the full tree so the local `eval`
+// script keeps working; only `prepack` uses this lean config for the tarball.
+{
+  "extends": "./tsconfig.json",
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/**/*.test.ts",
+    "src/__fixtures__/**",
+    "src/eval/**"
+  ]
+}

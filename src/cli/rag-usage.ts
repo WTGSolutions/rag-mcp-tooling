@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, realpathSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -72,6 +72,9 @@ function main(): void {
   process.stdout.write(formatReport(agg) + '\n');
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main();
+if (process.argv[1]) {
+  let calledUrl: string;
+  try { calledUrl = pathToFileURL(realpathSync(process.argv[1])).href; }
+  catch { calledUrl = pathToFileURL(process.argv[1]).href; }
+  if (import.meta.url === calledUrl) main();
 }
