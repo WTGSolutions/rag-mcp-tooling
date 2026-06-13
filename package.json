@@ -56,6 +56,7 @@
     "rag:init":  "node dist/cli/rag-init.js",
     "rag:usage": "node dist/cli/rag-usage.js",
     "verify:pack": "node scripts/verify-pack.mjs",
+    "smoke:pack":  "bash scripts/smoke-pack.sh",
     "prepack": "npm run build:publish"
   },
   "devDependencies": {

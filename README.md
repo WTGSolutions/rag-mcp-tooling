@@ -267,19 +267,29 @@ store.close();
 
 ## MCP server
 
-After building the index, wire the server into Claude Code via `.mcp.json` at
-the repository root:
+`rag-init` writes this automatically. If you need to hand-edit, the entry
+Claude Code looks for in `.mcp.json`:
 
 ```jsonc
 // .mcp.json (place alongside rag.config.json)
 {
   "mcpServers": {
     "rag": {
+      "command": "rag-mcp",
+      "args": ["--config", "rag.config.json"]
+    }
+  }
+}
+```
+
+**Dev / monorepo path** (without a global/npx install):
+
+```jsonc
+{
+  "mcpServers": {
+    "rag": {
       "command": "node",
-      "args": [
-        "tools/rag-mcp/dist/server/server.js",
-        "--config", "rag.config.json"
-      ]
+      "args": ["tools/rag-mcp/dist/server/server.js", "--config", "rag.config.json"]
     }
   }
 }
