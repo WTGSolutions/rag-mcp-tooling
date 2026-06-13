@@ -1,4 +1,4 @@
-// Public API of @guidetrackee/rag-mcp.
+// Public API of @wtgsolutions/rag-mcp.
 // Consumers (the rag-index CLI, and the Phase 2 MCP server) import from here.
 // Internal helpers (chunk windowing, the chunk factory, pipeline plumbing) are
 // intentionally NOT re-exported.

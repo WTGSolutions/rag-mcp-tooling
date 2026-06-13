@@ -1,21 +1,62 @@
 {
-  "name": "@guidetrackee/rag-mcp",
-  "version": "0.1.0",
+  "name": "@wtgsolutions/rag-mcp",
+  "version": "0.2.0",
   "description": "Semantic code index (RAG) + MCP server for codebase search",
   "type": "module",
+  "license": "MIT",
+  "author": "WTG Solutions",
+  "homepage": "https://github.com/WTGSolutions/rag-mcp-tooling#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WTGSolutions/rag-mcp-tooling.git"
+  },
+  "bugs": {
+    "url": "https://github.com/WTGSolutions/rag-mcp-tooling/issues"
+  },
+  "keywords": [
+    "rag",
+    "mcp",
+    "model-context-protocol",
+    "semantic-search",
+    "code-search",
+    "embeddings",
+    "vector-search",
+    "tree-sitter",
+    "claude",
+    "offline"
+  ],
   "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "scripts",
+    "README.md",
+    "THEORY.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "bin": {
     "rag-index": "./dist/cli/rag-index.js",
-    "rag-mcp": "./dist/server/server.js",
+    "rag-init":  "./dist/cli/rag-init.js",
+    "rag-mcp":   "./dist/server/server.js",
     "rag-usage": "./dist/cli/rag-usage.js"
   },
   "scripts": {
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "build": "tsc",
+    "build:publish": "npm run clean && tsc -p tsconfig.build.json",
     "dev": "tsc --watch",
     "test": "vitest run",
     "test:watch": "vitest",
     "eval": "node dist/eval/run-eval.js",
-    "rag:usage": "node dist/cli/rag-usage.js"
+    "rag:init":  "node dist/cli/rag-init.js",
+    "rag:usage": "node dist/cli/rag-usage.js",
+    "verify:pack": "node scripts/verify-pack.mjs",
+    "prepack": "npm run build:publish"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
@@ -29,12 +70,14 @@
     "better-sqlite3": "^12.10.0",
     "globby": "^16.2.0",
     "sqlite-vec": "^0.1.9",
+    "web-tree-sitter": "0.26.9",
+    "zod": "^4.4.3"
+  },
+  "optionalDependencies": {
     "tree-sitter-go": "0.25.0",
     "tree-sitter-java": "0.23.5",
     "tree-sitter-python": "0.25.0",
     "tree-sitter-rust": "0.24.0",
-    "tree-sitter-typescript": "0.23.2",
-    "web-tree-sitter": "0.26.9",
-    "zod": "^4.4.3"
+    "tree-sitter-typescript": "0.23.2"
   }
 }

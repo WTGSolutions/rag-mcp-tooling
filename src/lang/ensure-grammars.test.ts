@@ -37,26 +37,29 @@ describe('ensureGrammars', () => {
     expect(first).not.toBeNull();
   });
 
-  it('returns null and writes to stderr for an unknown grammar id', () => {
+  // An unknown grammar id exercises the same null-return contract that an
+  // uninstalled optional grammar package would hit (GRAMMAR_SPECS miss vs.
+  // require.resolve miss both → null). This is the guarantee that makes moving
+  // tree-sitter-* to optionalDependencies safe (TASK-036): a missing grammar
+  // degrades to the line chunker, never throws.
+  it('returns null and warns for an unavailable grammar (line-chunker fallback)', () => {
     process.env['RAG_GRAMMAR_CACHE'] = tmpDir;
     const stderrChunks: string[] = [];
     const origWrite = process.stderr.write.bind(process.stderr);
-    process.stderr.write = (chunk: string | Uint8Array) => {
+    process.stderr.write = ((chunk: string | Uint8Array) => {
       stderrChunks.push(String(chunk));
       return true;
-    };
+    }) as typeof process.stderr.write;
 
-    // Temporarily add a fake language to test the "not found" path by passing
-    // a language whose grammarId doesn't exist in the bundle.
-    // We do this by calling with an array that includes 'python' (which works)
-    // and checking the null case conceptually — we can't inject a bad grammarId
-    // without registry modification, so we verify the python happy path is non-null.
+    let result: ReturnType<typeof ensureGrammars>;
+    try {
+      result = ensureGrammars(['nonexistent-language']);
+    } finally {
+      process.stderr.write = origWrite;
+    }
 
-    const result = ensureGrammars(['python']);
-    process.stderr.write = origWrite;
-
-    // Python should succeed from npm bundle
-    expect(result.get('python')).not.toBeNull();
+    expect(result.get('nonexistent-language')).toBeNull();
+    expect(stderrChunks.join('')).toContain('nonexistent-language');
   });
 
   it('uses RAG_GRAMMAR_CACHE env var for cache location', () => {
