@@ -5,6 +5,7 @@ import type { WalkedFile } from '../walker.js';
 import { TREE_SITTER_LANGS } from '../lang/registry.js';
 import { chunkLines } from './line-chunker.js';
 import { chunkMarkdown } from './markdown-chunker.js';
+import { chunkYaml } from './yaml-chunker.js';
 import { chunkTreeSitter } from './tree-sitter.js';
 import type { Chunk } from './types.js';
 
@@ -23,6 +24,8 @@ export function dispatchChunker(
   switch (file.language) {
     case 'markdown':
       return chunkMarkdown(text, file, config, fileHash);
+    case 'yaml':
+      return chunkYaml(text, file, config, fileHash);
     default:
       return chunkLines(text, file, config, fileHash);
   }
