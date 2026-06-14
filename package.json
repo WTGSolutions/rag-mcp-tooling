@@ -75,6 +75,7 @@
     "zod": "^4.4.3"
   },
   "optionalDependencies": {
+    "@tree-sitter-grammars/tree-sitter-kotlin": "1.1.0",
     "tree-sitter-cpp": "0.23.4",
     "tree-sitter-go": "0.25.0",
     "tree-sitter-java": "0.23.5",

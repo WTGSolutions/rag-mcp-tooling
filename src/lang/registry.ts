@@ -13,6 +13,7 @@ import { goWalk, GO_COMMENT_PREFIXES } from '../chunk/walks/go.js';
 import { rustWalk, RUST_COMMENT_PREFIXES } from '../chunk/walks/rust.js';
 import { javaWalk, JAVA_COMMENT_PREFIXES } from '../chunk/walks/java.js';
 import { cppWalk, CPP_COMMENT_PREFIXES } from '../chunk/walks/cpp.js';
+import { kotlinWalk, KOTLIN_COMMENT_PREFIXES } from '../chunk/walks/kotlin.js';
 
 export type LangEntry = {
   /** Lowercase file extensions (with leading dot) that map to this language. */
@@ -77,6 +78,15 @@ export const TREE_SITTER_LANGS = {
     commentPrefixes: CPP_COMMENT_PREFIXES,
     walk: cppWalk,
     grammarFor: () => 'cpp',
+  },
+  kotlin: {
+    // .kt source + .kts scripts. Swift is intentionally absent — no ABI-14
+    // prebuilt wasm exists for it yet, so .swift falls back to the line chunker
+    // (see TASK-042). When a compatible swift wasm appears, add it the same way.
+    extensions: ['.kt', '.kts'],
+    commentPrefixes: KOTLIN_COMMENT_PREFIXES,
+    walk: kotlinWalk,
+    grammarFor: () => 'kotlin',
   },
 } as const satisfies Record<string, LangEntry>;
 

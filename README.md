@@ -36,7 +36,7 @@ and tested.
 |---|---|
 | Config loader (`rag.config.json`) | ✅ |
 | File walker (`.gitignore`, segments, binaries) | ✅ |
-| Chunkers: line (fallback), TS/JS + Python + Go + Rust + Java (AST via tree-sitter), Markdown (headings) | ✅ |
+| Chunkers: line (fallback), TS/JS + Python + Go + Rust + Java + C/C++ + Kotlin (AST via tree-sitter), Markdown (headings), YAML (top-level keys) | ✅ |
 | Local embedder (transformers.js, offline) | ✅ |
 | Vector store (SQLite + sqlite-vec, kNN) | ✅ |
 | Incremental reindex (file-hash change detection) | ✅ |
