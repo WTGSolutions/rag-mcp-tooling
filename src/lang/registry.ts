@@ -12,6 +12,7 @@ import { typescriptWalk, TS_COMMENT_PREFIXES } from '../chunk/walks/typescript.j
 import { goWalk, GO_COMMENT_PREFIXES } from '../chunk/walks/go.js';
 import { rustWalk, RUST_COMMENT_PREFIXES } from '../chunk/walks/rust.js';
 import { javaWalk, JAVA_COMMENT_PREFIXES } from '../chunk/walks/java.js';
+import { cppWalk, CPP_COMMENT_PREFIXES } from '../chunk/walks/cpp.js';
 
 export type LangEntry = {
   /** Lowercase file extensions (with leading dot) that map to this language. */
@@ -69,20 +70,30 @@ export const TREE_SITTER_LANGS = {
     walk: javaWalk,
     grammarFor: () => 'java',
   },
+  cpp: {
+    // One grammar (tree-sitter-cpp) parses both C and C++; the C++ grammar is a
+    // superset, so .c/.h files chunk through it too.
+    extensions: ['.cpp', '.cc', '.cxx', '.c', '.h', '.hpp', '.hh', '.inl'],
+    commentPrefixes: CPP_COMMENT_PREFIXES,
+    walk: cppWalk,
+    grammarFor: () => 'cpp',
+  },
 } as const satisfies Record<string, LangEntry>;
 
 export type TreeSitterLanguage = keyof typeof TREE_SITTER_LANGS;
 
 // Non-tree-sitter languages handled by dedicated chunkers.
-type StaticLanguage = 'markdown';
+type StaticLanguage = 'markdown' | 'yaml';
 
 // FileLanguage is the union of all handled languages, derived from the registry.
 export type FileLanguage = StaticLanguage | TreeSitterLanguage | 'unknown';
 
 // Build extension → language from the registry + the static (markdown) chunker.
 const extMap: Record<string, FileLanguage> = {
-  '.md':  'markdown',
-  '.mdx': 'markdown',
+  '.md':   'markdown',
+  '.mdx':  'markdown',
+  '.yml':  'yaml',
+  '.yaml': 'yaml',
 };
 
 for (const [lang, entry] of Object.entries(TREE_SITTER_LANGS) as Array<[TreeSitterLanguage, LangEntry]>) {

@@ -41,8 +41,8 @@
   },
   "bin": {
     "rag-index": "./dist/cli/rag-index.js",
-    "rag-init":  "./dist/cli/rag-init.js",
-    "rag-mcp":   "./dist/server/server.js",
+    "rag-init": "./dist/cli/rag-init.js",
+    "rag-mcp": "./dist/server/server.js",
     "rag-usage": "./dist/cli/rag-usage.js"
   },
   "scripts": {
@@ -53,10 +53,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "eval": "node dist/eval/run-eval.js",
-    "rag:init":  "node dist/cli/rag-init.js",
+    "rag:init": "node dist/cli/rag-init.js",
     "rag:usage": "node dist/cli/rag-usage.js",
     "verify:pack": "node scripts/verify-pack.mjs",
-    "smoke:pack":  "bash scripts/smoke-pack.sh",
+    "smoke:pack": "bash scripts/smoke-pack.sh",
     "prepack": "npm run build:publish"
   },
   "devDependencies": {
@@ -75,6 +75,7 @@
     "zod": "^4.4.3"
   },
   "optionalDependencies": {
+    "tree-sitter-cpp": "0.23.4",
     "tree-sitter-go": "0.25.0",
     "tree-sitter-java": "0.23.5",
     "tree-sitter-python": "0.25.0",

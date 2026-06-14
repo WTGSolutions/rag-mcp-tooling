@@ -34,6 +34,20 @@ describe('EXT_TO_LANGUAGE', () => {
     expect(EXT_TO_LANGUAGE['.java']).toBe('java');
   });
 
+  it('maps C/C++ extensions to cpp', () => {
+    expect(EXT_TO_LANGUAGE['.cpp']).toBe('cpp');
+    expect(EXT_TO_LANGUAGE['.cc']).toBe('cpp');
+    expect(EXT_TO_LANGUAGE['.c']).toBe('cpp');
+    expect(EXT_TO_LANGUAGE['.h']).toBe('cpp');
+    expect(EXT_TO_LANGUAGE['.hpp']).toBe('cpp');
+  });
+
+  it('maps YAML extensions (handled by a dedicated chunker, not tree-sitter)', () => {
+    expect(EXT_TO_LANGUAGE['.yml']).toBe('yaml');
+    expect(EXT_TO_LANGUAGE['.yaml']).toBe('yaml');
+    expect('yaml' in TREE_SITTER_LANGS).toBe(false);
+  });
+
   it('returns undefined for unknown extensions', () => {
     expect(EXT_TO_LANGUAGE['.json']).toBeUndefined();
     expect(EXT_TO_LANGUAGE['.css']).toBeUndefined();
