@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { existsSync, readFileSync, mkdtempSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
-import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { loadQuerySet } from './queries.js';
 import { runEval } from './run-eval.js';
@@ -88,9 +87,6 @@ describe('queries.oversized.json (Phase 6b windowing A/B set)', () => {
 // ── Offline: the corpus actually triggers windowing at the real 512-token budget ──
 
 describe('oversized corpus — windowing fires at the production budget', () => {
-  const grammarTmpDir = mkdtempSync(join(tmpdir(), 'rag-oversized-'));
-  process.env['RAG_GRAMMAR_CACHE'] = grammarTmpDir;
-
   beforeAll(() => {
     ensureGrammars(['python', 'typescript']);
   });

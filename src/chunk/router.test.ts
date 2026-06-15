@@ -1,15 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { join } from 'node:path';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { dispatchChunker, dispatchChunkerAsync, chunkFile } from './router.js';
 import type { WalkedFile } from '../walker.js';
 import type { RagChunkConfig } from '../config.js';
-
-// Hermetic grammar cache so tree-sitter routing copies the WASM to a temp dir
-// instead of the user's real ~/.cache. ensureGrammars copies from node_modules lazily.
-process.env['RAG_GRAMMAR_CACHE'] = mkdtempSync(join(tmpdir(), 'rag-router-grammars-'));
 
 const FIXTURES = join(import.meta.dirname, '../__fixtures__/mini-repo');
 

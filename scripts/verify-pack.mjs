@@ -26,7 +26,16 @@ const REQUIRE = [
   'dist/cli/rag-init.js',
   'dist/cli/rag-usage.js',
   'scripts/reindex-bg.sh',
-  'grammars/tree-sitter-swift.wasm', // vendored grammar must ship in the tarball
+  // All grammar wasm is vendored and must ship in the tarball (single model).
+  'grammars/tree-sitter-python.wasm',
+  'grammars/tree-sitter-typescript.wasm',
+  'grammars/tree-sitter-tsx.wasm',
+  'grammars/tree-sitter-go.wasm',
+  'grammars/tree-sitter-rust.wasm',
+  'grammars/tree-sitter-java.wasm',
+  'grammars/tree-sitter-cpp.wasm',
+  'grammars/tree-sitter-kotlin.wasm',
+  'grammars/tree-sitter-swift.wasm',
   'README.md',
 ];
 

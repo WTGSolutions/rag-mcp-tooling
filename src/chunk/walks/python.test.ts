@@ -1,21 +1,14 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { mkdtempSync } from 'node:fs';
 import { join } from 'node:path';
 import { readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { chunkTreeSitter } from '../tree-sitter.js';
 import { ensureGrammars } from '../../lang/ensure-grammars.js';
 import type { WalkedFile } from '../../walker.js';
 import type { RagChunkConfig } from '../../config.js';
 import { sha1 } from '../../hash.js';
 
-// Populate the grammar cache before tests run so the chunker finds the WASM.
-// Use a temp dir to keep the test self-contained.
-const grammarTmpDir = mkdtempSync(join(tmpdir(), 'rag-py-walk-'));
-process.env['RAG_GRAMMAR_CACHE'] = grammarTmpDir;
-
 beforeAll(() => {
-  ensureGrammars(['python']); // copy wasm to temp dir
+  ensureGrammars(['python']); // resolve the vendored wasm before the suite
 });
 
 const FIXTURES = join(import.meta.dirname, '../../__fixtures__');

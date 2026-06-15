@@ -1,18 +1,14 @@
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import { chunkTreeSitter } from './tree-sitter.js';
 import { ensureGrammars } from '../lang/ensure-grammars.js';
 import type { WalkedFile } from '../walker.js';
 import type { RagChunkConfig } from '../config.js';
 import { sha1 } from '../hash.js';
 
-const grammarTmpDir = mkdtempSync(join(tmpdir(), 'rag-core-'));
-process.env['RAG_GRAMMAR_CACHE'] = grammarTmpDir;
-
 beforeAll(() => {
-  ensureGrammars(['python']);
+  ensureGrammars(['python']); // resolve the vendored wasm before the suite
 });
 
 const FIXTURES = join(import.meta.dirname, '../__fixtures__');

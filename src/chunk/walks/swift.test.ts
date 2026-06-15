@@ -7,9 +7,6 @@ import type { WalkedFile } from '../../walker.js';
 import type { Chunk } from '../types.js';
 import type { RagChunkConfig } from '../../config.js';
 
-// No RAG_GRAMMAR_CACHE override needed: the Swift grammar is vendored in grammars/
-// and resolved in place, so the test exercises the real vendored-grammar path.
-
 const FIXTURES = join(import.meta.dirname, '../../__fixtures__');
 const CONFIG: RagChunkConfig = { maxTokens: 512, overlapLines: 4 };
 

@@ -15,6 +15,8 @@ const TREE_SITTER = [
   'tree-sitter-python',
   'tree-sitter-rust',
   'tree-sitter-typescript',
+  'tree-sitter-cpp',
+  '@tree-sitter-grammars/tree-sitter-kotlin',
 ] as const;
 
 describe('package.json — publish hygiene (TASK-036)', () => {
@@ -30,16 +32,18 @@ describe('package.json — publish hygiene (TASK-036)', () => {
     expect(scripts['build:publish']).toContain('tsconfig.build.json');
   });
 
-  it('moves tree-sitter grammars to optionalDependencies (npx-safe fallback)', () => {
-    const optional = pkg['optionalDependencies'] as Record<string, string>;
+  it('keeps tree-sitter grammars dev-only — wasm is vendored, not installed by users', () => {
+    const dev = pkg['devDependencies'] as Record<string, string>;
     const deps = pkg['dependencies'] as Record<string, string>;
+    // No optionalDependencies at all: the single grammar model is vendored wasm.
+    expect(pkg['optionalDependencies']).toBeUndefined();
     for (const g of TREE_SITTER) {
-      expect(optional, `${g} must be optional`).toHaveProperty(g);
-      expect(deps, `${g} must not be a hard dep`).not.toHaveProperty(g);
+      expect(dev, `${g} must be a devDependency (build-time wasm source)`).toHaveProperty(g);
+      expect(deps, `${g} must not be a runtime dep`).not.toHaveProperty(g);
     }
     // The WASM runtime itself stays a hard dependency — grammars load through it.
     expect(deps).toHaveProperty('web-tree-sitter');
-    expect(optional).not.toHaveProperty('web-tree-sitter');
+    expect(dev).not.toHaveProperty('web-tree-sitter');
   });
 
   it('exposes bins that point at compiled dist entry points', () => {

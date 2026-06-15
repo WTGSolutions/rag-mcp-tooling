@@ -58,11 +58,20 @@
     "rag:usage": "node dist/cli/rag-usage.js",
     "verify:pack": "node scripts/verify-pack.mjs",
     "smoke:pack": "bash scripts/smoke-pack.sh",
+    "sync-grammars": "node scripts/sync-grammars.mjs",
+    "check-grammars": "node scripts/check-grammars.mjs",
     "prepack": "npm run build:publish"
   },
   "devDependencies": {
+    "@tree-sitter-grammars/tree-sitter-kotlin": "1.1.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.0.0",
+    "tree-sitter-cpp": "0.23.4",
+    "tree-sitter-go": "0.25.0",
+    "tree-sitter-java": "0.23.5",
+    "tree-sitter-python": "0.25.0",
+    "tree-sitter-rust": "0.24.0",
+    "tree-sitter-typescript": "0.23.2",
     "typescript": "^5.5.0",
     "vitest": "^4.1.8"
   },
@@ -74,14 +83,5 @@
     "sqlite-vec": "^0.1.9",
     "web-tree-sitter": "0.26.9",
     "zod": "^4.4.3"
-  },
-  "optionalDependencies": {
-    "@tree-sitter-grammars/tree-sitter-kotlin": "1.1.0",
-    "tree-sitter-cpp": "0.23.4",
-    "tree-sitter-go": "0.25.0",
-    "tree-sitter-java": "0.23.5",
-    "tree-sitter-python": "0.25.0",
-    "tree-sitter-rust": "0.24.0",
-    "tree-sitter-typescript": "0.23.2"
   }
 }

@@ -1,15 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { join } from 'node:path';
-import { readFileSync, mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync } from 'node:fs';
 import { chunkTreeSitter } from '../tree-sitter.js';
 import { sha1 } from '../../hash.js';
 import type { WalkedFile } from '../../walker.js';
 import type { Chunk } from '../types.js';
 import type { RagChunkConfig } from '../../config.js';
-
-// Hermetic grammar cache — ensureGrammar copies tree-sitter-kotlin.wasm here.
-process.env['RAG_GRAMMAR_CACHE'] = mkdtempSync(join(tmpdir(), 'rag-kt-test-grammars-'));
 
 const FIXTURES = join(import.meta.dirname, '../../__fixtures__');
 const CONFIG: RagChunkConfig = { maxTokens: 512, overlapLines: 4 };

@@ -1,17 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { join } from 'node:path';
-import { readFileSync, existsSync, mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, existsSync } from 'node:fs';
 // Generic registry-driven chunker; aliased to keep the TS-focused test body intact.
 import { chunkTreeSitter as chunkTreeSitterTS } from '../tree-sitter.js';
 import { sha1 } from '../../hash.js';
 import type { WalkedFile } from '../../walker.js';
 import type { Chunk } from '../types.js';
 import type { RagChunkConfig } from '../../config.js';
-
-// Hermetic grammar cache so ensureGrammar copies the TS/TSX wasm to a temp dir
-// instead of the user's real ~/.cache (read at call time by grammarCacheDir).
-process.env['RAG_GRAMMAR_CACHE'] = mkdtempSync(join(tmpdir(), 'rag-ts-walk-grammars-'));
 
 // Ports the ts-morph AST chunker's validated contract (84% hit@5) to the
 // tree-sitter TS walk that replaced it. Behaviours must hold node-for-node.

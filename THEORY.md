@@ -244,7 +244,11 @@ rust    → function_item, struct_item, enum_item, trait_item, impl_item
 **For first-class support** of a new language add — without touching the core:
 
 1. A `detectLanguage` mapping via the registry ([src/lang/registry.ts](src/lang/registry.ts)).
-2. A grammar `.wasm` dependency + `ensureGrammars` resolution.
+2. A vendored grammar `.wasm` in [grammars/](grammars/) + a `GRAMMAR_SPECS` entry
+   ([src/lang/ensure-grammars.ts](src/lang/ensure-grammars.ts)). The wasm comes from
+   a dev-only npm package via [scripts/sync-grammars.mjs](scripts/sync-grammars.mjs)
+   (or, when none ships an ABI-compatible build, committed directly like Swift — see
+   [grammars/NOTICE.md](grammars/NOTICE.md)). `npm run check-grammars` gates the ABI.
 3. A walk module under [src/chunk/walks/](src/chunk/walks/) (like
    [python.ts](src/chunk/walks/python.ts)) that classifies node types into chunk
    kinds via the shared core. The generic chunker, core, and router are untouched.

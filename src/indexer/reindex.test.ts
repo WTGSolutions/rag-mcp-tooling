@@ -8,10 +8,6 @@ import type { RagConfig } from '../config.js';
 import type { Embedder } from '../embedder/types.js';
 import { VectorStore } from '../store/vector-store.js';
 
-// Hermetic grammar cache so a tree-sitter (.py) reindex copies the WASM to a temp
-// dir instead of the user's real ~/.cache. ensureGrammars copies from node_modules.
-process.env['RAG_GRAMMAR_CACHE'] = mkdtempSync(join(tmpdir(), 'rag-reindex-grammars-'));
-
 // ── Test helpers ──────────────────────────────────────────────────────────────
 
 const DIM = 4;
