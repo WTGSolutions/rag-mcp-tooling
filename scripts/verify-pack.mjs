@@ -26,6 +26,7 @@ const REQUIRE = [
   'dist/cli/rag-init.js',
   'dist/cli/rag-usage.js',
   'scripts/reindex-bg.sh',
+  'grammars/tree-sitter-swift.wasm', // vendored grammar must ship in the tarball
   'README.md',
 ];
 

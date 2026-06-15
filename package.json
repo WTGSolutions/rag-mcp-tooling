@@ -30,6 +30,7 @@
   "files": [
     "dist",
     "scripts",
+    "grammars",
     "README.md",
     "THEORY.md"
   ],

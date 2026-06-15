@@ -48,13 +48,10 @@ describe('EXT_TO_LANGUAGE', () => {
     expect('yaml' in TREE_SITTER_LANGS).toBe(false);
   });
 
-  it('maps Kotlin extensions to kotlin', () => {
+  it('maps Kotlin and Swift extensions', () => {
     expect(EXT_TO_LANGUAGE['.kt']).toBe('kotlin');
     expect(EXT_TO_LANGUAGE['.kts']).toBe('kotlin');
-  });
-
-  it('leaves Swift unregistered → line-chunker fallback (no ABI-14 wasm; TASK-042)', () => {
-    expect(EXT_TO_LANGUAGE['.swift']).toBeUndefined();
+    expect(EXT_TO_LANGUAGE['.swift']).toBe('swift');
   });
 
   it('returns undefined for unknown extensions', () => {

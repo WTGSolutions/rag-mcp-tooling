@@ -14,6 +14,7 @@ import { rustWalk, RUST_COMMENT_PREFIXES } from '../chunk/walks/rust.js';
 import { javaWalk, JAVA_COMMENT_PREFIXES } from '../chunk/walks/java.js';
 import { cppWalk, CPP_COMMENT_PREFIXES } from '../chunk/walks/cpp.js';
 import { kotlinWalk, KOTLIN_COMMENT_PREFIXES } from '../chunk/walks/kotlin.js';
+import { swiftWalk, SWIFT_COMMENT_PREFIXES } from '../chunk/walks/swift.js';
 
 export type LangEntry = {
   /** Lowercase file extensions (with leading dot) that map to this language. */
@@ -80,13 +81,18 @@ export const TREE_SITTER_LANGS = {
     grammarFor: () => 'cpp',
   },
   kotlin: {
-    // .kt source + .kts scripts. Swift is intentionally absent — no ABI-14
-    // prebuilt wasm exists for it yet, so .swift falls back to the line chunker
-    // (see TASK-042). When a compatible swift wasm appears, add it the same way.
     extensions: ['.kt', '.kts'],
     commentPrefixes: KOTLIN_COMMENT_PREFIXES,
     walk: kotlinWalk,
     grammarFor: () => 'kotlin',
+  },
+  swift: {
+    // Grammar wasm is vendored (no ABI-compatible npm build) — see
+    // grammars/NOTICE.md and ensure-grammars.ts ({ vendored } spec), TASK-042.
+    extensions: ['.swift'],
+    commentPrefixes: SWIFT_COMMENT_PREFIXES,
+    walk: swiftWalk,
+    grammarFor: () => 'swift',
   },
 } as const satisfies Record<string, LangEntry>;
 

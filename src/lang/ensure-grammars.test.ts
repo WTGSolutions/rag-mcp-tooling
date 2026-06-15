@@ -71,4 +71,18 @@ describe('ensureGrammars', () => {
     expect(result.get('python')).toContain(customCache);
     expect(existsSync(result.get('python')!)).toBe(true);
   });
+
+  // The vendored Swift grammar (no ABI-compatible npm build) is resolved in
+  // place from grammars/, NOT copied to the cache — so RAG_GRAMMAR_CACHE must
+  // not influence its path. This is the { vendored } spec branch (TASK-042).
+  it('resolves a vendored grammar (swift) in place, ignoring the cache dir', () => {
+    process.env['RAG_GRAMMAR_CACHE'] = tmpDir;
+
+    const wasmPath = ensureGrammars(['swift']).get('swift');
+
+    expect(wasmPath).not.toBeNull();
+    expect(existsSync(wasmPath!)).toBe(true);
+    expect(wasmPath!.endsWith('tree-sitter-swift.wasm')).toBe(true);
+    expect(wasmPath!.startsWith(tmpDir)).toBe(false); // not copied into the cache
+  });
 });
