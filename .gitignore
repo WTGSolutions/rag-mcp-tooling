@@ -24,3 +24,5 @@ npm-debug.log*
 
 # requirements
 .tasks
+# npm pack artifacts
+*.tgz

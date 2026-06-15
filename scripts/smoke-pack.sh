@@ -51,6 +51,12 @@ RAG_INDEX="./node_modules/.bin/rag-index"
 [ -f "$RAG_MCP"   ] || { echo "ERROR: rag-mcp binary missing" >&2; exit 1; }
 [ -f "$RAG_INDEX" ] || { echo "ERROR: rag-index binary missing" >&2; exit 1; }
 
+# Bins must be executable AND runnable directly (not just via `node`). tsc emits
+# 0644, which drops the shebang's +x bit → "Permission denied" on install methods
+# where npm doesn't force +x. Invoke through .bin/ with no `node` prefix to catch it.
+"$RAG_INDEX" --help >/dev/null 2>&1 || { echo "ERROR: rag-index not directly executable (exec bit / shebang)" >&2; exit 1; }
+echo "  bins are directly executable (exec bit OK)"
+
 # better-sqlite3 must have loaded its native prebuild (no build toolchain needed)
 node -e "
   const db = require('./node_modules/better-sqlite3')(':memory:');

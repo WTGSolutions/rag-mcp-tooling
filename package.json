@@ -48,8 +48,8 @@
   },
   "scripts": {
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
-    "build": "tsc",
-    "build:publish": "npm run clean && tsc -p tsconfig.build.json",
+    "build": "tsc && node scripts/chmod-bins.mjs",
+    "build:publish": "npm run clean && tsc -p tsconfig.build.json && node scripts/chmod-bins.mjs",
     "dev": "tsc --watch",
     "test": "vitest run",
     "test:watch": "vitest",
