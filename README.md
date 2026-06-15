@@ -513,8 +513,11 @@ oversized symbol's tail 0% → 100% hit@5 at head parity).
 1. **More languages — pure data.** A language is a walk module + a registry /
    `GRAMMAR_SPECS` entry + a vendored grammar wasm (the core never changes).
    **Shipped:** TS/JS, Python, Go, Rust, Java, C/C++, Kotlin, Swift (tree-sitter)
-   plus Markdown and YAML. Natural next: C#, Ruby, PHP; more config formats
-   (JSON/TOML).
+   plus Markdown and YAML. Highest-value next are full languages (more code, more
+   signal): C#, Ruby, PHP. Config formats are lower priority and gated on real
+   demand — TOML (section-structured `Cargo.toml`/`pyproject.toml`) over JSON,
+   which is low-signal (no comments) and noise-prone (data files); both already
+   line-chunk today, so a dedicated chunker only helps large hand-written configs.
 2. **Hybrid retrieval** — fuse semantic kNN with a lexical signal; the eval
    harness already carries a `grep` baseline to measure any lift.
 3. **Optional reranking** — built and measured (TASK-033): a local cross-encoder
