@@ -510,9 +510,11 @@ oversized symbol's tail 0% → 100% hit@5 at head parity).
 
 **Directions, roughly in value order.**
 
-1. **More languages — pure data.** A language is a walk module + two registry
-   entries (proven across Python/Go/Rust/Java; the core never changes). Natural
-   next: C#, C/C++, Ruby, PHP, Kotlin, Swift; config formats (YAML/JSON) for infra.
+1. **More languages — pure data.** A language is a walk module + a registry /
+   `GRAMMAR_SPECS` entry + a vendored grammar wasm (the core never changes).
+   **Shipped:** TS/JS, Python, Go, Rust, Java, C/C++, Kotlin, Swift (tree-sitter)
+   plus Markdown and YAML. Natural next: C#, Ruby, PHP; more config formats
+   (JSON/TOML).
 2. **Hybrid retrieval** — fuse semantic kNN with a lexical signal; the eval
    harness already carries a `grep` baseline to measure any lift.
 3. **Optional reranking** — built and measured (TASK-033): a local cross-encoder

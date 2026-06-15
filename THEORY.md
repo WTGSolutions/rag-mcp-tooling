@@ -239,7 +239,14 @@ python  → function_definition, class_definition          (#  comments)
 typescript → function/class/interface/type_alias…        (// and /* */)
 go      → function_declaration, method_declaration, type_declaration
 rust    → function_item, struct_item, enum_item, trait_item, impl_item
+java    → class/record → Class.method, interface, enum
+cpp     → function/class/struct/union/enum; namespace + extern "C" recursed
+kotlin  → class/interface/enum/object; Class.method
+swift   → struct/class/actor/enum/extension, protocol; Type.method/.init
 ```
+
+Two non-tree-sitter chunkers cover structured text: Markdown (by heading) and
+YAML (by top-level key — config files key on stanzas, not an AST).
 
 **For first-class support** of a new language add — without touching the core:
 
