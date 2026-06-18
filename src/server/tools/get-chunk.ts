@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { Chunk } from '../../chunk/types.js';
-import type { ServerDeps } from './index.js';
 import { chunkBaseShape, chunkRef, chunkToStructured } from './format.js';
+import type { ServerDeps } from './index.js';
 
 export type GetChunkArgs = { id: string };
 

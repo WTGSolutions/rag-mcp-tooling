@@ -49,7 +49,10 @@ export function parseQuerySet(raw: unknown): QuerySet {
     throw new Error('[rag-mcp] queries: root must be an object');
   }
   const obj = raw as Record<string, unknown>;
-  const groundTruthStatus = asNonEmptyString(obj['groundTruthStatus'], 'groundTruthStatus');
+  const groundTruthStatus = asNonEmptyString(
+    obj['groundTruthStatus'],
+    'groundTruthStatus',
+  );
 
   if (!Array.isArray(obj['queries']) || obj['queries'].length === 0) {
     throw new Error('[rag-mcp] queries: "queries" must be a non-empty array');
@@ -58,14 +61,17 @@ export function parseQuerySet(raw: unknown): QuerySet {
   const ids = new Set<string>();
   const queries = obj['queries'].map((q, i) => {
     const where = `queries[${i}]`;
-    if (typeof q !== 'object' || q === null) throw new Error(`[rag-mcp] queries: ${where} must be an object`);
+    if (typeof q !== 'object' || q === null)
+      throw new Error(`[rag-mcp] queries: ${where} must be an object`);
     const e = q as Record<string, unknown>;
     const id = asNonEmptyString(e['id'], `${where}.id`);
     if (ids.has(id)) throw new Error(`[rag-mcp] queries: duplicate id "${id}"`);
     ids.add(id);
 
     if (!Array.isArray(e['expectedFiles']) || e['expectedFiles'].length === 0) {
-      throw new Error(`[rag-mcp] queries: ${where}.expectedFiles must be a non-empty array`);
+      throw new Error(
+        `[rag-mcp] queries: ${where}.expectedFiles must be a non-empty array`,
+      );
     }
     const expectedFiles = e['expectedFiles'].map((f, j) =>
       asNonEmptyString(f, `${where}.expectedFiles[${j}]`),
@@ -75,8 +81,13 @@ export function parseQuerySet(raw: unknown): QuerySet {
     // non-empty array of non-empty strings; absent leaves the query file-level only.
     let expectedSymbols: string[] | undefined;
     if (e['expectedSymbols'] !== undefined) {
-      if (!Array.isArray(e['expectedSymbols']) || e['expectedSymbols'].length === 0) {
-        throw new Error(`[rag-mcp] queries: ${where}.expectedSymbols must be a non-empty array when present`);
+      if (
+        !Array.isArray(e['expectedSymbols']) ||
+        e['expectedSymbols'].length === 0
+      ) {
+        throw new Error(
+          `[rag-mcp] queries: ${where}.expectedSymbols must be a non-empty array when present`,
+        );
       }
       expectedSymbols = e['expectedSymbols'].map((s, j) =>
         asNonEmptyString(s, `${where}.expectedSymbols[${j}]`),
@@ -87,18 +98,32 @@ export function parseQuerySet(raw: unknown): QuerySet {
     // non-empty array of {file, start, end} objects with start<=end positive ints.
     let expectedSpans: ExpectedSpan[] | undefined;
     if (e['expectedSpans'] !== undefined) {
-      if (!Array.isArray(e['expectedSpans']) || e['expectedSpans'].length === 0) {
-        throw new Error(`[rag-mcp] queries: ${where}.expectedSpans must be a non-empty array when present`);
+      if (
+        !Array.isArray(e['expectedSpans']) ||
+        e['expectedSpans'].length === 0
+      ) {
+        throw new Error(
+          `[rag-mcp] queries: ${where}.expectedSpans must be a non-empty array when present`,
+        );
       }
       expectedSpans = e['expectedSpans'].map((s, j) => {
         if (typeof s !== 'object' || s === null) {
-          throw new Error(`[rag-mcp] queries: ${where}.expectedSpans[${j}] must be an object`);
+          throw new Error(
+            `[rag-mcp] queries: ${where}.expectedSpans[${j}] must be an object`,
+          );
         }
         const sp = s as Record<string, unknown>;
-        const file = asNonEmptyString(sp['file'], `${where}.expectedSpans[${j}].file`);
+        const file = asNonEmptyString(
+          sp['file'],
+          `${where}.expectedSpans[${j}].file`,
+        );
         const start = sp['start'];
         const end = sp['end'];
-        if (typeof start !== 'number' || !Number.isInteger(start) || start < 1) {
+        if (
+          typeof start !== 'number' ||
+          !Number.isInteger(start) ||
+          start < 1
+        ) {
           throw new Error(
             `[rag-mcp] queries: ${where}.expectedSpans[${j}].start must be a positive integer`,
           );

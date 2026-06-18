@@ -1,11 +1,14 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync, writeFileSync, realpathSync } from 'node:fs';
-import { resolve, join } from 'node:path';
+import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { createInterface } from 'node:readline/promises';
 import { pathToFileURL } from 'node:url';
 import { parseArgs as nodeParseArgs } from 'node:util';
-import { createInterface } from 'node:readline/promises';
-import { installHooks, type InstallResult } from '../hooks/install-hooks.js';
-import { run as runIndex, parseCliArgs as parseIndexArgs } from './rag-index.js';
+import { type InstallResult, installHooks } from '../hooks/install-hooks.js';
+import {
+  parseCliArgs as parseIndexArgs,
+  run as runIndex,
+} from './rag-index.js';
 
 // ── Layout detection ──────────────────────────────────────────────────────────
 
@@ -31,10 +34,10 @@ export function detectLayout(cwd: string): DetectedLayout {
       kind: 'guidetrackee',
       description: 'monorepo (web/ + mobile/ + wiki/ + tools/ detected)',
       segments: [
-        { name: 'web',    root: 'web/src',    include: ['**/*.{ts,tsx}'] },
+        { name: 'web', root: 'web/src', include: ['**/*.{ts,tsx}'] },
         { name: 'mobile', root: 'mobile/src', include: ['**/*.{ts,tsx}'] },
-        { name: 'wiki',   root: 'wiki',       include: ['**/*.md'] },
-        { name: 'tools',  root: 'tools',      include: ['**/*.{ts,md}'] },
+        { name: 'wiki', root: 'wiki', include: ['**/*.md'] },
+        { name: 'tools', root: 'tools', include: ['**/*.{ts,md}'] },
       ],
     };
   }
@@ -42,9 +45,7 @@ export function detectLayout(cwd: string): DetectedLayout {
   return {
     kind: 'minimal',
     description: 'minimal (src/ layout)',
-    segments: [
-      { name: 'src', root: 'src', include: ['**/*.{ts,tsx}'] },
-    ],
+    segments: [{ name: 'src', root: 'src', include: ['**/*.{ts,tsx}'] }],
   };
 }
 
@@ -56,18 +57,21 @@ export function buildRagConfigJson(layout: DetectedLayout): string {
     chunk: { maxTokens: 512, overlapLines: 8 },
     store: { path: '.rag/index.db' },
   };
-  return JSON.stringify(cfg, null, 2) + '\n';
+  return `${JSON.stringify(cfg, null, 2)}\n`;
 }
 
 // ── .mcp.json merge ───────────────────────────────────────────────────────────
 
-const RAG_MCP_ENTRY = { command: 'rag-mcp', args: ['--config', 'rag.config.json'] } as const;
+const RAG_MCP_ENTRY = {
+  command: 'rag-mcp',
+  args: ['--config', 'rag.config.json'],
+} as const;
 
 export type McpMergeResult =
-  | { action: 'created';  content: string }
-  | { action: 'updated';  content: string }
-  | { action: 'skipped';  reason: 'already-configured' }
-  | { action: 'error';    reason: string };
+  | { action: 'created'; content: string }
+  | { action: 'updated'; content: string }
+  | { action: 'skipped'; reason: 'already-configured' }
+  | { action: 'error'; reason: string };
 
 /**
  * Merges `mcpServers.rag` into an existing `.mcp.json` string (or creates one).
@@ -77,7 +81,7 @@ export type McpMergeResult =
 export function mergeMcpJson(existing: string | null): McpMergeResult {
   if (existing === null) {
     const obj = { mcpServers: { rag: RAG_MCP_ENTRY } };
-    return { action: 'created', content: JSON.stringify(obj, null, 2) + '\n' };
+    return { action: 'created', content: `${JSON.stringify(obj, null, 2)}\n` };
   }
 
   let parsed: unknown;
@@ -86,33 +90,42 @@ export function mergeMcpJson(existing: string | null): McpMergeResult {
   } catch {
     return {
       action: 'error',
-      reason: 'existing .mcp.json is not valid JSON — fix it manually, then re-run rag-init',
+      reason:
+        'existing .mcp.json is not valid JSON — fix it manually, then re-run rag-init',
     };
   }
 
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
     return {
       action: 'error',
-      reason: 'existing .mcp.json root must be a JSON object — fix it manually, then re-run rag-init',
+      reason:
+        'existing .mcp.json root must be a JSON object — fix it manually, then re-run rag-init',
     };
   }
 
   const obj = parsed as Record<string, unknown>;
   const rawServers = obj['mcpServers'];
-  if (rawServers !== undefined && (typeof rawServers !== 'object' || rawServers === null || Array.isArray(rawServers))) {
+  if (
+    rawServers !== undefined &&
+    (typeof rawServers !== 'object' ||
+      rawServers === null ||
+      Array.isArray(rawServers))
+  ) {
     return {
       action: 'error',
-      reason: 'existing .mcp.json has a mcpServers key that is not a plain object — fix it manually, then re-run rag-init',
+      reason:
+        'existing .mcp.json has a mcpServers key that is not a plain object — fix it manually, then re-run rag-init',
     };
   }
-  const servers = rawServers !== undefined ? (rawServers as Record<string, unknown>) : {};
+  const servers =
+    rawServers !== undefined ? (rawServers as Record<string, unknown>) : {};
 
   if ('rag' in servers) {
     return { action: 'skipped', reason: 'already-configured' };
   }
 
   const merged = { ...obj, mcpServers: { ...servers, rag: RAG_MCP_ENTRY } };
-  return { action: 'updated', content: JSON.stringify(merged, null, 2) + '\n' };
+  return { action: 'updated', content: `${JSON.stringify(merged, null, 2)}\n` };
 }
 
 // ── .gitignore patch ──────────────────────────────────────────────────────────
@@ -130,8 +143,9 @@ export function patchGitignore(existing: string): string {
   const lines = new Set(existing.split('\n').map((l) => l.trim()));
   const missing = GITIGNORE_ENTRIES.filter((e) => !lines.has(e));
   if (missing.length === 0) return existing;
-  const sep = existing.length === 0 ? '' : existing.endsWith('\n') ? '\n' : '\n\n';
-  return existing + sep + GITIGNORE_BLOCK_HEADER + '\n' + missing.join('\n') + '\n';
+  const sep =
+    existing.length === 0 ? '' : existing.endsWith('\n') ? '\n' : '\n\n';
+  return `${existing + sep + GITIGNORE_BLOCK_HEADER}\n${missing.join('\n')}\n`;
 }
 
 // ── Args ──────────────────────────────────────────────────────────────────────
@@ -144,22 +158,25 @@ export type RagInitArgs = {
   noIndex: boolean;
 };
 
-export function parseInitArgs(argv: string[], cwd = process.cwd()): RagInitArgs {
+export function parseInitArgs(
+  argv: string[],
+  cwd = process.cwd(),
+): RagInitArgs {
   const { values } = nodeParseArgs({
     args: argv,
     options: {
-      config:     { type: 'string',  short: 'c', default: 'rag.config.json' },
-      dry:        { type: 'boolean',              default: false },
-      yes:        { type: 'boolean', short: 'y', default: false },
-      'no-index': { type: 'boolean',              default: false },
+      config: { type: 'string', short: 'c', default: 'rag.config.json' },
+      dry: { type: 'boolean', default: false },
+      yes: { type: 'boolean', short: 'y', default: false },
+      'no-index': { type: 'boolean', default: false },
     },
     strict: true,
   });
   return {
     configPath: resolve(cwd, values['config'] as string),
     cwd,
-    dry:     values['dry'] as boolean,
-    yes:     values['yes'] as boolean,
+    dry: values['dry'] as boolean,
+    yes: values['yes'] as boolean,
     noIndex: values['no-index'] as boolean,
   };
 }
@@ -188,7 +205,8 @@ async function defaultPromptFn(): Promise<boolean> {
 async function defaultRunIndexFn(configPath: string): Promise<void> {
   process.env['RAG_ALLOW_DOWNLOAD'] = '1';
   const args = parseIndexArgs(['--config', configPath, '--full']);
-  if (args === null) throw new Error('rag-init: failed to parse index args (internal)');
+  if (args === null)
+    throw new Error('rag-init: failed to parse index args (internal)');
   await runIndex(args);
 }
 
@@ -212,7 +230,10 @@ function printSummary(title: string, rows: ActionRow[]): void {
 
 // ── Main run ──────────────────────────────────────────────────────────────────
 
-export async function run(args: RagInitArgs, deps: RagInitDeps = DEFAULT_DEPS): Promise<void> {
+export async function run(
+  args: RagInitArgs,
+  deps: RagInitDeps = DEFAULT_DEPS,
+): Promise<void> {
   const { configPath, cwd, dry, yes, noIndex } = args;
   const rows: ActionRow[] = [];
   let mcpError: string | null = null;
@@ -225,25 +246,46 @@ export async function run(args: RagInitArgs, deps: RagInitDeps = DEFAULT_DEPS): 
 
   const ragConfigExists = existsSync(configPath);
   if (ragConfigExists) {
-    rows.push({ action: 'skipped', subject: configPath, note: 'already exists' });
+    rows.push({
+      action: 'skipped',
+      subject: configPath,
+      note: 'already exists',
+    });
   } else {
     if (!dry) writeFileSync(configPath, buildRagConfigJson(layout));
-    rows.push({ action: dry ? 'would-create' : 'created', subject: configPath, note: layout.description });
+    rows.push({
+      action: dry ? 'would-create' : 'created',
+      subject: configPath,
+      note: layout.description,
+    });
   }
 
   // ── 2. .mcp.json ─────────────────────────────────────────────────────────
   const mcpPath = join(cwd, '.mcp.json');
-  const mcpExisting = existsSync(mcpPath) ? readFileSync(mcpPath, 'utf8') : null;
+  const mcpExisting = existsSync(mcpPath)
+    ? readFileSync(mcpPath, 'utf8')
+    : null;
   const mcpResult = mergeMcpJson(mcpExisting);
 
   if (mcpResult.action === 'error') {
     mcpError = mcpResult.reason;
     rows.push({ action: 'error', subject: mcpPath, note: mcpResult.reason });
   } else if (mcpResult.action === 'skipped') {
-    rows.push({ action: 'skipped', subject: mcpPath, note: 'mcpServers.rag already present' });
+    rows.push({
+      action: 'skipped',
+      subject: mcpPath,
+      note: 'mcpServers.rag already present',
+    });
   } else {
     if (!dry) writeFileSync(mcpPath, mcpResult.content);
-    const verb = mcpResult.action === 'created' ? (dry ? 'would-create' : 'created') : (dry ? 'would-update' : 'updated');
+    const verb =
+      mcpResult.action === 'created'
+        ? dry
+          ? 'would-create'
+          : 'created'
+        : dry
+          ? 'would-update'
+          : 'updated';
     rows.push({ action: verb, subject: mcpPath, note: 'mcpServers.rag added' });
   }
 
@@ -251,22 +293,40 @@ export async function run(args: RagInitArgs, deps: RagInitDeps = DEFAULT_DEPS): 
   const gitignorePath = join(cwd, '.gitignore');
   // Snapshot existence BEFORE any write so the summary verb is correct.
   const gitignoreExisted = existsSync(gitignorePath);
-  const gitignoreExisting = gitignoreExisted ? readFileSync(gitignorePath, 'utf8') : '';
+  const gitignoreExisting = gitignoreExisted
+    ? readFileSync(gitignorePath, 'utf8')
+    : '';
   const gitignorePatched = patchGitignore(gitignoreExisting);
 
   if (gitignorePatched === gitignoreExisting && gitignoreExisted) {
-    rows.push({ action: 'skipped', subject: gitignorePath, note: '.rag/ and .cache/ already present' });
+    rows.push({
+      action: 'skipped',
+      subject: gitignorePath,
+      note: '.rag/ and .cache/ already present',
+    });
   } else {
     if (!dry) writeFileSync(gitignorePath, gitignorePatched);
-    const verb = dry ? 'would-update' : (gitignoreExisted ? 'updated' : 'created');
-    rows.push({ action: verb, subject: gitignorePath, note: 'added: .rag/, .cache/' });
+    const verb = dry
+      ? 'would-update'
+      : gitignoreExisted
+        ? 'updated'
+        : 'created';
+    rows.push({
+      action: verb,
+      subject: gitignorePath,
+      note: 'added: .rag/, .cache/',
+    });
   }
 
   // ── 4. Git hooks ──────────────────────────────────────────────────────────
   // installHooks needs the config file to exist; in dry mode we skip it and
   // simulate instead (config hasn't been written yet).
   if (dry) {
-    rows.push({ action: 'would-install', subject: 'git hooks', note: 'post-commit, post-checkout, post-merge in repos backing config segments' });
+    rows.push({
+      action: 'would-install',
+      subject: 'git hooks',
+      note: 'post-commit, post-checkout, post-merge in repos backing config segments',
+    });
   } else {
     const hookResults = tryInstallHooks(configPath);
     appendHookRows(rows, hookResults);
@@ -277,7 +337,9 @@ export async function run(args: RagInitArgs, deps: RagInitDeps = DEFAULT_DEPS): 
 
   if (mcpError) {
     process.stderr.write(`rag-init error: .mcp.json — ${mcpError}\n`);
-    process.stderr.write(`Other steps completed successfully. Fix .mcp.json and re-run rag-init to add the server entry.\n`);
+    process.stderr.write(
+      `Other steps completed successfully. Fix .mcp.json and re-run rag-init to add the server entry.\n`,
+    );
   }
 
   if (dry) return;
@@ -302,7 +364,9 @@ export async function run(args: RagInitArgs, deps: RagInitDeps = DEFAULT_DEPS): 
   if (buildIndex) {
     process.stdout.write('rag-init: building index…\n');
     await deps.runIndexFn(configPath);
-    process.stdout.write('rag-init: index ready — start Claude Code to use the MCP server.\n');
+    process.stdout.write(
+      'rag-init: index ready — start Claude Code to use the MCP server.\n',
+    );
   } else {
     printIndexInstruction(configPath);
   }
@@ -312,14 +376,20 @@ function tryInstallHooks(configPath: string): InstallResult[] {
   try {
     return installHooks({ configPath });
   } catch (e) {
-    process.stderr.write(`rag-init: warning — hook install failed: ${(e as Error).message}\n`);
+    process.stderr.write(
+      `rag-init: warning — hook install failed: ${(e as Error).message}\n`,
+    );
     return [];
   }
 }
 
 function appendHookRows(rows: ActionRow[], results: InstallResult[]): void {
   if (results.length === 0) {
-    rows.push({ action: 'skipped', subject: 'git hooks', note: 'no git repo found for any segment' });
+    rows.push({
+      action: 'skipped',
+      subject: 'git hooks',
+      note: 'no git repo found for any segment',
+    });
     return;
   }
   for (const r of results) {
@@ -330,8 +400,8 @@ function appendHookRows(rows: ActionRow[], results: InstallResult[]): void {
 function printIndexInstruction(configPath: string): void {
   process.stdout.write(
     `rag-init: index not built. When ready, run:\n` +
-    `  RAG_ALLOW_DOWNLOAD=1 rag-index --config ${configPath} --full\n` +
-    `  (or: npx rag-index --config ${configPath} --full)\n`,
+      `  RAG_ALLOW_DOWNLOAD=1 rag-index --config ${configPath} --full\n` +
+      `  (or: npx rag-index --config ${configPath} --full)\n`,
   );
 }
 
@@ -342,7 +412,9 @@ async function main(): Promise<void> {
   try {
     args = parseInitArgs(process.argv.slice(2));
   } catch (e) {
-    process.stderr.write(`rag-init: argument error — ${(e as Error).message}\n`);
+    process.stderr.write(
+      `rag-init: argument error — ${(e as Error).message}\n`,
+    );
     process.exit(1);
   }
 
@@ -358,7 +430,10 @@ if (process.argv[1]) {
   // Resolve symlinks before comparing: npm's .bin/ entries are symlinks so the
   // unresolved argv[1] path would never match import.meta.url (the real path).
   let calledUrl: string;
-  try { calledUrl = pathToFileURL(realpathSync(process.argv[1])).href; }
-  catch { calledUrl = pathToFileURL(process.argv[1]).href; }
+  try {
+    calledUrl = pathToFileURL(realpathSync(process.argv[1])).href;
+  } catch {
+    calledUrl = pathToFileURL(process.argv[1]).href;
+  }
   if (import.meta.url === calledUrl) void main();
 }

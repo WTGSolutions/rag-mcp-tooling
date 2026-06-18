@@ -4,12 +4,17 @@
 // chunk emission, gap filling, fallback, sort) lives here. Adding a language
 // never touches this file — criterion #1 of TASK-021.
 
-import type { Node as SyntaxNode, Parser as ParserType } from 'web-tree-sitter';
+import type { Parser as ParserType, Node as SyntaxNode } from 'web-tree-sitter';
 import { Parser } from 'web-tree-sitter';
 import type { RagChunkConfig } from '../config.js';
 import type { WalkedFile } from '../walker.js';
 import { createChunk } from './chunk-factory.js';
-import { chunkLines, estimateTokens, windowLineRanges, windowTrimmedSpan } from './line-chunker.js';
+import {
+  chunkLines,
+  estimateTokens,
+  windowLineRanges,
+  windowTrimmedSpan,
+} from './line-chunker.js';
 import type { Chunk, ChunkKind } from './types.js';
 
 export type LineRange = { start: number; end: number };
@@ -111,51 +116,62 @@ function emitWindowedSymbol(
   const { lines } = ctx;
   const signatureLine = lines[declLine - 1] ?? '';
   const leading = lines.slice(start - 1, declLine - 1); // comment lines above the declaration (maybe empty)
-  const bodyLines = lines.slice(declLine, end);          // lines after the declaration (1-based declLine+1..end)
+  const bodyLines = lines.slice(declLine, end); // lines after the declaration (1-based declLine+1..end)
 
   // Declaration with no body (rare: a giant single-line signature) — one chunk.
   if (bodyLines.length === 0) {
-    ctx.chunks.push(createChunk({
-      file: ctx.file,
-      fileHash: ctx.fileHash,
-      startLine: start,
-      endLine: end,
-      text: [...leading, signatureLine].join('\n'),
-      kind,
-      symbol,
-    }));
-    return;
-  }
-
-  const budget = Math.max(1, ctx.config.maxTokens - estimateTokens(signatureLine + '\n'));
-  const bodyBase = declLine + 1; // 1-based line number of bodyLines[0]
-
-  windowLineRanges(bodyLines as string[], budget, 0).forEach(({ startIdx, endIdx }, w) => {
-    const slice = bodyLines.slice(startIdx, endIdx).join('\n');
-    if (w === 0) {
-      // First window: leading comments + declaration + first body slice, contiguous.
-      ctx.chunks.push(createChunk({
+    ctx.chunks.push(
+      createChunk({
         file: ctx.file,
         fileHash: ctx.fileHash,
         startLine: start,
-        endLine: bodyBase + endIdx - 1,
-        text: [...leading, signatureLine, slice].join('\n'),
+        endLine: end,
+        text: [...leading, signatureLine].join('\n'),
         kind,
         symbol,
-      }));
-    } else {
-      // Later windows: repeat the declaration as a context anchor (text only).
-      ctx.chunks.push(createChunk({
-        file: ctx.file,
-        fileHash: ctx.fileHash,
-        startLine: bodyBase + startIdx,
-        endLine: bodyBase + endIdx - 1,
-        text: `${signatureLine}\n${slice}`,
-        kind,
-        symbol,
-      }));
-    }
-  });
+      }),
+    );
+    return;
+  }
+
+  const budget = Math.max(
+    1,
+    ctx.config.maxTokens - estimateTokens(`${signatureLine}\n`),
+  );
+  const bodyBase = declLine + 1; // 1-based line number of bodyLines[0]
+
+  windowLineRanges(bodyLines as string[], budget, 0).forEach(
+    ({ startIdx, endIdx }, w) => {
+      const slice = bodyLines.slice(startIdx, endIdx).join('\n');
+      if (w === 0) {
+        // First window: leading comments + declaration + first body slice, contiguous.
+        ctx.chunks.push(
+          createChunk({
+            file: ctx.file,
+            fileHash: ctx.fileHash,
+            startLine: start,
+            endLine: bodyBase + endIdx - 1,
+            text: [...leading, signatureLine, slice].join('\n'),
+            kind,
+            symbol,
+          }),
+        );
+      } else {
+        // Later windows: repeat the declaration as a context anchor (text only).
+        ctx.chunks.push(
+          createChunk({
+            file: ctx.file,
+            fileHash: ctx.fileHash,
+            startLine: bodyBase + startIdx,
+            endLine: bodyBase + endIdx - 1,
+            text: `${signatureLine}\n${slice}`,
+            kind,
+            symbol,
+          }),
+        );
+      }
+    },
+  );
 }
 
 /**
@@ -174,28 +190,36 @@ export function emit(
   ctx: EmitCtx,
   countAsTopLevel: boolean,
 ): void {
-  const end = spanNode.endPosition.row + 1;        // tree-sitter rows are 0-based
+  const end = spanNode.endPosition.row + 1; // tree-sitter rows are 0-based
   const declLine = spanNode.startPosition.row + 1; // the declaration line, before leading comments
   const start = withLeadingComments(declLine, ctx.lines, ctx.commentPrefixes);
   const text = ctx.lines.slice(start - 1, end).join('\n');
 
-  if (!ctx.disableSymbolWindowing && estimateTokens(text) > ctx.config.maxTokens) {
+  if (
+    !ctx.disableSymbolWindowing &&
+    estimateTokens(text) > ctx.config.maxTokens
+  ) {
     emitWindowedSymbol(start, declLine, end, kind, symbol, ctx);
   } else {
-    ctx.chunks.push(createChunk({
-      file: ctx.file,
-      fileHash: ctx.fileHash,
-      startLine: start,
-      endLine: end,
-      text,
-      kind,
-      symbol,
-    }));
+    ctx.chunks.push(
+      createChunk({
+        file: ctx.file,
+        fileHash: ctx.fileHash,
+        startLine: start,
+        endLine: end,
+        text,
+        kind,
+        symbol,
+      }),
+    );
   }
   if (countAsTopLevel) ctx.topLevelRanges.push({ start, end });
 }
 
-function computeGaps(ranges: readonly LineRange[], totalLines: number): LineRange[] {
+function computeGaps(
+  ranges: readonly LineRange[],
+  totalLines: number,
+): LineRange[] {
   const sorted = [...ranges].sort((a, b) => a.start - b.start);
   const gaps: LineRange[] = [];
   let cursor = 1;
@@ -225,8 +249,11 @@ export type RunChunkOptions = {
  * symbols with block chunks, sort. Any missing grammar, parse failure, or empty
  * result falls back to the line chunker so indexing never aborts on one file.
  */
-export async function runTreeSitterChunk(opts: RunChunkOptions): Promise<Chunk[]> {
-  const { text, file, config, fileHash, wasmPath, commentPrefixes, walk } = opts;
+export async function runTreeSitterChunk(
+  opts: RunChunkOptions,
+): Promise<Chunk[]> {
+  const { text, file, config, fileHash, wasmPath, commentPrefixes, walk } =
+    opts;
   if (!wasmPath) return chunkLines(text, file, config, fileHash);
 
   let chunks: Chunk[];
@@ -237,8 +264,15 @@ export async function runTreeSitterChunk(opts: RunChunkOptions): Promise<Chunk[]
 
     const lines = text.split('\n');
     const ctx: EmitCtx = {
-      lines, file, fileHash, commentPrefixes, config, chunks: [], topLevelRanges: [],
-      disableSymbolWindowing: process.env['RAG_DISABLE_SYMBOL_WINDOWING'] === '1',
+      lines,
+      file,
+      fileHash,
+      commentPrefixes,
+      config,
+      chunks: [],
+      topLevelRanges: [],
+      disableSymbolWindowing:
+        process.env['RAG_DISABLE_SYMBOL_WINDOWING'] === '1',
     };
     walk(tree.rootNode, ctx);
 
@@ -246,7 +280,13 @@ export async function runTreeSitterChunk(opts: RunChunkOptions): Promise<Chunk[]
     // symbols. With zero symbols this windows the whole file into block chunks.
     for (const gap of computeGaps(ctx.topLevelRanges, lines.length)) {
       ctx.chunks.push(
-        ...windowTrimmedSpan(lines.slice(gap.start - 1, gap.end), gap.start, file, config, fileHash),
+        ...windowTrimmedSpan(
+          lines.slice(gap.start - 1, gap.end),
+          gap.start,
+          file,
+          config,
+          fileHash,
+        ),
       );
     }
     chunks = ctx.chunks;
@@ -256,6 +296,11 @@ export async function runTreeSitterChunk(opts: RunChunkOptions): Promise<Chunk[]
 
   if (chunks.length === 0) return chunkLines(text, file, config, fileHash);
 
-  chunks.sort((a, b) => a.startLine - b.startLine || a.endLine - b.endLine || a.kind.localeCompare(b.kind));
+  chunks.sort(
+    (a, b) =>
+      a.startLine - b.startLine ||
+      a.endLine - b.endLine ||
+      a.kind.localeCompare(b.kind),
+  );
   return chunks;
 }

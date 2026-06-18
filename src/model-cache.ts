@@ -1,5 +1,5 @@
-import { resolve } from 'node:path';
 import { homedir } from 'node:os';
+import { resolve } from 'node:path';
 
 // Shared model-cache location and download policy for every transformers.js
 // consumer (embedder, reranker), so the two can never drift apart on either.
@@ -12,7 +12,10 @@ import { homedir } from 'node:os';
  * with RAG_MODEL_CACHE for sandboxed/CI environments.
  */
 export function modelCacheDir(): string {
-  return process.env['RAG_MODEL_CACHE'] ?? resolve(homedir(), '.cache', 'rag-mcp', 'models');
+  return (
+    process.env['RAG_MODEL_CACHE'] ??
+    resolve(homedir(), '.cache', 'rag-mcp', 'models')
+  );
 }
 
 /**
@@ -35,7 +38,7 @@ export function offlineLoadError(modelId: string, cause: unknown): Error {
   const reason = (cause as Error)?.message ?? String(cause);
   return new Error(
     `[rag-mcp] model ${modelId} could not be loaded from the local cache and ` +
-    `downloads are disabled. If it was never downloaded, run once with ` +
-    `RAG_ALLOW_DOWNLOAD=1 to fetch it; afterwards everything is offline again. (${reason})`,
+      `downloads are disabled. If it was never downloaded, run once with ` +
+      `RAG_ALLOW_DOWNLOAD=1 to fetch it; afterwards everything is offline again. (${reason})`,
   );
 }

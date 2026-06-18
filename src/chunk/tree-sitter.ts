@@ -4,9 +4,12 @@
 // languages or a missing grammar.
 
 import type { RagChunkConfig } from '../config.js';
-import type { WalkedFile } from '../walker.js';
-import { TREE_SITTER_LANGS, type TreeSitterLanguage } from '../lang/registry.js';
 import { ensureGrammar } from '../lang/ensure-grammars.js';
+import {
+  TREE_SITTER_LANGS,
+  type TreeSitterLanguage,
+} from '../lang/registry.js';
+import type { WalkedFile } from '../walker.js';
 import { chunkLines } from './line-chunker.js';
 import { runTreeSitterChunk } from './tree-sitter-core.js';
 import type { Chunk } from './types.js';
@@ -32,7 +35,8 @@ export function chunkTreeSitter(
   fileHash: string,
 ): Promise<Chunk[]> {
   const lang = file.language;
-  if (!isTreeSitterLanguage(lang)) return Promise.resolve(chunkLines(text, file, config, fileHash));
+  if (!isTreeSitterLanguage(lang))
+    return Promise.resolve(chunkLines(text, file, config, fileHash));
 
   const entry = TREE_SITTER_LANGS[lang];
   return runTreeSitterChunk({

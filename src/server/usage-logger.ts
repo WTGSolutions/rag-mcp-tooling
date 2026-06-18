@@ -61,7 +61,7 @@ export class UsageLogger {
         this.dirEnsured = true;
       }
       this.rotateIfNeeded();
-      appendFileSync(this.logPath, JSON.stringify(record) + '\n');
+      appendFileSync(this.logPath, `${JSON.stringify(record)}\n`);
     } catch {
       process.stderr.write('[rag-mcp] usage log write failed\n');
     }
@@ -97,7 +97,11 @@ export function createUsageLogger(logPath: string): UsageLogger {
  */
 export function wrapHandler<Args, Result>(
   handler: (args: Args) => Promise<Result>,
-  makeRecord: (args: Args, result: Result | null, latencyMs: number) => UsageRecord | null,
+  makeRecord: (
+    args: Args,
+    result: Result | null,
+    latencyMs: number,
+  ) => UsageRecord | null,
   logger: UsageLogger,
 ): (args: Args) => Promise<Result> {
   return async (args: Args): Promise<Result> => {

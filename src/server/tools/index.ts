@@ -1,20 +1,20 @@
-import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { z } from 'zod';
 import type { RagConfig } from '../../config.js';
 import type { Embedder } from '../../embedder/types.js';
-import type { VectorStore } from '../../store/vector-store.js';
 import type { Reranker } from '../../retrieval/reranker.js';
+import type { VectorStore } from '../../store/vector-store.js';
+import { UsageLogger, wrapHandler } from '../usage-logger.js';
+import { getChunkOutputShape, makeGetChunk } from './get-chunk.js';
+import { indexStatusOutputShape, makeIndexStatus } from './index-status.js';
+import { makeReindex, reindexOutputShape } from './reindex.js';
 import {
-  makeSearchCodebase,
-  searchOutputShape,
   DEFAULT_K,
   MAX_K,
   MAX_QUERY_CHARS,
+  makeSearchCodebase,
+  searchOutputShape,
 } from './search-codebase.js';
-import { makeGetChunk, getChunkOutputShape } from './get-chunk.js';
-import { makeIndexStatus, indexStatusOutputShape } from './index-status.js';
-import { makeReindex, reindexOutputShape } from './reindex.js';
-import { UsageLogger, wrapHandler } from '../usage-logger.js';
 
 /**
  * Everything the tools need to do their work: the parsed config, the open
@@ -38,7 +38,11 @@ export type ServerDeps = {
  * When a `logger` is provided each call is timed and appended to the usage
  * log (non-fatal — logging errors never reach the MCP SDK).
  */
-export function registerTools(server: McpServer, deps: ServerDeps, logger?: UsageLogger): void {
+export function registerTools(
+  server: McpServer,
+  deps: ServerDeps,
+  logger?: UsageLogger,
+): void {
   const ts = () => new Date().toISOString();
   // A disabled logger is a cheap noop; avoids conditional wrapping everywhere.
   const log = logger ?? new UsageLogger('', false);
@@ -50,11 +54,22 @@ export function registerTools(server: McpServer, deps: ServerDeps, logger?: Usag
         'Semantic search over the indexed codebase. Returns the most relevant code/doc ' +
         'chunks (file path, line range, text) for a natural-language query.',
       inputSchema: {
-        query: z.string().min(1).max(MAX_QUERY_CHARS).describe('Natural-language search query'),
+        query: z
+          .string()
+          .min(1)
+          .max(MAX_QUERY_CHARS)
+          .describe('Natural-language search query'),
         k: z
-          .number().int().positive().max(MAX_K).optional()
+          .number()
+          .int()
+          .positive()
+          .max(MAX_K)
+          .optional()
           .describe(`Max results (default ${DEFAULT_K})`),
-        segment: z.string().optional().describe('Restrict to a named segment (e.g. "web")'),
+        segment: z
+          .string()
+          .optional()
+          .describe('Restrict to a named segment (e.g. "web")'),
       },
       outputSchema: searchOutputShape,
     },
@@ -82,9 +97,13 @@ export function registerTools(server: McpServer, deps: ServerDeps, logger?: Usag
   server.registerTool(
     'get_chunk',
     {
-      description: 'Return the full text and metadata of a single chunk by its id.',
+      description:
+        'Return the full text and metadata of a single chunk by its id.',
       inputSchema: {
-        id: z.string().min(1).describe('Chunk id from a search_codebase result'),
+        id: z
+          .string()
+          .min(1)
+          .describe('Chunk id from a search_codebase result'),
       },
       outputSchema: getChunkOutputShape,
     },
@@ -118,7 +137,10 @@ export function registerTools(server: McpServer, deps: ServerDeps, logger?: Usag
       description:
         'Refresh the index incrementally. Optionally limit to specific paths or a segment.',
       inputSchema: {
-        paths: z.array(z.string().min(1)).optional().describe('Specific file paths to reindex'),
+        paths: z
+          .array(z.string().min(1))
+          .optional()
+          .describe('Specific file paths to reindex'),
         segment: z.string().optional().describe('Restrict to a named segment'),
       },
       outputSchema: reindexOutputShape,
@@ -142,4 +164,9 @@ export function registerTools(server: McpServer, deps: ServerDeps, logger?: Usag
 }
 
 /** The tool names this server exposes — single source of truth for tests. */
-export const TOOL_NAMES = ['search_codebase', 'get_chunk', 'index_status', 'reindex'] as const;
+export const TOOL_NAMES = [
+  'search_codebase',
+  'get_chunk',
+  'index_status',
+  'reindex',
+] as const;

@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-import { parseArgs } from 'node:util';
-import { resolve, dirname } from 'node:path';
+import { realpathSync, rmSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { rmSync, realpathSync } from 'node:fs';
-import { loadConfig, ConfigError, resolveStorePath } from '../config.js';
+import { parseArgs } from 'node:util';
+import { ConfigError, loadConfig, resolveStorePath } from '../config.js';
 import { createEmbedder } from '../embedder/local-embedder.js';
-import { reindex } from '../indexer/reindex.js';
 import type { ReindexMode } from '../indexer/reindex.js';
+import { reindex } from '../indexer/reindex.js';
 
 const USAGE = `
 rag-index — semantic code indexer
@@ -41,18 +41,18 @@ export function parseCliArgs(argv: string[]): CliArgs | null {
   const { values } = parseArgs({
     args: argv,
     options: {
-      config:  { type: 'string',  short: 'c', default: 'rag.config.json' },
-      full:    { type: 'boolean',              default: false },
-      changed: { type: 'boolean',              default: false },
-      reset:   { type: 'boolean',              default: false },
-      segment: { type: 'string',  short: 's' },
-      help:    { type: 'boolean', short: 'h', default: false },
+      config: { type: 'string', short: 'c', default: 'rag.config.json' },
+      full: { type: 'boolean', default: false },
+      changed: { type: 'boolean', default: false },
+      reset: { type: 'boolean', default: false },
+      segment: { type: 'string', short: 's' },
+      help: { type: 'boolean', short: 'h', default: false },
     },
     strict: true,
   });
 
   if (values.help) {
-    process.stdout.write(USAGE + '\n');
+    process.stdout.write(`${USAGE}\n`);
     return null;
   }
 
@@ -62,7 +62,7 @@ export function parseCliArgs(argv: string[]): CliArgs | null {
   return {
     configPath,
     // --reset implies --full: a fresh store always needs a full rebuild.
-    mode: (reset || values.full) ? 'full' : 'incremental',
+    mode: reset || values.full ? 'full' : 'incremental',
     segment: values.segment as string | undefined,
     // Use the config file's directory as cwd so relative segment roots in the
     // config resolve against the project, not the shell's working directory.
@@ -86,15 +86,18 @@ export async function run(args: CliArgs): Promise<void> {
   // Resolve store.path relative to the config file's directory (shared with the
   // MCP server) so the same config always points at the same database.
   const resolvedStorePath = resolveStorePath(args.configPath, config);
-  const resolvedConfig = { ...config, store: { ...config.store, path: resolvedStorePath } };
+  const resolvedConfig = {
+    ...config,
+    store: { ...config.store, path: resolvedStorePath },
+  };
 
   // Validate before any destructive action so a bad model name never leaves the
   // user with a deleted store and no new index.
   if (args.reset && args.segment !== undefined) {
     throw new ConfigError(
       `--reset deletes the entire vector store and cannot be scoped to one segment. ` +
-      `Omit --segment to reset and rebuild all segments, or use --full --segment ` +
-      `${args.segment} to force-reindex one segment without touching the others.`,
+        `Omit --segment to reset and rebuild all segments, or use --full --segment ` +
+        `${args.segment} to force-reindex one segment without touching the others.`,
     );
   }
 
@@ -107,11 +110,17 @@ export async function run(args: CliArgs): Promise<void> {
     for (const suffix of ['', '-wal', '-shm']) {
       rmSync(resolvedStorePath + suffix, { force: true });
     }
-    process.stderr.write(`rag-index: reset — store deleted (${resolvedStorePath})\n`);
+    process.stderr.write(
+      `rag-index: reset — store deleted (${resolvedStorePath})\n`,
+    );
   }
 
-  const segmentDesc = args.segment ? `segment "${args.segment}"` : 'all segments';
-  process.stderr.write(`rag-index: ${args.mode} — ${segmentDesc} — model ${embedder.modelId}\n`);
+  const segmentDesc = args.segment
+    ? `segment "${args.segment}"`
+    : 'all segments';
+  process.stderr.write(
+    `rag-index: ${args.mode} — ${segmentDesc} — model ${embedder.modelId}\n`,
+  );
   process.stderr.write(`           config: ${args.configPath}\n`);
   process.stderr.write(`           store:  ${resolvedStorePath}\n`);
 
@@ -148,7 +157,9 @@ async function main(): Promise<void> {
   try {
     args = parseCliArgs(argv);
   } catch (e) {
-    process.stderr.write(`rag-index: argument error — ${(e as Error).message}\n`);
+    process.stderr.write(
+      `rag-index: argument error — ${(e as Error).message}\n`,
+    );
     process.stderr.write(`Run with --help for usage.\n`);
     process.exit(1);
   }
@@ -160,9 +171,10 @@ async function main(): Promise<void> {
   try {
     await run(args);
   } catch (e) {
-    const msg = e instanceof ConfigError
-      ? (e as Error).message
-      : `unexpected error: ${(e as Error).message ?? String(e)}`;
+    const msg =
+      e instanceof ConfigError
+        ? (e as Error).message
+        : `unexpected error: ${(e as Error).message ?? String(e)}`;
     process.stderr.write(`rag-index: ${msg}\n`);
     process.exit(1);
   }
@@ -172,6 +184,10 @@ async function main(): Promise<void> {
 // ESM equivalent of `if (require.main === module)`.
 if (process.argv[1]) {
   let calledFile: string;
-  try { calledFile = realpathSync(process.argv[1]); } catch { calledFile = process.argv[1]; }
+  try {
+    calledFile = realpathSync(process.argv[1]);
+  } catch {
+    calledFile = process.argv[1];
+  }
   if (fileURLToPath(import.meta.url) === calledFile) main();
 }

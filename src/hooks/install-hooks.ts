@@ -1,10 +1,17 @@
 #!/usr/bin/env node
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync, mkdirSync, chmodSync, rmSync } from 'node:fs';
-import { resolve, dirname, join, relative, isAbsolute } from 'node:path';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs as nodeParseArgs } from 'node:util';
-import { loadConfig, ConfigError } from '../config.js';
+import { ConfigError, loadConfig } from '../config.js';
 
 // Markers fencing the managed region of a hook. They are the basis of
 // idempotency and of coexisting with a foreign hook (Husky, lint-staged): we
@@ -13,7 +20,11 @@ export const BEGIN = '# >>> rag-mcp auto-reindex (managed) >>>';
 export const END = '# <<< rag-mcp auto-reindex (managed) <<<';
 
 export type HookType = 'post-commit' | 'post-checkout' | 'post-merge';
-export const HOOK_TYPES: readonly HookType[] = ['post-commit', 'post-checkout', 'post-merge'];
+export const HOOK_TYPES: readonly HookType[] = [
+  'post-commit',
+  'post-checkout',
+  'post-merge',
+];
 
 // Stamped into a hook file that the installer created from scratch, so uninstall
 // can delete the whole file only when *we* own it — never a foreign hook that
@@ -36,9 +47,12 @@ function shQuote(p: string): string {
 }
 
 const HOOK_COMMENTS: Record<HookType, string> = {
-  'post-commit':   '# Auto-reindex the RAG semantic index after each commit (background, non-fatal).',
-  'post-checkout': '# Auto-reindex the RAG semantic index on branch switch (background, non-fatal).',
-  'post-merge':    '# Auto-reindex the RAG semantic index after merge/pull (background, non-fatal).',
+  'post-commit':
+    '# Auto-reindex the RAG semantic index after each commit (background, non-fatal).',
+  'post-checkout':
+    '# Auto-reindex the RAG semantic index on branch switch (background, non-fatal).',
+  'post-merge':
+    '# Auto-reindex the RAG semantic index after merge/pull (background, non-fatal).',
 };
 
 /**
@@ -86,7 +100,7 @@ export function upsertBlock(existing: string | null, block: string): string {
   }
   // Foreign hook present, no managed block yet → append ours, keep theirs.
   const sep = existing.endsWith('\n') ? '\n' : '\n\n';
-  return existing + sep + block + '\n';
+  return `${existing + sep + block}\n`;
 }
 
 /** Remove the managed block, leaving any surrounding (foreign) hook intact. */
@@ -118,7 +132,11 @@ function isOnlyScaffold(stripped: string): boolean {
 
 function git(cwd: string, args: string[]): string | null {
   try {
-    return execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    return execFileSync('git', args, {
+      cwd,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
   } catch {
     return null;
   }
@@ -147,8 +165,20 @@ export function discoverRepos(segmentRoots: string[]): RepoTarget[] {
   return [...byTop.values()];
 }
 
-export type HookAction = 'created' | 'updated' | 'appended' | 'removed' | 'cleared' | 'absent' | 'skipped-foreign';
-export type InstallResult = { toplevel: string; hookPath: string; hookType: HookType; action: HookAction };
+export type HookAction =
+  | 'created'
+  | 'updated'
+  | 'appended'
+  | 'removed'
+  | 'cleared'
+  | 'absent'
+  | 'skipped-foreign';
+export type InstallResult = {
+  toplevel: string;
+  hookPath: string;
+  hookType: HookType;
+  action: HookAction;
+};
 
 export type InstallOptions = {
   configPath: string;
@@ -176,10 +206,16 @@ export function installHooks(opts: InstallOptions): InstallResult[] {
     for (const hookType of HOOK_TYPES) {
       const hookPath = join(hooksDir, hookType);
       const block = buildManagedBlock(scriptPath, configPath, hookType);
-      const existing = existsSync(hookPath) ? readFileSync(hookPath, 'utf8') : null;
+      const existing = existsSync(hookPath)
+        ? readFileSync(hookPath, 'utf8')
+        : null;
 
       if (opts.uninstall) {
-        if (existing === null || !existing.includes(BEGIN) || !existing.includes(END)) {
+        if (
+          existing === null ||
+          !existing.includes(BEGIN) ||
+          !existing.includes(END)
+        ) {
           results.push({ toplevel, hookPath, hookType, action: 'absent' });
           continue;
         }
@@ -198,13 +234,26 @@ export function installHooks(opts: InstallOptions): InstallResult[] {
 
       // Refuse to append to a hook written in a non-sh language — appending
       // shell syntax would corrupt it. Updating our own block is always fine.
-      if (existing !== null && !existing.includes(BEGIN) && !isPosixShHook(existing)) {
-        results.push({ toplevel, hookPath, hookType, action: 'skipped-foreign' });
+      if (
+        existing !== null &&
+        !existing.includes(BEGIN) &&
+        !isPosixShHook(existing)
+      ) {
+        results.push({
+          toplevel,
+          hookPath,
+          hookType,
+          action: 'skipped-foreign',
+        });
         continue;
       }
 
       const action: HookAction =
-        existing === null ? 'created' : existing.includes(BEGIN) ? 'updated' : 'appended';
+        existing === null
+          ? 'created'
+          : existing.includes(BEGIN)
+            ? 'updated'
+            : 'appended';
       if (!opts.dry) {
         mkdirSync(hooksDir, { recursive: true });
         writeFileSync(hookPath, upsertBlock(existing, block));
@@ -225,7 +274,9 @@ function ragDirIgnored(toplevel: string, ragDir: string): boolean | null {
   const rel = relative(toplevel, ragDir);
   if (rel.startsWith('..') || isAbsolute(rel)) return null; // outside this repo
   try {
-    execFileSync('git', ['-C', toplevel, 'check-ignore', '-q', rel], { stdio: 'ignore' });
+    execFileSync('git', ['-C', toplevel, 'check-ignore', '-q', rel], {
+      stdio: 'ignore',
+    });
     return true; // exit 0 → ignored
   } catch {
     return false; // exit 1 → not ignored
@@ -246,7 +297,11 @@ export function parseArgs(argv: string[]): CliArgs {
     },
     strict: true,
   });
-  return { config: values.config as string, uninstall: values.uninstall as boolean, dry: values.dry as boolean };
+  return {
+    config: values.config as string,
+    uninstall: values.uninstall as boolean,
+    dry: values.dry as boolean,
+  };
 }
 
 function main(): void {
@@ -260,9 +315,16 @@ function main(): void {
 
   let results: InstallResult[];
   try {
-    results = installHooks({ configPath: args.config, uninstall: args.uninstall, dry: args.dry });
+    results = installHooks({
+      configPath: args.config,
+      uninstall: args.uninstall,
+      dry: args.dry,
+    });
   } catch (e) {
-    const msg = e instanceof ConfigError ? e.message : `unexpected error: ${(e as Error).message}`;
+    const msg =
+      e instanceof ConfigError
+        ? e.message
+        : `unexpected error: ${(e as Error).message}`;
     process.stderr.write(`install-hooks: ${msg}\n`);
     process.exit(1);
   }
@@ -270,20 +332,30 @@ function main(): void {
   const verb = args.uninstall ? 'uninstall' : 'install';
   const tag = args.dry ? ' (dry-run)' : '';
   if (results.length === 0) {
-    process.stderr.write(`install-hooks: no git repository found for any segment in ${args.config}\n`);
+    process.stderr.write(
+      `install-hooks: no git repository found for any segment in ${args.config}\n`,
+    );
     return;
   }
 
   process.stdout.write(`rag-mcp hooks — ${verb}${tag}\n`);
   for (const r of results) {
-    process.stdout.write(`  ${r.action.padEnd(14)} ${r.hookType.padEnd(14)} ${r.hookPath}\n`);
+    process.stdout.write(
+      `  ${r.action.padEnd(14)} ${r.hookType.padEnd(14)} ${r.hookPath}\n`,
+    );
   }
 
-  const skippedTypes = [...new Set(results.filter((r) => r.action === 'skipped-foreign').map((r) => r.hookType))];
+  const skippedTypes = [
+    ...new Set(
+      results
+        .filter((r) => r.action === 'skipped-foreign')
+        .map((r) => r.hookType),
+    ),
+  ];
   if (skippedTypes.length > 0) {
     process.stderr.write(
       `\nwarning: skipped ${skippedTypes.join(', ')} hook(s) in repo(s) with a non-sh interpreter — ` +
-      `appending shell would corrupt them. Add the block manually or convert the hook to sh.\n`,
+        `appending shell would corrupt them. Add the block manually or convert the hook to sh.\n`,
     );
   }
 
@@ -297,12 +369,15 @@ function main(): void {
     if (exposed.length > 0) {
       process.stderr.write(
         `\nwarning: ${ragDir} is not gitignored — the hook will dirty 'git status' ` +
-        `on every commit. Add '.rag/' to .gitignore.\n`,
+          `on every commit. Add '.rag/' to .gitignore.\n`,
       );
     }
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
   main();
 }

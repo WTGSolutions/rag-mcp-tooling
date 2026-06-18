@@ -8,19 +8,37 @@ import { type EmitCtx, emit, nodeName } from '../tree-sitter-core.js';
 
 export const PYTHON_COMMENT_PREFIXES = ['#'] as const;
 
-function walkClassBody(classNode: SyntaxNode, className: string, ctx: EmitCtx): void {
+function walkClassBody(
+  classNode: SyntaxNode,
+  className: string,
+  ctx: EmitCtx,
+): void {
   const body = classNode.childForFieldName('body');
   if (!body) return;
 
   for (const child of body.namedChildren) {
     if (child.type === 'function_definition') {
       const methodName = nodeName(child);
-      emit(child, 'method', methodName ? `${className}.${methodName}` : undefined, ctx, false);
+      emit(
+        child,
+        'method',
+        methodName ? `${className}.${methodName}` : undefined,
+        ctx,
+        false,
+      );
     } else if (child.type === 'decorated_definition') {
-      const inner = child.namedChildren.find((n) => n.type === 'function_definition');
+      const inner = child.namedChildren.find(
+        (n) => n.type === 'function_definition',
+      );
       if (inner) {
         const methodName = nodeName(inner);
-        emit(child, 'method', methodName ? `${className}.${methodName}` : undefined, ctx, false);
+        emit(
+          child,
+          'method',
+          methodName ? `${className}.${methodName}` : undefined,
+          ctx,
+          false,
+        );
       }
     }
   }
@@ -32,7 +50,8 @@ export function pythonWalk(root: SyntaxNode, ctx: EmitCtx): void {
     // node is module code captured by gap chunks in the core.
     if (node.type === 'decorated_definition') {
       const inner = node.namedChildren.find(
-        (n) => n.type === 'function_definition' || n.type === 'class_definition',
+        (n) =>
+          n.type === 'function_definition' || n.type === 'class_definition',
       );
       if (!inner) continue;
       const name = nodeName(inner);

@@ -9,7 +9,11 @@
 // retriever: it reorders whatever ranked list it is given, so it composes with the
 // hybrid retriever (TASK-032) when that lands.
 
-import { modelCacheDir, offlineLoadError, remoteModelsAllowed } from '../model-cache.js';
+import {
+  modelCacheDir,
+  offlineLoadError,
+  remoteModelsAllowed,
+} from '../model-cache.js';
 import type { SearchResult } from '../store/vector-store.js';
 
 /**
@@ -17,7 +21,10 @@ import type { SearchResult } from '../store/vector-store.js';
  * passage, in input order (higher = more relevant). Injectable so unit tests run
  * offline with a deterministic fake instead of the ONNX cross-encoder.
  */
-export type RerankScorer = (query: string, passages: readonly string[]) => Promise<number[]>;
+export type RerankScorer = (
+  query: string,
+  passages: readonly string[],
+) => Promise<number[]>;
 
 /** Builds (loads/downloads + memoises) a scorer for a cross-encoder model id. */
 export type ScorerFactory = (modelId: string) => Promise<RerankScorer>;
@@ -61,15 +68,16 @@ const sigmoid = (x: number): number => 1 / (1 + Math.exp(-x));
 // pull the ONNX runtime. A cross-encoder is a sequence-classification model fed the
 // (query, passage) pair; its single logit is the relevance score.
 const defaultScorerFactory: ScorerFactory = async (modelId) => {
-  const { AutoTokenizer, AutoModelForSequenceClassification, env } = await import(
-    '@huggingface/transformers'
-  );
+  const { AutoTokenizer, AutoModelForSequenceClassification, env } =
+    await import('@huggingface/transformers');
   env.cacheDir = modelCacheDir();
   env.allowLocalModels = true;
   env.allowRemoteModels = remoteModelsAllowed(); // offline by default; download is an explicit opt-in
 
   let tokenizer: Awaited<ReturnType<typeof AutoTokenizer.from_pretrained>>;
-  let model: Awaited<ReturnType<typeof AutoModelForSequenceClassification.from_pretrained>>;
+  let model: Awaited<
+    ReturnType<typeof AutoModelForSequenceClassification.from_pretrained>
+  >;
   try {
     tokenizer = await AutoTokenizer.from_pretrained(modelId);
     model = await AutoModelForSequenceClassification.from_pretrained(modelId);
@@ -107,7 +115,9 @@ export class Reranker {
     this.modelId = resolveModel(options.model ?? DEFAULT_RERANK_MODEL);
     const n = options.candidates ?? DEFAULT_RERANK_CANDIDATES;
     if (!Number.isInteger(n) || n < 1) {
-      throw new Error(`[rag-mcp] reranker candidates must be a positive integer, got ${n}`);
+      throw new Error(
+        `[rag-mcp] reranker candidates must be a positive integer, got ${n}`,
+      );
     }
     this.candidates = n;
     this.createScorer = options.scorerFactory ?? defaultScorerFactory;
@@ -134,15 +144,26 @@ export class Reranker {
    * order. Ties keep the input order (stable) — i.e. the base retriever's ranking.
    * Returns the input untouched (just truncated to topK) when there is ≤1 candidate.
    */
-  async rerank(query: string, candidates: SearchResult[], topK: number): Promise<SearchResult[]> {
-    if (candidates.length <= 1 || topK < 1) return candidates.slice(0, Math.max(0, topK));
+  async rerank(
+    query: string,
+    candidates: SearchResult[],
+    topK: number,
+  ): Promise<SearchResult[]> {
+    if (candidates.length <= 1 || topK < 1)
+      return candidates.slice(0, Math.max(0, topK));
 
     const scorer = await this.ready();
-    const passages = candidates.map((c) => c.chunk.text.slice(0, MAX_PASSAGE_CHARS));
+    const passages = candidates.map((c) =>
+      c.chunk.text.slice(0, MAX_PASSAGE_CHARS),
+    );
     const scores = await scorer(query, passages);
 
     return candidates
-      .map((c, i) => ({ result: c, score: scores[i] ?? Number.NEGATIVE_INFINITY, order: i }))
+      .map((c, i) => ({
+        result: c,
+        score: scores[i] ?? Number.NEGATIVE_INFINITY,
+        order: i,
+      }))
       .sort((a, b) => b.score - a.score || a.order - b.order) // desc by relevance, stable
       .slice(0, topK)
       .map(({ result, score }) => ({ ...result, score: sigmoid(score) }));

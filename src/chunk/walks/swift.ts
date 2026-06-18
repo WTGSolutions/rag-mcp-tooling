@@ -22,21 +22,32 @@ export const SWIFT_COMMENT_PREFIXES = ['//', '*', '/*', '///'] as const;
 // the leading keyword token (an unnamed child).
 function classDeclKind(node: SyntaxNode): ChunkKind {
   const kw = node.children.find(
-    (c) => c.type === 'struct' || c.type === 'class' || c.type === 'enum'
-      || c.type === 'actor' || c.type === 'extension',
+    (c) =>
+      c.type === 'struct' ||
+      c.type === 'class' ||
+      c.type === 'enum' ||
+      c.type === 'actor' ||
+      c.type === 'extension',
   );
   switch (kw?.type) {
     case 'class':
-    case 'actor':     return 'class'; // reference types
-    case 'extension': return 'block';
-    default:          return 'type';  // struct, enum (and any future value-type keyword)
+    case 'actor':
+      return 'class'; // reference types
+    case 'extension':
+      return 'block';
+    default:
+      return 'type'; // struct, enum (and any future value-type keyword)
   }
 }
 
 function classBody(node: SyntaxNode): SyntaxNode | null {
-  return node.childForFieldName('body')
-    ?? node.namedChildren.find((c) => c.type === 'class_body' || c.type === 'protocol_body')
-    ?? null;
+  return (
+    node.childForFieldName('body') ??
+    node.namedChildren.find(
+      (c) => c.type === 'class_body' || c.type === 'protocol_body',
+    ) ??
+    null
+  );
 }
 
 // Member node types emitted as methods. init/deinit are distinct node types in the
@@ -56,7 +67,11 @@ function memberName(m: SyntaxNode): string | undefined {
 }
 
 // Emit the method members of a type/protocol body as Type.method.
-function emitMembers(body: SyntaxNode, typeName: string | undefined, ctx: EmitCtx): void {
+function emitMembers(
+  body: SyntaxNode,
+  typeName: string | undefined,
+  ctx: EmitCtx,
+): void {
   for (const m of body.namedChildren) {
     if (!METHOD_MEMBER_TYPES.has(m.type)) continue;
     const mn = memberName(m);

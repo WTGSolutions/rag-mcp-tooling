@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { SearchResult } from '../../store/vector-store.js';
-import type { ServerDeps } from './index.js';
 import { chunkBaseShape, chunkRef, chunkToStructured } from './format.js';
+import type { ServerDeps } from './index.js';
 
 export const DEFAULT_K = 8;
 export const MAX_K = 100;
@@ -62,7 +62,10 @@ export function formatResults(results: SearchResult[], query: string): string {
 
 export function toStructured(results: SearchResult[]) {
   return {
-    results: results.map((r) => ({ ...chunkToStructured(r.chunk), score: r.score })),
+    results: results.map((r) => ({
+      ...chunkToStructured(r.chunk),
+      score: r.score,
+    })),
   };
 }
 
@@ -85,7 +88,9 @@ export function makeSearchCodebase(deps: ServerDeps) {
 
     const k = args.k ?? DEFAULT_K;
     if (!Number.isInteger(k) || k < 1 || k > MAX_K) {
-      throw new Error(`[rag-mcp] search_codebase: k must be an integer in 1..${MAX_K}, got ${k}`);
+      throw new Error(
+        `[rag-mcp] search_codebase: k must be an integer in 1..${MAX_K}, got ${k}`,
+      );
     }
 
     let vectors: Float32Array[];
@@ -101,16 +106,21 @@ export function makeSearchCodebase(deps: ServerDeps) {
 
     const vector = vectors[0];
     if (!vector) {
-      throw new Error('[rag-mcp] search_codebase: embedder returned no vector for the query');
+      throw new Error(
+        '[rag-mcp] search_codebase: embedder returned no vector for the query',
+      );
     }
 
-    const filter = args.segment !== undefined ? { segment: args.segment } : undefined;
+    const filter =
+      args.segment !== undefined ? { segment: args.segment } : undefined;
     // With a reranker (TASK-033), fetch a deeper candidate pool, re-score the
     // (query, chunk) pairs with the cross-encoder, and keep the reordered top-k.
     // Without one, plain top-k kNN (default).
     const fetchN = deps.reranker ? Math.max(k, deps.reranker.candidates) : k;
     const fetched = deps.store.search(vector, fetchN, filter);
-    const results = deps.reranker ? await deps.reranker.rerank(query, fetched, k) : fetched;
+    const results = deps.reranker
+      ? await deps.reranker.rerank(query, fetched, k)
+      : fetched;
 
     return {
       content: [{ type: 'text' as const, text: formatResults(results, query) }],

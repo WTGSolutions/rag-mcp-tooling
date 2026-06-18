@@ -84,10 +84,21 @@ export class VectorStore {
   private readonly stmtDeleteVec: Statement<[number]>;
   private readonly stmtDeleteChunk: Statement<[string]>;
   private readonly stmtInsertVec: Statement<[Buffer]>;
-  private readonly stmtInsertChunk: Statement<[
-    string, string, string, number, number, string,
-    string | null, string, string, string, number,
-  ]>;
+  private readonly stmtInsertChunk: Statement<
+    [
+      string,
+      string,
+      string,
+      number,
+      number,
+      string,
+      string | null,
+      string,
+      string,
+      string,
+      number,
+    ]
+  >;
   private readonly stmtUpdateMeta: Statement<[string, string]>;
 
   private constructor(db: DB, dimensions: number, modelId: string) {
@@ -95,19 +106,29 @@ export class VectorStore {
     this.dimensions = dimensions;
     this.modelId = modelId;
 
-    this.stmtGetVecRowid = db.prepare('SELECT vec_rowid FROM chunks WHERE id = ?');
-    this.stmtDeleteVec   = db.prepare('DELETE FROM vec_chunks WHERE rowid = ?');
+    this.stmtGetVecRowid = db.prepare(
+      'SELECT vec_rowid FROM chunks WHERE id = ?',
+    );
+    this.stmtDeleteVec = db.prepare('DELETE FROM vec_chunks WHERE rowid = ?');
     this.stmtDeleteChunk = db.prepare('DELETE FROM chunks WHERE id = ?');
-    this.stmtInsertVec   = db.prepare('INSERT INTO vec_chunks(embedding) VALUES (?)');
+    this.stmtInsertVec = db.prepare(
+      'INSERT INTO vec_chunks(embedding) VALUES (?)',
+    );
     this.stmtInsertChunk = db.prepare(`
       INSERT INTO chunks
         (id, segment, file_path, start_line, end_line, language, symbol, kind, text_content, file_hash, vec_rowid)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    this.stmtUpdateMeta  = db.prepare('INSERT OR REPLACE INTO store_meta(key, value) VALUES (?, ?)');
+    this.stmtUpdateMeta = db.prepare(
+      'INSERT OR REPLACE INTO store_meta(key, value) VALUES (?, ?)',
+    );
   }
 
-  static open(storePath: string, dimensions: number, modelId: string): VectorStore {
+  static open(
+    storePath: string,
+    dimensions: number,
+    modelId: string,
+  ): VectorStore {
     const absPath = resolve(storePath);
     mkdirSync(dirname(absPath), { recursive: true });
 
@@ -154,20 +175,26 @@ export class VectorStore {
     // Persist metadata so stats() can return it even without an active embedder.
     // INSERT OR IGNORE for dimensions: once written, it must not change without a
     // full rebuild (the virtual table schema is locked). We validate on reopen.
-    db.prepare('INSERT OR REPLACE INTO store_meta(key, value) VALUES (?, ?)').run('model_id', modelId);
-    db.prepare('INSERT OR IGNORE INTO store_meta(key, value) VALUES (?, ?)').run('dimensions', String(dimensions));
+    db.prepare(
+      'INSERT OR REPLACE INTO store_meta(key, value) VALUES (?, ?)',
+    ).run('model_id', modelId);
+    db.prepare(
+      'INSERT OR IGNORE INTO store_meta(key, value) VALUES (?, ?)',
+    ).run('dimensions', String(dimensions));
 
     // Validate that the stored dimensions match the caller's value. If they differ,
     // the caller opened an existing store with a different model — a rebuild is needed.
-    const storedDimsRow = db.prepare<[string], { value: string }>(
-      'SELECT value FROM store_meta WHERE key = ?',
-    ).get('dimensions');
+    const storedDimsRow = db
+      .prepare<[string], { value: string }>(
+        'SELECT value FROM store_meta WHERE key = ?',
+      )
+      .get('dimensions');
     const storedDims = storedDimsRow ? Number(storedDimsRow.value) : dimensions;
     if (storedDims !== dimensions) {
       db.close();
       throw new Error(
         `[rag-mcp] Dimension mismatch: store was built with ${storedDims} dimensions ` +
-        `but embedder has ${dimensions}. Run: rag-index --reset to rebuild.`,
+          `but embedder has ${dimensions}. Run: rag-index --reset to rebuild.`,
       );
     }
 
@@ -202,10 +229,20 @@ export class VectorStore {
           this.stmtDeleteChunk.run(chunk.id);
         }
 
-        const { lastInsertRowid } = this.stmtInsertVec.run(vectorToBlob(vector));
+        const { lastInsertRowid } = this.stmtInsertVec.run(
+          vectorToBlob(vector),
+        );
         this.stmtInsertChunk.run(
-          chunk.id, chunk.segment, chunk.filePath, chunk.startLine, chunk.endLine,
-          chunk.language, chunk.symbol ?? null, chunk.kind, chunk.text, chunk.fileHash,
+          chunk.id,
+          chunk.segment,
+          chunk.filePath,
+          chunk.startLine,
+          chunk.endLine,
+          chunk.language,
+          chunk.symbol ?? null,
+          chunk.kind,
+          chunk.text,
+          chunk.fileHash,
           // better-sqlite3 returns BigInt for lastInsertRowid; bind it directly
           // to avoid precision loss for rowids > Number.MAX_SAFE_INTEGER.
           Number(lastInsertRowid),
@@ -220,11 +257,13 @@ export class VectorStore {
     // Atomic: SELECT + DELETE in one transaction so no orphaned vec rows
     // can appear if a concurrent writer modifies the file between operations.
     this.db.transaction(() => {
-      this.db.prepare(`
+      this.db
+        .prepare(`
         DELETE FROM vec_chunks WHERE rowid IN (
           SELECT vec_rowid FROM chunks WHERE file_path = ?
         )
-      `).run(filePath);
+      `)
+        .run(filePath);
       this.db.prepare('DELETE FROM chunks WHERE file_path = ?').run(filePath);
     })();
   }
@@ -232,12 +271,16 @@ export class VectorStore {
   /** Segment-scoped delete — safe when two segments share the same relative path. */
   deleteFileFromSegment(filePath: string, segment: string): void {
     this.db.transaction(() => {
-      this.db.prepare(`
+      this.db
+        .prepare(`
         DELETE FROM vec_chunks WHERE rowid IN (
           SELECT vec_rowid FROM chunks WHERE file_path = ? AND segment = ?
         )
-      `).run(filePath, segment);
-      this.db.prepare('DELETE FROM chunks WHERE file_path = ? AND segment = ?').run(filePath, segment);
+      `)
+        .run(filePath, segment);
+      this.db
+        .prepare('DELETE FROM chunks WHERE file_path = ? AND segment = ?')
+        .run(filePath, segment);
     })();
   }
 
@@ -253,12 +296,16 @@ export class VectorStore {
     // file, causing Map to silently keep only the last hash and perpetuating
     // the corruption through incremental runs.
     const rows: Array<{ file_path: string; file_hash: string }> = segment
-      ? this.db.prepare<[string], { file_path: string; file_hash: string }>(
-          'SELECT file_path, MAX(file_hash) as file_hash FROM chunks WHERE segment = ? GROUP BY file_path',
-        ).all(segment)
-      : this.db.prepare<[], { file_path: string; file_hash: string }>(
-          'SELECT file_path, MAX(file_hash) as file_hash FROM chunks GROUP BY file_path',
-        ).all();
+      ? this.db
+          .prepare<[string], { file_path: string; file_hash: string }>(
+            'SELECT file_path, MAX(file_hash) as file_hash FROM chunks WHERE segment = ? GROUP BY file_path',
+          )
+          .all(segment)
+      : this.db
+          .prepare<[], { file_path: string; file_hash: string }>(
+            'SELECT file_path, MAX(file_hash) as file_hash FROM chunks GROUP BY file_path',
+          )
+          .all();
     return new Map(rows.map((r) => [r.file_path, r.file_hash]));
   }
 
@@ -266,23 +313,29 @@ export class VectorStore {
 
   /** Returns a single chunk by its id, or undefined if not found. Read-only. */
   getChunkById(id: string): Chunk | undefined {
-    const row = this.db.prepare<[string], ChunkRow>(
-      'SELECT * FROM chunks WHERE id = ?',
-    ).get(id);
+    const row = this.db
+      .prepare<[string], ChunkRow>('SELECT * FROM chunks WHERE id = ?')
+      .get(id);
     return row ? chunkFromRow(row) : undefined;
   }
 
   /** Per-segment chunk and file counts, for index_status. Read-only. */
   segmentStats(): SegmentStat[] {
-    return this.db.prepare<[], SegmentStat>(`
+    return this.db
+      .prepare<[], SegmentStat>(`
       SELECT segment, COUNT(*) as chunks, COUNT(DISTINCT file_path) as files
       FROM chunks
       GROUP BY segment
       ORDER BY segment
-    `).all();
+    `)
+      .all();
   }
 
-  search(queryVector: Float32Array, k: number, filter?: { segment?: string }): SearchResult[] {
+  search(
+    queryVector: Float32Array,
+    k: number,
+    filter?: { segment?: string },
+  ): SearchResult[] {
     if (queryVector.length !== this.dimensions) {
       throw new Error(
         `[rag-mcp] search: query vector length ${queryVector.length} ≠ expected ${this.dimensions}`,
@@ -300,7 +353,8 @@ export class VectorStore {
       ? [blob, fetchK, filter.segment]
       : [blob, fetchK];
 
-    const rows = this.db.prepare<unknown[], ChunkRow & { distance: number }>(`
+    const rows = this.db
+      .prepare<unknown[], ChunkRow & { distance: number }>(`
       SELECT c.*, v.distance
       FROM vec_chunks v
       JOIN chunks c ON c.vec_rowid = v.rowid
@@ -308,7 +362,8 @@ export class VectorStore {
       ${segmentClause}
       ORDER BY v.distance
       LIMIT ${safeK}
-    `).all(...params);
+    `)
+      .all(...params);
 
     return rows.map((row) => ({
       chunk: chunkFromRow(row),
@@ -317,17 +372,21 @@ export class VectorStore {
   }
 
   stats(): StoreStats {
-    const { chunks } = this.db.prepare<[], { chunks: number }>(
-      'SELECT count(*) as chunks FROM chunks',
-    ).get()!;
+    const { chunks } = this.db
+      .prepare<[], { chunks: number }>('SELECT count(*) as chunks FROM chunks')
+      .get()!;
 
-    const { files } = this.db.prepare<[], { files: number }>(
-      'SELECT count(DISTINCT file_path) as files FROM chunks',
-    ).get()!;
+    const { files } = this.db
+      .prepare<[], { files: number }>(
+        'SELECT count(DISTINCT file_path) as files FROM chunks',
+      )
+      .get()!;
 
-    const segmentRows = this.db.prepare<[], { segment: string }>(
-      'SELECT DISTINCT segment FROM chunks ORDER BY segment',
-    ).all();
+    const segmentRows = this.db
+      .prepare<[], { segment: string }>(
+        'SELECT DISTINCT segment FROM chunks ORDER BY segment',
+      )
+      .all();
 
     const getMeta = this.db.prepare<[string], { value: string }>(
       'SELECT value FROM store_meta WHERE key = ?',

@@ -12,9 +12,13 @@ export const GO_COMMENT_PREFIXES = ['//', '*', '/*'] as const;
 // `func (a *Animal) M()` → receiver type "Animal" (strip the binding name + pointer).
 function receiverType(method: SyntaxNode): string | undefined {
   const receiver = method.childForFieldName('receiver'); // parameter_list
-  const param = receiver?.namedChildren.find((c) => c.type === 'parameter_declaration');
+  const param = receiver?.namedChildren.find(
+    (c) => c.type === 'parameter_declaration',
+  );
   const typeText = param?.childForFieldName('type')?.text;
-  return typeText ? typeText.replace(/^[*&]/, '').trim() || undefined : undefined;
+  return typeText
+    ? typeText.replace(/^[*&]/, '').trim() || undefined
+    : undefined;
 }
 
 export function goWalk(root: SyntaxNode, ctx: EmitCtx): void {

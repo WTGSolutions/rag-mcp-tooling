@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { reindexWithStore, type ReindexResult } from '../../indexer/reindex.js';
+import { type ReindexResult, reindexWithStore } from '../../indexer/reindex.js';
 import type { ServerDeps } from './index.js';
 
 export type ReindexArgs = {
@@ -16,14 +16,19 @@ export const reindexOutputShape = {
   unmatchedPaths: z.array(z.string()),
 };
 
-export function formatReindex(result: ReindexResult, durationMs: number): string {
+export function formatReindex(
+  result: ReindexResult,
+  durationMs: number,
+): string {
   const lines = [
     `Reindex done in ${durationMs}ms:`,
     `  added=${result.added}  skipped=${result.skipped}  removed=${result.removed}`,
     `  total chunks: ${result.totalChunks}`,
   ];
   if (result.unmatchedPaths.length > 0) {
-    lines.push(`  WARNING — ${result.unmatchedPaths.length} requested path(s) matched no indexed file:`);
+    lines.push(
+      `  WARNING — ${result.unmatchedPaths.length} requested path(s) matched no indexed file:`,
+    );
     for (const p of result.unmatchedPaths) lines.push(`    ${p}`);
   }
   return lines.join('\n');
@@ -43,7 +48,9 @@ export function makeReindex(deps: ServerDeps) {
 
   return async (args: ReindexArgs) => {
     if (running) {
-      throw new Error('[rag-mcp] reindex: a reindex is already in progress — try again when it finishes');
+      throw new Error(
+        '[rag-mcp] reindex: a reindex is already in progress — try again when it finishes',
+      );
     }
     running = true;
     try {
@@ -62,12 +69,18 @@ export function makeReindex(deps: ServerDeps) {
         // Brand non-[rag-mcp] errors (e.g. a raw transformers.js model error)
         // so the agent gets an attributable message.
         const message = (e as Error).message ?? String(e);
-        throw new Error(message.startsWith('[rag-mcp]') ? message : `[rag-mcp] reindex: ${message}`);
+        throw new Error(
+          message.startsWith('[rag-mcp]')
+            ? message
+            : `[rag-mcp] reindex: ${message}`,
+        );
       }
       const durationMs = Date.now() - t0;
 
       return {
-        content: [{ type: 'text' as const, text: formatReindex(result, durationMs) }],
+        content: [
+          { type: 'text' as const, text: formatReindex(result, durationMs) },
+        ],
         structuredContent: { ...result, durationMs },
       };
     } finally {

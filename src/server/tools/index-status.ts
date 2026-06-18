@@ -17,7 +17,10 @@ export const indexStatusOutputShape = {
   ),
 };
 
-export function formatStatus(stats: StoreStats, segments: SegmentStat[]): string {
+export function formatStatus(
+  stats: StoreStats,
+  segments: SegmentStat[],
+): string {
   const lines = [
     `Index: ${stats.chunks} chunks across ${stats.files} files`,
     `Model: ${stats.modelId} (${stats.dimensions}d)`,

@@ -80,9 +80,7 @@ function isUsageRecord(obj: unknown): obj is UsageRecord {
 }
 
 function topN(counts: Map<string, number>, n = 10): [string, number][] {
-  return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, n);
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, n);
 }
 
 const FOLLOW_UP_WINDOW_MS = 5 * 60 * 1000;
@@ -110,7 +108,8 @@ export function aggregate(records: UsageRecord[]): AggregatedUsage {
       searchTimes.push(new Date(r.ts).getTime());
     } else if (r.tool === 'get_chunk') {
       getChunk.count++;
-      if (r.found) getChunk.found++; else getChunk.notFound++;
+      if (r.found) getChunk.found++;
+      else getChunk.notFound++;
       chunkTimes.push(new Date(r.ts).getTime());
     } else if (r.tool === 'reindex') {
       reindex.count++;
@@ -122,7 +121,8 @@ export function aggregate(records: UsageRecord[]): AggregatedUsage {
   if (searchTimes.length > 0) {
     let followed = 0;
     for (const t of searchTimes) {
-      if (chunkTimes.some((ct) => ct >= t && ct <= t + FOLLOW_UP_WINDOW_MS)) followed++;
+      if (chunkTimes.some((ct) => ct >= t && ct <= t + FOLLOW_UP_WINDOW_MS))
+        followed++;
     }
     followUpRate = followed / searchTimes.length;
   }
@@ -171,16 +171,18 @@ export function formatReport(agg: AggregatedUsage): string {
     lines.push(`  Top score:  ${scoreStats(agg.search.topScores)}`);
     lines.push(`  Latency:    ${latencyStats(agg.search.latencies)}`);
     if (agg.followUpRate !== null) {
-      lines.push(`  Follow-up:  ${pct(agg.followUpRate)} of searches followed by get_chunk (≤5 min)`);
+      lines.push(
+        `  Follow-up:  ${pct(agg.followUpRate)} of searches followed by get_chunk (≤5 min)`,
+      );
     }
   }
 
   lines.push('');
   lines.push(
     `get_chunk: ${agg.getChunk.count} call(s)` +
-    (agg.getChunk.count > 0
-      ? `  (found ${agg.getChunk.found}, not-found ${agg.getChunk.notFound})`
-      : ''),
+      (agg.getChunk.count > 0
+        ? `  (found ${agg.getChunk.found}, not-found ${agg.getChunk.notFound})`
+        : ''),
   );
 
   lines.push('');
