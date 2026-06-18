@@ -490,15 +490,29 @@ The log is in `.rag/` which is already gitignored. Reset it by deleting
   (`evaluateSymbol`, TASK-027) and the polyglot set carries `expectedSymbols`,
   but the 50-query acceptance set is still file-level (`hit@5`/`MRR` on files).
   A firmer multi-language verdict needs symbol GT on a larger corpus.
-- **Oversized symbols exercised only by a dedicated corpus.** Windowing is now
-  span-level eval-validated (TASK-029/030, Phase 6b): on a purpose-built oversized
-  corpus the symbol's *tail* goes 0% → 100% span hit@5 once windowed, at head
-  parity. But the production 50q/polyglot sets contain no >512-token symbols, so
-  windowing is unmeasured on the *live* index — only on the synthetic corpus.
+- **Oversized symbols: quantified A/B is synthetic; live-index behaviour is now
+  demonstrated.** Windowing is span-level eval-validated (TASK-029/030, Phase 6b):
+  on a purpose-built oversized corpus the symbol's *tail* goes 0% → 100% span hit@5
+  once windowed, at head parity. The GuideTrackee 50q/polyglot sets contain no
+  >512-token symbols, so that controlled A/B stays synthetic. It is, however, now
+  **demonstrated on a real large index** — indexing `microsoft/TypeScript` (601
+  files → 18,037 chunks) windows **642 symbols**, led by `createTypeChecker`
+  (`checker.ts`) split into **1,648 windows over ~52k lines**; distinct concept
+  queries ("narrow a union by control-flow", "infer type arguments") retrieve
+  *different* sub-windows of that one symbol, confirming the tail is searchable in
+  production-scale code (un-windowed, only its first ~512 tokens would be). A
+  controlled truncate-vs-window A/B on such a corpus remains future work.
 - **English-centric embedder.** `bge-small-en` is trained on English; heavily
   non-English identifiers/comments may retrieve worse (not stress-tested).
-- **Brute-force kNN.** `sqlite-vec` scans all vectors per query — excellent at
-  repo scale, unproven on very large (100k-file) monorepos.
+- **Brute-force kNN — measured, linear, fine past 100k files.** `sqlite-vec`
+  scans all vectors per query. Benchmarked across three real indexes (GuideTrackee
+  6.2k → `microsoft/TypeScript` 18k → `kubernetes/kubernetes` **~150k** chunks — a
+  partial, still-growing index; the full run was cut short once the verdict was
+  clear): pure kNN latency scales **cleanly linearly** at ~0.29 ms per 1,000 chunks — 1.7 ms
+  / 5.2 ms / **44.8 ms** mean respectively (TASK-046). At 150k chunks (a genuine
+  100k+ file monorepo) a query's scan is ~45 ms — still interactive. ANN is
+  unnecessary until ~350k+ chunks; per-segment stores (already modelled) shard
+  naturally past that. No cliff observed.
 
 **Recently addressed.** Oversized-symbol windowing (TASK-028), a symbol-level eval
 metric (TASK-027), and span-level windowing validation (TASK-029/030) — formerly
