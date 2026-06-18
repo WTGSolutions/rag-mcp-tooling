@@ -1,0 +1,44 @@
+# ==============================================================================
+# CI — lint + build + test
+# ==============================================================================
+# Quality gate for @wtgsolutions/rag-mcp (TASK-043). Mirrors the project's
+# convention (Biome static analysis + build + unit tests). Model-gated tests
+# (RAG_RUN_MODEL_TESTS) stay off: CI is offline-by-default (no model downloads).
+# ==============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+jobs:
+  quality-gates:
+    name: Lint, build & test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node ${{ matrix.node }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Static analysis (Biome)
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Unit tests
+        run: npm test
