@@ -57,6 +57,11 @@ export type EmitCtx = {
   topLevelRanges: LineRange[];
   config: RagChunkConfig;
   /**
+   * File-level import targets (TASK-045), set once by the language walk and copied
+   * onto every chunk of the file. Absent for walks that do not extract imports.
+   */
+  imports?: readonly string[];
+  /**
    * When true, oversized symbols are emitted as a single (truncated) chunk instead
    * of sub-windows. Set from `RAG_DISABLE_SYMBOL_WINDOWING=1` — the Phase 6b A/B
    * "before TASK-028" baseline. Read once in `runTreeSitterChunk` and propagated
@@ -70,6 +75,35 @@ export type WalkFn = (root: SyntaxNode, ctx: EmitCtx) => void;
 
 export function nodeName(node: SyntaxNode): string | undefined {
   return node.childForFieldName('name')?.text ?? undefined;
+}
+
+const CALLEE_CAP = 48; // bound stored callees per symbol (output + reverse-query size)
+const TRAVERSAL_BUDGET = 8000; // bound the descent on pathologically large symbols
+
+/**
+ * Collect the distinct names of call sites inside a symbol's subtree (TASK-045) —
+ * the basis for the `callers` reverse lookup. Language-agnostic traversal; the
+ * caller supplies the call node type and a name extractor (both grammar-specific).
+ * Capped and budgeted so a 50k-line symbol (e.g. TS `createTypeChecker`) cannot
+ * blow up indexing time or row size.
+ */
+export function collectCallees(
+  node: SyntaxNode,
+  callType: string,
+  nameOf: (call: SyntaxNode) => string | undefined,
+): string[] {
+  const out = new Set<string>();
+  const stack: SyntaxNode[] = [...node.namedChildren];
+  let budget = TRAVERSAL_BUDGET;
+  while (stack.length > 0 && out.size < CALLEE_CAP && budget-- > 0) {
+    const n = stack.pop()!;
+    if (n.type === callType) {
+      const name = nameOf(n);
+      if (name) out.add(name);
+    }
+    for (const c of n.namedChildren) stack.push(c);
+  }
+  return [...out];
 }
 
 // Walk backward from a symbol's start to include contiguous leading comment lines
@@ -112,6 +146,7 @@ function emitWindowedSymbol(
   kind: ChunkKind,
   symbol: string | undefined,
   ctx: EmitCtx,
+  callees: readonly string[] | undefined,
 ): void {
   const { lines } = ctx;
   const signatureLine = lines[declLine - 1] ?? '';
@@ -129,6 +164,8 @@ function emitWindowedSymbol(
         text: [...leading, signatureLine].join('\n'),
         kind,
         symbol,
+        imports: ctx.imports,
+        callees,
       }),
     );
     return;
@@ -154,6 +191,8 @@ function emitWindowedSymbol(
             text: [...leading, signatureLine, slice].join('\n'),
             kind,
             symbol,
+            imports: ctx.imports,
+            callees,
           }),
         );
       } else {
@@ -167,6 +206,8 @@ function emitWindowedSymbol(
             text: `${signatureLine}\n${slice}`,
             kind,
             symbol,
+            imports: ctx.imports,
+            callees,
           }),
         );
       }
@@ -189,6 +230,7 @@ export function emit(
   symbol: string | undefined,
   ctx: EmitCtx,
   countAsTopLevel: boolean,
+  callees?: readonly string[] | undefined,
 ): void {
   const end = spanNode.endPosition.row + 1; // tree-sitter rows are 0-based
   const declLine = spanNode.startPosition.row + 1; // the declaration line, before leading comments
@@ -199,7 +241,7 @@ export function emit(
     !ctx.disableSymbolWindowing &&
     estimateTokens(text) > ctx.config.maxTokens
   ) {
-    emitWindowedSymbol(start, declLine, end, kind, symbol, ctx);
+    emitWindowedSymbol(start, declLine, end, kind, symbol, ctx, callees);
   } else {
     ctx.chunks.push(
       createChunk({
@@ -210,6 +252,8 @@ export function emit(
         text,
         kind,
         symbol,
+        imports: ctx.imports,
+        callees,
       }),
     );
   }

@@ -18,6 +18,8 @@ export type StoreStats = {
   modelId: string;
   dimensions: number;
   lastIndexed: string | null;
+  /** Fraction (0–1) of chunks carrying structural metadata (imports/callees), TASK-045. */
+  metadataCoverage: number;
 };
 
 export type SegmentStat = {
@@ -37,15 +39,46 @@ type ChunkRow = {
   kind: string;
   text_content: string;
   file_hash: string;
+  imports_json?: string | null;
+  callees_json?: string | null;
   vec_rowid: number;
   distance?: number;
 };
+
+// Parse a JSON string array stored in a sidecar column; tolerate corruption/legacy
+// values by returning undefined rather than throwing mid-query.
+function parseStringArray(
+  json: string | null | undefined,
+): string[] | undefined {
+  if (!json) return undefined;
+  try {
+    const v = JSON.parse(json);
+    if (
+      Array.isArray(v) &&
+      v.every((x) => typeof x === 'string') &&
+      v.length > 0
+    ) {
+      return v as string[];
+    }
+  } catch {
+    /* fall through */
+  }
+  return undefined;
+}
+
+// Escape LIKE wildcards so an identifier containing `_` (valid in JS/Python names)
+// is matched literally, not as a single-char wildcard. Pair with ESCAPE '\'.
+function escapeLike(s: string): string {
+  return s.replace(/[\\%_]/g, (c) => `\\${c}`);
+}
 
 // Over-fetch multiplier when filtering by segment: ensures enough candidates
 // survive the segment filter to fill the requested k.
 const SEGMENT_FILTER_MULTIPLIER = 8;
 
 function chunkFromRow(row: ChunkRow): Chunk {
+  const imports = parseStringArray(row.imports_json);
+  const callees = parseStringArray(row.callees_json);
   return {
     id: row.id,
     segment: row.segment,
@@ -57,6 +90,8 @@ function chunkFromRow(row: ChunkRow): Chunk {
     kind: row.kind as ChunkKind,
     text: row.text_content,
     fileHash: row.file_hash,
+    ...(imports ? { imports } : {}),
+    ...(callees ? { callees } : {}),
   };
 }
 
@@ -96,6 +131,8 @@ export class VectorStore {
       string,
       string,
       string,
+      string | null, // imports_json (TASK-045)
+      string | null, // callees_json (TASK-045)
       number,
     ]
   >;
@@ -116,8 +153,8 @@ export class VectorStore {
     );
     this.stmtInsertChunk = db.prepare(`
       INSERT INTO chunks
-        (id, segment, file_path, start_line, end_line, language, symbol, kind, text_content, file_hash, vec_rowid)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (id, segment, file_path, start_line, end_line, language, symbol, kind, text_content, file_hash, imports_json, callees_json, vec_rowid)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     this.stmtUpdateMeta = db.prepare(
       'INSERT OR REPLACE INTO store_meta(key, value) VALUES (?, ?)',
@@ -151,6 +188,8 @@ export class VectorStore {
         kind        TEXT    NOT NULL,
         text_content TEXT   NOT NULL,
         file_hash   TEXT    NOT NULL,
+        imports_json TEXT,
+        callees_json TEXT,
         vec_rowid   INTEGER NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_chunks_file_path ON chunks(file_path);
@@ -163,6 +202,22 @@ export class VectorStore {
         value TEXT NOT NULL
       );
     `);
+
+    // Migrate pre-TASK-045 stores: CREATE TABLE IF NOT EXISTS won't add columns to
+    // an existing table, so add the sidecar metadata columns when missing. Old rows
+    // keep NULL (→ empty metadata) until a reindex repopulates them; vectors and the
+    // virtual table are untouched, so no re-embedding is forced.
+    const chunkCols = new Set(
+      db
+        .prepare<[], { name: string }>('PRAGMA table_info(chunks)')
+        .all()
+        .map((r) => r.name),
+    );
+    for (const col of ['imports_json', 'callees_json']) {
+      if (!chunkCols.has(col)) {
+        db.exec(`ALTER TABLE chunks ADD COLUMN ${col} TEXT`);
+      }
+    }
 
     // Virtual table must match the current dimensions. If the schema already
     // exists with a different dimension, we'd get a mismatch — callers must
@@ -243,6 +298,8 @@ export class VectorStore {
           chunk.kind,
           chunk.text,
           chunk.fileHash,
+          chunk.imports?.length ? JSON.stringify(chunk.imports) : null,
+          chunk.callees?.length ? JSON.stringify(chunk.callees) : null,
           // better-sqlite3 returns BigInt for lastInsertRowid; bind it directly
           // to avoid precision loss for rowids > Number.MAX_SAFE_INTEGER.
           Number(lastInsertRowid),
@@ -319,6 +376,38 @@ export class VectorStore {
     return row ? chunkFromRow(row) : undefined;
   }
 
+  /**
+   * Chunks whose body calls `name` — the reverse of the `callees` metadata
+   * (TASK-045). Approximate: matches the bare call name against each chunk's
+   * stored callee list, so same-named methods on different classes can collide.
+   * `excludeId` drops the chunk itself (self/recursive call). Read-only.
+   */
+  findCallers(name: string, excludeId?: string, limit = 20): Chunk[] {
+    if (name === '') return [];
+    const needle = `%"${escapeLike(name)}"%`;
+    const rows = this.db
+      .prepare<[string, number], ChunkRow>(
+        `SELECT * FROM chunks WHERE callees_json LIKE ? ESCAPE '\\' LIMIT ?`,
+      )
+      .all(needle, limit);
+    return rows.map(chunkFromRow).filter((c) => c.id !== excludeId);
+  }
+
+  /**
+   * Doc/markdown chunks that mention `name` by text (TASK-045) — a cheap
+   * documentation backlink. Approximate substring match on section chunks. Read-only.
+   */
+  findDocMentions(name: string, limit = 10): Chunk[] {
+    if (name === '') return [];
+    const needle = `%${escapeLike(name)}%`;
+    const rows = this.db
+      .prepare<[string, number], ChunkRow>(
+        `SELECT * FROM chunks WHERE kind = 'section' AND text_content LIKE ? ESCAPE '\\' LIMIT ?`,
+      )
+      .all(needle, limit);
+    return rows.map(chunkFromRow);
+  }
+
   /** Per-segment chunk and file counts, for index_status. Read-only. */
   segmentStats(): SegmentStat[] {
     return this.db
@@ -388,6 +477,12 @@ export class VectorStore {
       )
       .all();
 
+    const { withMeta } = this.db
+      .prepare<[], { withMeta: number }>(
+        'SELECT count(*) as withMeta FROM chunks WHERE imports_json IS NOT NULL OR callees_json IS NOT NULL',
+      )
+      .get()!;
+
     const getMeta = this.db.prepare<[string], { value: string }>(
       'SELECT value FROM store_meta WHERE key = ?',
     );
@@ -399,6 +494,7 @@ export class VectorStore {
       modelId: getMeta.get('model_id')?.value ?? this.modelId,
       dimensions: Number(getMeta.get('dimensions')?.value ?? this.dimensions),
       lastIndexed: getMeta.get('last_indexed')?.value ?? null,
+      metadataCoverage: chunks > 0 ? withMeta / chunks : 0,
     };
   }
 

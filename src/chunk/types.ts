@@ -20,4 +20,12 @@ export type Chunk = {
   kind: ChunkKind;
   text: string;
   fileHash: string;
+  // ── Structural metadata (TASK-045) ─────────────────────────────────────────
+  // Optional, populated only by language walks that extract it (TS/Python today);
+  // absent for line/markdown/other-language chunks. Stored as sidecar columns —
+  // NOT part of the embedded text, so adding them never re-embeds existing vectors.
+  /** File-level import targets (module specifiers), e.g. ['node:path', './config.js']. */
+  imports?: string[];
+  /** Symbols referenced (called) inside this chunk's body — the basis for callers. */
+  callees?: string[];
 };
