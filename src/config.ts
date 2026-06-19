@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import { dirname, resolve } from 'node:path';
 
 export type RagSegment = {
   name: string;
@@ -49,11 +49,21 @@ function asNonEmptyString(v: unknown): string | undefined {
 
 // NaN satisfies typeof === 'number', so we guard with isFinite + isInteger
 function asPositiveInt(v: unknown): number | undefined {
-  return typeof v === 'number' && Number.isFinite(v) && Number.isInteger(v) && v > 0 ? v : undefined;
+  return typeof v === 'number' &&
+    Number.isFinite(v) &&
+    Number.isInteger(v) &&
+    v > 0
+    ? v
+    : undefined;
 }
 
 function asNonNegativeInt(v: unknown): number | undefined {
-  return typeof v === 'number' && Number.isFinite(v) && Number.isInteger(v) && v >= 0 ? v : undefined;
+  return typeof v === 'number' &&
+    Number.isFinite(v) &&
+    Number.isInteger(v) &&
+    v >= 0
+    ? v
+    : undefined;
 }
 
 function validateSegment(seg: unknown, index: number): RagSegment {
@@ -69,11 +79,15 @@ function validateSegment(seg: unknown, index: number): RagSegment {
     throw new ConfigError(`segments[${index}].root must be a non-empty string`);
   }
   if (!Array.isArray(s['include']) || s['include'].length === 0) {
-    throw new ConfigError(`segments[${index}].include must be a non-empty array of glob patterns`);
+    throw new ConfigError(
+      `segments[${index}].include must be a non-empty array of glob patterns`,
+    );
   }
   for (const pattern of s['include'] as unknown[]) {
     if (typeof pattern !== 'string') {
-      throw new ConfigError(`segments[${index}].include entries must be strings`);
+      throw new ConfigError(
+        `segments[${index}].include entries must be strings`,
+      );
     }
   }
 
@@ -90,7 +104,10 @@ function validateSegment(seg: unknown, index: number): RagSegment {
  * relative `store.path` always points at the same database regardless of where
  * the command was invoked.
  */
-export function resolveStorePath(configPath: string, config: RagConfig): string {
+export function resolveStorePath(
+  configPath: string,
+  config: RagConfig,
+): string {
   return resolve(dirname(resolve(configPath)), config.store.path);
 }
 
@@ -108,7 +125,9 @@ export function loadConfig(configPath: string): RagConfig {
   try {
     parsed = JSON.parse(raw);
   } catch (e) {
-    throw new ConfigError(`Config file is not valid JSON: ${resolved}`, { cause: e });
+    throw new ConfigError(`Config file is not valid JSON: ${resolved}`, {
+      cause: e,
+    });
   }
 
   if (typeof parsed !== 'object' || parsed === null) {
@@ -124,35 +143,45 @@ export function loadConfig(configPath: string): RagConfig {
     throw new ConfigError('"segments" must contain at least one entry');
   }
 
-  const segments = (cfg['segments'] as unknown[]).map((seg, i) => validateSegment(seg, i));
+  const segments = (cfg['segments'] as unknown[]).map((seg, i) =>
+    validateSegment(seg, i),
+  );
 
   const exclude: string[] = Array.isArray(cfg['exclude'])
     ? (cfg['exclude'] as unknown[]).map((e, i) => {
-        if (typeof e !== 'string') throw new ConfigError(`exclude[${i}] must be a string`);
+        if (typeof e !== 'string')
+          throw new ConfigError(`exclude[${i}] must be a string`);
         return e;
       })
     : [...DEFAULTS.exclude];
 
-  const re = typeof cfg['embedder'] === 'object' && cfg['embedder'] !== null
-    ? (cfg['embedder'] as Record<string, unknown>)
-    : null;
+  const re =
+    typeof cfg['embedder'] === 'object' && cfg['embedder'] !== null
+      ? (cfg['embedder'] as Record<string, unknown>)
+      : null;
   const embedder: RagEmbedderConfig = re
-    ? { provider: 'local', model: asNonEmptyString(re['model']) ?? DEFAULTS.embedder.model }
+    ? {
+        provider: 'local',
+        model: asNonEmptyString(re['model']) ?? DEFAULTS.embedder.model,
+      }
     : { ...DEFAULTS.embedder };
 
-  const rc = typeof cfg['chunk'] === 'object' && cfg['chunk'] !== null
-    ? (cfg['chunk'] as Record<string, unknown>)
-    : null;
+  const rc =
+    typeof cfg['chunk'] === 'object' && cfg['chunk'] !== null
+      ? (cfg['chunk'] as Record<string, unknown>)
+      : null;
   const chunk: RagChunkConfig = rc
     ? {
         maxTokens: asPositiveInt(rc['maxTokens']) ?? DEFAULTS.chunk.maxTokens,
-        overlapLines: asNonNegativeInt(rc['overlapLines']) ?? DEFAULTS.chunk.overlapLines,
+        overlapLines:
+          asNonNegativeInt(rc['overlapLines']) ?? DEFAULTS.chunk.overlapLines,
       }
     : { ...DEFAULTS.chunk };
 
-  const rs = typeof cfg['store'] === 'object' && cfg['store'] !== null
-    ? (cfg['store'] as Record<string, unknown>)
-    : null;
+  const rs =
+    typeof cfg['store'] === 'object' && cfg['store'] !== null
+      ? (cfg['store'] as Record<string, unknown>)
+      : null;
   const store: RagStoreConfig = rs
     ? { path: asNonEmptyString(rs['path']) ?? DEFAULTS.store.path }
     : { ...DEFAULTS.store };

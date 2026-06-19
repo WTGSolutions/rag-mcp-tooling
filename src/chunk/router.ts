@@ -1,13 +1,13 @@
 import { readFile } from 'node:fs/promises';
-import { sha1 } from '../hash.js';
 import type { RagChunkConfig } from '../config.js';
-import type { WalkedFile } from '../walker.js';
+import { sha1 } from '../hash.js';
 import { TREE_SITTER_LANGS } from '../lang/registry.js';
+import type { WalkedFile } from '../walker.js';
 import { chunkLines } from './line-chunker.js';
 import { chunkMarkdown } from './markdown-chunker.js';
-import { chunkYaml } from './yaml-chunker.js';
 import { chunkTreeSitter } from './tree-sitter.js';
 import type { Chunk } from './types.js';
+import { chunkYaml } from './yaml-chunker.js';
 
 /**
  * Synchronous chunkers only: Markdown and the line-chunker default. All semantic
@@ -55,12 +55,17 @@ export async function dispatchChunkerAsync(
   return dispatchChunker(text, file, config, fileHash);
 }
 
-export async function chunkFile(file: WalkedFile, config: RagChunkConfig): Promise<Chunk[]> {
+export async function chunkFile(
+  file: WalkedFile,
+  config: RagChunkConfig,
+): Promise<Chunk[]> {
   let text: string;
   try {
     text = await readFile(file.absolutePath, 'utf-8');
   } catch (e) {
-    throw new Error(`Failed to read file for chunking: ${file.absolutePath}`, { cause: e });
+    throw new Error(`Failed to read file for chunking: ${file.absolutePath}`, {
+      cause: e,
+    });
   }
   return dispatchChunkerAsync(text, file, config, sha1(text));
 }

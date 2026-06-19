@@ -5,16 +5,19 @@
 // FileLanguage is derived from this registry — never edit the union by hand.
 
 import { extname } from 'node:path';
-import type { WalkedFile } from '../walker.js';
 import type { WalkFn } from '../chunk/tree-sitter-core.js';
-import { pythonWalk, PYTHON_COMMENT_PREFIXES } from '../chunk/walks/python.js';
-import { typescriptWalk, TS_COMMENT_PREFIXES } from '../chunk/walks/typescript.js';
-import { goWalk, GO_COMMENT_PREFIXES } from '../chunk/walks/go.js';
-import { rustWalk, RUST_COMMENT_PREFIXES } from '../chunk/walks/rust.js';
-import { javaWalk, JAVA_COMMENT_PREFIXES } from '../chunk/walks/java.js';
-import { cppWalk, CPP_COMMENT_PREFIXES } from '../chunk/walks/cpp.js';
-import { kotlinWalk, KOTLIN_COMMENT_PREFIXES } from '../chunk/walks/kotlin.js';
-import { swiftWalk, SWIFT_COMMENT_PREFIXES } from '../chunk/walks/swift.js';
+import { CPP_COMMENT_PREFIXES, cppWalk } from '../chunk/walks/cpp.js';
+import { GO_COMMENT_PREFIXES, goWalk } from '../chunk/walks/go.js';
+import { JAVA_COMMENT_PREFIXES, javaWalk } from '../chunk/walks/java.js';
+import { KOTLIN_COMMENT_PREFIXES, kotlinWalk } from '../chunk/walks/kotlin.js';
+import { PYTHON_COMMENT_PREFIXES, pythonWalk } from '../chunk/walks/python.js';
+import { RUST_COMMENT_PREFIXES, rustWalk } from '../chunk/walks/rust.js';
+import { SWIFT_COMMENT_PREFIXES, swiftWalk } from '../chunk/walks/swift.js';
+import {
+  TS_COMMENT_PREFIXES,
+  typescriptWalk,
+} from '../chunk/walks/typescript.js';
+import type { WalkedFile } from '../walker.js';
 
 export type LangEntry = {
   /** Lowercase file extensions (with leading dot) that map to this language. */
@@ -106,13 +109,15 @@ export type FileLanguage = StaticLanguage | TreeSitterLanguage | 'unknown';
 
 // Build extension → language from the registry + the static (markdown) chunker.
 const extMap: Record<string, FileLanguage> = {
-  '.md':   'markdown',
-  '.mdx':  'markdown',
-  '.yml':  'yaml',
+  '.md': 'markdown',
+  '.mdx': 'markdown',
+  '.yml': 'yaml',
   '.yaml': 'yaml',
 };
 
-for (const [lang, entry] of Object.entries(TREE_SITTER_LANGS) as Array<[TreeSitterLanguage, LangEntry]>) {
+for (const [lang, entry] of Object.entries(TREE_SITTER_LANGS) as Array<
+  [TreeSitterLanguage, LangEntry]
+>) {
   for (const ext of entry.extensions) {
     extMap[ext] = lang;
   }

@@ -34,20 +34,29 @@ function funcDeclName(fnDef: SyntaxNode): string | undefined {
 }
 
 function classBody(node: SyntaxNode): SyntaxNode | null {
-  return node.childForFieldName('body')
-    ?? node.namedChildren.find((c) => c.type === 'field_declaration_list')
-    ?? null;
+  return (
+    node.childForFieldName('body') ??
+    node.namedChildren.find((c) => c.type === 'field_declaration_list') ??
+    null
+  );
 }
 
 // Emit inline method definitions inside a class/struct body as Class::method.
 // Member declarations without a body (prototypes) are left for the gap chunks.
-function emitMembers(node: SyntaxNode, typeName: string | undefined, ctx: EmitCtx): void {
+function emitMembers(
+  node: SyntaxNode,
+  typeName: string | undefined,
+  ctx: EmitCtx,
+): void {
   const body = classBody(node);
   if (!body) return;
   for (const m of body.namedChildren) {
-    const fn = m.type === 'template_declaration'
-      ? m.namedChildren.find((c) => c.type === 'function_definition')
-      : m.type === 'function_definition' ? m : undefined;
+    const fn =
+      m.type === 'template_declaration'
+        ? m.namedChildren.find((c) => c.type === 'function_definition')
+        : m.type === 'function_definition'
+          ? m
+          : undefined;
     if (!fn) continue;
     const raw = funcDeclName(fn);
     const symbol = raw ? (typeName ? `${typeName}::${raw}` : raw) : undefined;
@@ -58,15 +67,23 @@ function emitMembers(node: SyntaxNode, typeName: string | undefined, ctx: EmitCt
 
 // The definition carried by a template_declaration, if any.
 function templateInner(node: SyntaxNode): SyntaxNode | undefined {
-  return node.namedChildren.find((c) =>
-    c.type === 'function_definition' || c.type === 'class_specifier'
-    || c.type === 'struct_specifier' || c.type === 'union_specifier'
-    || c.type === 'enum_specifier');
+  return node.namedChildren.find(
+    (c) =>
+      c.type === 'function_definition' ||
+      c.type === 'class_specifier' ||
+      c.type === 'struct_specifier' ||
+      c.type === 'union_specifier' ||
+      c.type === 'enum_specifier',
+  );
 }
 
 // Emit a single top-level definition. `spanNode` defines the line range (the
 // template_declaration when present); `defNode` is the classified definition.
-function emitDefinition(spanNode: SyntaxNode, defNode: SyntaxNode, ctx: EmitCtx): void {
+function emitDefinition(
+  spanNode: SyntaxNode,
+  defNode: SyntaxNode,
+  ctx: EmitCtx,
+): void {
   switch (defNode.type) {
     case 'function_definition':
       emit(spanNode, 'function', funcDeclName(defNode), ctx, true);
@@ -95,13 +112,17 @@ function emitDefinition(spanNode: SyntaxNode, defNode: SyntaxNode, ctx: EmitCtx)
 // Transparent containers: their members are chunked individually, the container
 // itself is never one blob chunk. namespace_definition wraps a `declaration_list`;
 // linkage_specification is `extern "C" { … }`, ubiquitous in C/C++ headers.
-const TRANSPARENT_CONTAINERS = new Set(['namespace_definition', 'linkage_specification']);
+const TRANSPARENT_CONTAINERS = new Set([
+  'namespace_definition',
+  'linkage_specification',
+]);
 
 function walkNodes(nodes: readonly SyntaxNode[], ctx: EmitCtx): void {
   for (const node of nodes) {
     if (TRANSPARENT_CONTAINERS.has(node.type)) {
-      const body = node.childForFieldName('body')
-        ?? node.namedChildren.find((c) => c.type === 'declaration_list');
+      const body =
+        node.childForFieldName('body') ??
+        node.namedChildren.find((c) => c.type === 'declaration_list');
       if (body) walkNodes(body.namedChildren, ctx);
     } else if (node.type === 'template_declaration') {
       const inner = templateInner(node);

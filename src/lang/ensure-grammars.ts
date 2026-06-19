@@ -18,15 +18,15 @@ const GRAMMARS_DIR = fileURLToPath(new URL('../../grammars/', import.meta.url));
 // language adds an entry here (+ a registry entry + a walk + sync-grammars source)
 // — never touches the core.
 export const GRAMMAR_SPECS: Readonly<Record<string, string>> = {
-  python:     'tree-sitter-python.wasm',
+  python: 'tree-sitter-python.wasm',
   typescript: 'tree-sitter-typescript.wasm',
-  tsx:        'tree-sitter-tsx.wasm',
-  go:         'tree-sitter-go.wasm',
-  rust:       'tree-sitter-rust.wasm',
-  java:       'tree-sitter-java.wasm',
-  cpp:        'tree-sitter-cpp.wasm',
-  kotlin:     'tree-sitter-kotlin.wasm',
-  swift:      'tree-sitter-swift.wasm',
+  tsx: 'tree-sitter-tsx.wasm',
+  go: 'tree-sitter-go.wasm',
+  rust: 'tree-sitter-rust.wasm',
+  java: 'tree-sitter-java.wasm',
+  cpp: 'tree-sitter-cpp.wasm',
+  kotlin: 'tree-sitter-kotlin.wasm',
+  swift: 'tree-sitter-swift.wasm',
 };
 
 /** Absolute path to a grammar's vendored wasm (whether or not it exists on disk). */
@@ -42,7 +42,9 @@ export function grammarPath(wasmFile: string): string {
 export function ensureGrammar(grammarId: string): string | null {
   const wasm = GRAMMAR_SPECS[grammarId];
   if (!wasm) {
-    process.stderr.write(`[rag-mcp] warning: unknown tree-sitter grammar id '${grammarId}'.\n`);
+    process.stderr.write(
+      `[rag-mcp] warning: unknown tree-sitter grammar id '${grammarId}'.\n`,
+    );
     return null;
   }
 
@@ -51,13 +53,15 @@ export function ensureGrammar(grammarId: string): string | null {
 
   process.stderr.write(
     `[rag-mcp] warning: grammar '${grammarId}' missing at ${path} ` +
-    `(run \`npm run sync-grammars\`). Falling back to line chunker.\n`,
+      `(run \`npm run sync-grammars\`). Falling back to line chunker.\n`,
   );
   return null;
 }
 
 /** Resolve several grammars at once → map of grammar id → path (null if unavailable). */
-export function ensureGrammars(grammarIds: readonly string[]): Map<string, string | null> {
+export function ensureGrammars(
+  grammarIds: readonly string[],
+): Map<string, string | null> {
   const result = new Map<string, string | null>();
   for (const id of grammarIds) result.set(id, ensureGrammar(id));
   return result;

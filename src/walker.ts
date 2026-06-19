@@ -1,5 +1,5 @@
+import { extname, resolve } from 'node:path';
 import { globby } from 'globby';
-import { resolve, extname } from 'node:path';
 import type { RagConfig, RagSegment } from './config.js';
 import { EXT_TO_LANGUAGE, type FileLanguage } from './lang/registry.js';
 

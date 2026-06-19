@@ -1,5 +1,9 @@
 import type { RagEmbedderConfig } from '../config.js';
-import { modelCacheDir, offlineLoadError, remoteModelsAllowed } from '../model-cache.js';
+import {
+  modelCacheDir,
+  offlineLoadError,
+  remoteModelsAllowed,
+} from '../model-cache.js';
 import type { Embedder, EmbedKind, Pooling } from './types.js';
 
 // A loaded feature-extraction pipeline: callable, returns a tensor with tolist().
@@ -11,7 +15,10 @@ export type FeatureExtractor = (
 // Loads (and caches/downloads) a model and returns its extractor. Injectable so
 // unit tests run offline with a fake; the default uses transformers.js.
 export type PipelineLoadOptions = { dtype?: 'fp32' | 'fp16' | 'q8' | 'q4' };
-export type PipelineFactory = (modelId: string, loadOptions?: PipelineLoadOptions) => Promise<FeatureExtractor>;
+export type PipelineFactory = (
+  modelId: string,
+  loadOptions?: PipelineLoadOptions,
+) => Promise<FeatureExtractor>;
 
 // Some models (E5 family) are trained with asymmetric instruction prefixes — the
 // query and the document must be prefixed differently or retrieval quality drops.
@@ -34,11 +41,17 @@ const MODEL_REGISTRY: Record<string, ModelInfo> = {
   // Multilingual (TASK-034): the cross-lingual analog of all-MiniLM — same 384d /
   // mean pooling / no query-vs-passage prefix, but trained on 50+ languages incl.
   // Polish. A paraphrase model (not retrieval-tuned) — the weak multilingual baseline.
-  'Xenova/paraphrase-multilingual-MiniLM-L12-v2': { dimensions: 384, pooling: 'mean' },
+  'Xenova/paraphrase-multilingual-MiniLM-L12-v2': {
+    dimensions: 384,
+    pooling: 'mean',
+  },
   // Retrieval-grade multilingual (TASK-034): E5-small, 384d/mean, 100+ languages.
   // Requires the asymmetric "query:" / "passage:" prefixes (omitting them degrades it).
   'Xenova/multilingual-e5-small': {
-    dimensions: 384, pooling: 'mean', queryPrefix: 'query: ', passagePrefix: 'passage: ',
+    dimensions: 384,
+    pooling: 'mean',
+    queryPrefix: 'query: ',
+    passagePrefix: 'passage: ',
   },
   // Large multilingual retriever (TASK-034, gated bge-m3 A/B): dense head of BGE-M3,
   // 1024d/cls, 100+ languages, no instruction prefixes. ~568M params — loaded q8
@@ -52,7 +65,8 @@ const ALIASES: Record<string, string> = {
   'all-minilm': 'Xenova/all-MiniLM-L6-v2',
   'all-MiniLM-L6-v2': 'Xenova/all-MiniLM-L6-v2',
   'multilingual-minilm': 'Xenova/paraphrase-multilingual-MiniLM-L12-v2',
-  'paraphrase-multilingual-MiniLM-L12-v2': 'Xenova/paraphrase-multilingual-MiniLM-L12-v2',
+  'paraphrase-multilingual-MiniLM-L12-v2':
+    'Xenova/paraphrase-multilingual-MiniLM-L12-v2',
   'multilingual-e5-small': 'Xenova/multilingual-e5-small',
   'e5-small': 'Xenova/multilingual-e5-small',
   'bge-m3': 'Xenova/bge-m3',
@@ -71,15 +85,22 @@ function resolveModel(model: string): { id: string } & ModelInfo {
 
 // Default factory — lazily imports transformers.js so unit tests that inject a
 // fake never pull the heavy ONNX runtime.
-const defaultPipelineFactory: PipelineFactory = async (modelId, loadOptions) => {
+const defaultPipelineFactory: PipelineFactory = async (
+  modelId,
+  loadOptions,
+) => {
   const { pipeline, env } = await import('@huggingface/transformers');
   env.cacheDir = modelCacheDir();
   env.allowLocalModels = true;
   env.allowRemoteModels = remoteModelsAllowed(); // offline by default; download is an explicit opt-in
 
-  let extractor;
+  let extractor: Awaited<ReturnType<typeof pipeline>>;
   try {
-    extractor = await pipeline('feature-extraction', modelId, loadOptions?.dtype ? { dtype: loadOptions.dtype } : undefined);
+    extractor = await pipeline(
+      'feature-extraction',
+      modelId,
+      loadOptions?.dtype ? { dtype: loadOptions.dtype } : undefined,
+    );
   } catch (e) {
     if (!env.allowRemoteModels) throw offlineLoadError(modelId, e);
     throw e;
@@ -121,7 +142,9 @@ export class LocalEmbedder implements Embedder {
     const batchSize = options.batchSize ?? 32;
     if (!Number.isInteger(batchSize) || batchSize < 1) {
       // A non-positive batchSize would make embed()'s `i += batchSize` loop forever.
-      throw new Error(`[rag-mcp] batchSize must be a positive integer, got ${batchSize}`);
+      throw new Error(
+        `[rag-mcp] batchSize must be a positive integer, got ${batchSize}`,
+      );
     }
     this.batchSize = batchSize;
     this.createPipeline = options.pipelineFactory ?? defaultPipelineFactory;
@@ -130,7 +153,11 @@ export class LocalEmbedder implements Embedder {
   // Loads the model once; concurrent callers share the same in-flight load.
   private async ready(): Promise<FeatureExtractor> {
     if (this.extractor) return this.extractor;
-    if (!this.loading) this.loading = this.createPipeline(this.modelId, this.dtype ? { dtype: this.dtype } : undefined);
+    if (!this.loading)
+      this.loading = this.createPipeline(
+        this.modelId,
+        this.dtype ? { dtype: this.dtype } : undefined,
+      );
     try {
       this.extractor = await this.loading;
     } catch (e) {
@@ -142,7 +169,10 @@ export class LocalEmbedder implements Embedder {
     return this.extractor;
   }
 
-  async embed(texts: string[], kind: EmbedKind = 'passage'): Promise<Float32Array[]> {
+  async embed(
+    texts: string[],
+    kind: EmbedKind = 'passage',
+  ): Promise<Float32Array[]> {
     if (texts.length === 0) return [];
 
     // Instruction prefix (E5): query vs passage embed differently. Empty for
@@ -155,7 +185,10 @@ export class LocalEmbedder implements Embedder {
 
     for (let i = 0; i < inputs.length; i += this.batchSize) {
       const batch = inputs.slice(i, i + this.batchSize);
-      const result = await extractor(batch, { pooling: this.pooling, normalize: true });
+      const result = await extractor(batch, {
+        pooling: this.pooling,
+        normalize: true,
+      });
       for (const row of result.tolist()) {
         if (row.length !== this.dimensions) {
           throw new Error(
@@ -180,6 +213,8 @@ export function createEmbedder(config: RagEmbedderConfig): Embedder {
     case 'local':
       return new LocalEmbedder({ model: config.model });
     default:
-      throw new Error(`[rag-mcp] Unsupported embedder provider: ${(config as { provider: string }).provider}`);
+      throw new Error(
+        `[rag-mcp] Unsupported embedder provider: ${(config as { provider: string }).provider}`,
+      );
   }
 }

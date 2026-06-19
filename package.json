@@ -53,6 +53,9 @@
     "dev": "tsc --watch",
     "test": "vitest run",
     "test:watch": "vitest",
+    "lint": "biome check src",
+    "lint:fix": "biome check --write src",
+    "format": "biome format --write src",
     "eval": "node dist/eval/run-eval.js",
     "rag:init": "node dist/cli/rag-init.js",
     "rag:usage": "node dist/cli/rag-usage.js",
@@ -63,6 +66,7 @@
     "prepack": "npm run build:publish"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.1.2",
     "@tree-sitter-grammars/tree-sitter-kotlin": "1.1.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.0.0",

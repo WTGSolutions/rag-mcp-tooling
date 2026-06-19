@@ -23,6 +23,10 @@ export type CreateChunkParams = {
   text: string;
   kind: ChunkKind;
   symbol?: string | undefined;
+  // Optional structural metadata (TASK-045). Omitted from the chunk when empty so
+  // line/markdown chunks stay byte-identical to before (backward compatibility).
+  imports?: readonly string[] | undefined;
+  callees?: readonly string[] | undefined;
 };
 
 export function createChunk(params: CreateChunkParams): Chunk {
@@ -38,5 +42,7 @@ export function createChunk(params: CreateChunkParams): Chunk {
     kind,
     text,
     fileHash,
+    ...(params.imports?.length ? { imports: [...params.imports] } : {}),
+    ...(params.callees?.length ? { callees: [...params.callees] } : {}),
   };
 }

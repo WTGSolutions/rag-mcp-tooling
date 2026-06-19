@@ -42,6 +42,7 @@ describe('formatStatus', () => {
     const stats: StoreStats = {
       chunks: 5, files: 2, segments: ['mobile', 'web'],
       modelId: 'bge', dimensions: 384, lastIndexed: '2026-06-04T00:00:00.000Z',
+      metadataCoverage: 0.6,
     };
     const segs: SegmentStat[] = [
       { segment: 'mobile', chunks: 2, files: 1 },
@@ -58,7 +59,7 @@ describe('formatStatus', () => {
   });
 
   it('shows "never" when the index was not built', () => {
-    const stats: StoreStats = { chunks: 0, files: 0, segments: [], modelId: 'm', dimensions: 4, lastIndexed: null };
+    const stats: StoreStats = { chunks: 0, files: 0, segments: [], modelId: 'm', dimensions: 4, lastIndexed: null, metadataCoverage: 0 };
     expect(formatStatus(stats, [])).toContain('Last indexed: never');
   });
 });

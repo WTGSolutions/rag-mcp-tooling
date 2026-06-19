@@ -8,6 +8,7 @@ export const indexStatusOutputShape = {
   modelId: z.string(),
   dimensions: z.number().int(),
   lastIndexed: z.string().nullable(),
+  metadataCoverage: z.number(),
   segments: z.array(
     z.object({
       segment: z.string(),
@@ -17,11 +18,15 @@ export const indexStatusOutputShape = {
   ),
 };
 
-export function formatStatus(stats: StoreStats, segments: SegmentStat[]): string {
+export function formatStatus(
+  stats: StoreStats,
+  segments: SegmentStat[],
+): string {
   const lines = [
     `Index: ${stats.chunks} chunks across ${stats.files} files`,
     `Model: ${stats.modelId} (${stats.dimensions}d)`,
     `Last indexed: ${stats.lastIndexed ?? 'never'}`,
+    `Metadata coverage: ${(stats.metadataCoverage * 100).toFixed(0)}% of chunks (imports/callees)`,
     '',
     'Segments:',
   ];
@@ -53,6 +58,7 @@ export function makeIndexStatus(deps: ServerDeps) {
         modelId: stats.modelId,
         dimensions: stats.dimensions,
         lastIndexed: stats.lastIndexed,
+        metadataCoverage: stats.metadataCoverage,
         segments,
       },
     };

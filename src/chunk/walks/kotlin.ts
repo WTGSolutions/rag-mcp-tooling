@@ -14,9 +14,11 @@ import type { ChunkKind } from '../types.js';
 export const KOTLIN_COMMENT_PREFIXES = ['//', '*', '/*'] as const;
 
 function classBody(node: SyntaxNode): SyntaxNode | null {
-  return node.childForFieldName('body')
-    ?? node.namedChildren.find((c) => c.type === 'class_body')
-    ?? null;
+  return (
+    node.childForFieldName('body') ??
+    node.namedChildren.find((c) => c.type === 'class_body') ??
+    null
+  );
 }
 
 // class_declaration covers class / interface / enum class / data class. The
@@ -29,7 +31,11 @@ function classDeclKind(node: SyntaxNode): ChunkKind {
 }
 
 // Emit the function members of a class/object body as Type.method.
-function emitMembers(body: SyntaxNode, typeName: string | undefined, ctx: EmitCtx): void {
+function emitMembers(
+  body: SyntaxNode,
+  typeName: string | undefined,
+  ctx: EmitCtx,
+): void {
   for (const m of body.namedChildren) {
     if (m.type !== 'function_declaration') continue;
     const mn = nodeName(m);

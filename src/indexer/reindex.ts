@@ -1,12 +1,12 @@
-import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { resolve, relative, sep } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { relative, resolve, sep } from 'node:path';
+import { dispatchChunkerAsync } from '../chunk/router.js';
 import type { RagConfig, RagSegment } from '../config.js';
 import type { Embedder } from '../embedder/types.js';
 import { sha1 } from '../hash.js';
-import { walkSegments } from '../walker.js';
-import { dispatchChunkerAsync } from '../chunk/router.js';
 import { VectorStore } from '../store/vector-store.js';
+import { walkSegments } from '../walker.js';
 
 export type ReindexMode = 'incremental' | 'full';
 
@@ -51,7 +51,8 @@ export type ReindexResult = {
 
 // macOS/Windows filesystems are case-insensitive: compare requested paths to
 // walked paths case-insensitively there so a mis-cased path still matches.
-const CASE_INSENSITIVE_FS = process.platform === 'darwin' || process.platform === 'win32';
+const CASE_INSENSITIVE_FS =
+  process.platform === 'darwin' || process.platform === 'win32';
 function normPath(p: string): string {
   return CASE_INSENSITIVE_FS ? p.toLowerCase() : p;
 }
@@ -83,7 +84,15 @@ export async function reindexWithStore(
   store: VectorStore,
   options: ReindexOptions,
 ): Promise<ReindexResult> {
-  const { config, embedder, mode = 'incremental', segment: segmentFilter, paths, cwd, _readFile } = options;
+  const {
+    config,
+    embedder,
+    mode = 'incremental',
+    segment: segmentFilter,
+    paths,
+    cwd,
+    _readFile,
+  } = options;
   const readFileFn = _readFile ?? ((p: string) => readFile(p, 'utf-8'));
 
   const segments = segmentFilter
@@ -98,10 +107,12 @@ export async function reindexWithStore(
   // case-insensitive where the FS is, while unmatched reporting keeps the
   // path exactly as the caller wrote it.
   const pathMap = paths
-    ? new Map(paths.map((p) => {
-        const abs = resolve(cwd ?? process.cwd(), p);
-        return [normPath(abs), abs] as const;
-      }))
+    ? new Map(
+        paths.map((p) => {
+          const abs = resolve(cwd ?? process.cwd(), p);
+          return [normPath(abs), abs] as const;
+        }),
+      )
     : undefined;
   const matched = new Set<string>(); // original requested paths that were handled
 
@@ -110,7 +121,17 @@ export async function reindexWithStore(
   let removed = 0;
 
   for (const seg of segments) {
-    const result = await reindexSegment(store, config, embedder, mode, seg, cwd, readFileFn, pathMap, matched);
+    const result = await reindexSegment(
+      store,
+      config,
+      embedder,
+      mode,
+      seg,
+      cwd,
+      readFileFn,
+      pathMap,
+      matched,
+    );
     added += result.added;
     skipped += result.skipped;
     removed += result.removed;
@@ -120,7 +141,13 @@ export async function reindexWithStore(
     ? [...pathMap.values()].filter((abs) => !matched.has(abs))
     : [];
 
-  return { added, skipped, removed, totalChunks: store.stats().chunks, unmatchedPaths };
+  return {
+    added,
+    skipped,
+    removed,
+    totalChunks: store.stats().chunks,
+    unmatchedPaths,
+  };
 }
 
 function isUnder(root: string, absPath: string): boolean {
@@ -135,7 +162,8 @@ function removeStaleAfterWalk(
   seenPaths: Set<string>,
 ): string[] {
   const removed = [...knownHashes.keys()].filter((p) => !seenPaths.has(p));
-  for (const filePath of removed) store.deleteFileFromSegment(filePath, segment.name);
+  for (const filePath of removed)
+    store.deleteFileFromSegment(filePath, segment.name);
   return removed;
 }
 
@@ -218,7 +246,10 @@ async function reindexSegment(
 
     const currentHash = sha1(text);
 
-    if (mode === 'incremental' && knownHashes.get(file.relativePath) === currentHash) {
+    if (
+      mode === 'incremental' &&
+      knownHashes.get(file.relativePath) === currentHash
+    ) {
       skipped++;
       continue;
     }
@@ -229,7 +260,12 @@ async function reindexSegment(
     // search_codebase sharing this store sees either the complete old version
     // or the complete new one — never the file momentarily absent. A failure
     // during embed leaves the old chunks intact (nothing was deleted yet).
-    const chunks = await dispatchChunkerAsync(text, file, config.chunk, currentHash);
+    const chunks = await dispatchChunkerAsync(
+      text,
+      file,
+      config.chunk,
+      currentHash,
+    );
     if (chunks.length > 0) {
       const vectors = await embedder.embed(chunks.map((c) => c.text));
       store.deleteFileFromSegment(file.relativePath, segment.name);
@@ -243,7 +279,15 @@ async function reindexSegment(
   }
 
   const removed = pathMap
-    ? removeStaleInPaths(store, segment, cwd, knownHashes, seenPaths, pathMap, matched)
+    ? removeStaleInPaths(
+        store,
+        segment,
+        cwd,
+        knownHashes,
+        seenPaths,
+        pathMap,
+        matched,
+      )
     : removeStaleAfterWalk(store, segment, knownHashes, seenPaths);
 
   return { added, skipped, removed: removed.length };

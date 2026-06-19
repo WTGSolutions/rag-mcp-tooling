@@ -10,7 +10,11 @@ import { type EmitCtx, emit, nodeName } from '../tree-sitter-core.js';
 
 export const JAVA_COMMENT_PREFIXES = ['//', '*', '/*'] as const;
 
-function emitClassMembers(node: SyntaxNode, className: string, ctx: EmitCtx): void {
+function emitClassMembers(
+  node: SyntaxNode,
+  className: string,
+  ctx: EmitCtx,
+): void {
   const body = node.childForFieldName('body');
   if (!body) return;
   for (const m of body.namedChildren) {

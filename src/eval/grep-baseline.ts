@@ -11,7 +11,11 @@ export type CorpusFile = { path: string; content: string };
  *
  * Deterministic: ties (equal keyword count) are broken by path ascending.
  */
-export function grepRank(corpus: readonly CorpusFile[], query: string, k: number): string[] {
+export function grepRank(
+  corpus: readonly CorpusFile[],
+  query: string,
+  k: number,
+): string[] {
   const keywords = extractKeywords(query);
   if (keywords.length === 0) return [];
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { existsSync, realpathSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -11,7 +11,7 @@ import { createEmbedder } from '../embedder/local-embedder.js';
 import { createReranker } from '../retrieval/reranker.js';
 import { VectorStore } from '../store/vector-store.js';
 import { registerTools, type ServerDeps } from './tools/index.js';
-import { UsageLogger, createUsageLogger } from './usage-logger.js';
+import { createUsageLogger, type UsageLogger } from './usage-logger.js';
 
 const SERVER_NAME = 'rag-mcp';
 const SERVER_VERSION = '0.1.0';
@@ -27,7 +27,10 @@ function logStderr(message: string): void {
  * synchronous — no I/O, no transport — so it is unit-testable by connecting an
  * in-memory client.
  */
-export function createMcpServer(deps: ServerDeps, logger?: UsageLogger): McpServer {
+export function createMcpServer(
+  deps: ServerDeps,
+  logger?: UsageLogger,
+): McpServer {
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
   registerTools(server, deps, logger);
   return server;
@@ -64,7 +67,11 @@ export async function startServer(
   const embedder = createEmbedder(config.embedder);
   // VectorStore.open verifies the stored dimensions match this embedder's model
   // (throws "Dimension mismatch" if the index was built with a different model).
-  const store = VectorStore.open(storePath, embedder.dimensions, embedder.modelId);
+  const store = VectorStore.open(
+    storePath,
+    embedder.dimensions,
+    embedder.modelId,
+  );
 
   // From here the store is open; close it if any wiring step throws so the
   // SQLite handle (and WAL/SHM files) are not leaked on a failed start.
@@ -75,13 +82,18 @@ export async function startServer(
     const usageLogger = createUsageLogger(resolve(cwd, '.rag', 'usage.jsonl'));
     // Optional cross-encoder reranker (TASK-033): enabled only by RAG_RERANK=1.
     const reranker = createReranker();
-    const server = createMcpServer({ config, store, embedder, cwd, reranker }, usageLogger);
+    const server = createMcpServer(
+      { config, store, embedder, cwd, reranker },
+      usageLogger,
+    );
 
     const stats = store.stats();
     logStderr(
       `[rag-mcp] server ${SERVER_VERSION} ready — model ${embedder.modelId} ` +
         `(${embedder.dimensions}d), ${stats.chunks} chunks across ${stats.files} files` +
-        (reranker ? `, reranker ${reranker.modelId} (top-${reranker.candidates})` : ''),
+        (reranker
+          ? `, reranker ${reranker.modelId} (top-${reranker.candidates})`
+          : ''),
     );
 
     await server.connect(createTransport());
@@ -113,7 +125,9 @@ async function main(): Promise<void> {
   try {
     const { values } = parseArgs({
       args: process.argv.slice(2),
-      options: { config: { type: 'string', short: 'c', default: 'rag.config.json' } },
+      options: {
+        config: { type: 'string', short: 'c', default: 'rag.config.json' },
+      },
       strict: true,
     });
     configPath = values.config as string;
@@ -128,7 +142,9 @@ async function main(): Promise<void> {
   } catch (e) {
     // Internal errors already carry the [rag-mcp] prefix; write verbatim.
     const message = (e as Error).message ?? String(e);
-    logStderr(message.startsWith('[rag-mcp]') ? message : `[rag-mcp] ${message}`);
+    logStderr(
+      message.startsWith('[rag-mcp]') ? message : `[rag-mcp] ${message}`,
+    );
     process.exit(1);
   }
 
@@ -161,9 +177,14 @@ async function main(): Promise<void> {
 // symlink path while import.meta.url is the real path — direct comparison fails.
 if (process.argv[1]) {
   let calledFile: string;
-  try { calledFile = realpathSync(process.argv[1]); } catch { calledFile = process.argv[1]; }
-  if (fileURLToPath(import.meta.url) === calledFile) main().catch((e) => {
-    logStderr(`[rag-mcp] fatal — ${(e as Error)?.message ?? String(e)}`);
-    process.exit(1);
-  });
+  try {
+    calledFile = realpathSync(process.argv[1]);
+  } catch {
+    calledFile = process.argv[1];
+  }
+  if (fileURLToPath(import.meta.url) === calledFile)
+    main().catch((e) => {
+      logStderr(`[rag-mcp] fatal — ${(e as Error)?.message ?? String(e)}`);
+      process.exit(1);
+    });
 }

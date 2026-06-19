@@ -26,7 +26,7 @@ export function windowLineRanges(
     let endIdx = startIdx;
 
     while (endIdx < lines.length) {
-      const lineTokens = estimateTokens((lines[endIdx] ?? '') + '\n');
+      const lineTokens = estimateTokens(`${lines[endIdx] ?? ''}\n`);
       // Always include at least one line per window even if it exceeds maxTokens
       if (tokens + lineTokens > maxTokens && endIdx > startIdx) break;
       tokens += lineTokens;
@@ -59,18 +59,28 @@ export function windowLines(
   fileHash: string,
 ): Chunk[] {
   if (lines.length === 0) {
-    return [createChunk({ file, fileHash, startLine: baseLine, endLine: baseLine, text: '', kind: 'block' })];
+    return [
+      createChunk({
+        file,
+        fileHash,
+        startLine: baseLine,
+        endLine: baseLine,
+        text: '',
+        kind: 'block',
+      }),
+    ];
   }
 
-  return windowLineRanges(lines, config.maxTokens, config.overlapLines).map(({ startIdx, endIdx }) =>
-    createChunk({
-      file,
-      fileHash,
-      startLine: baseLine + startIdx,    // 1-based, offset by base
-      endLine: baseLine + endIdx - 1,    // inclusive
-      text: lines.slice(startIdx, endIdx).join('\n'),
-      kind: 'block',
-    }),
+  return windowLineRanges(lines, config.maxTokens, config.overlapLines).map(
+    ({ startIdx, endIdx }) =>
+      createChunk({
+        file,
+        fileHash,
+        startLine: baseLine + startIdx, // 1-based, offset by base
+        endLine: baseLine + endIdx - 1, // inclusive
+        text: lines.slice(startIdx, endIdx).join('\n'),
+        kind: 'block',
+      }),
   );
 }
 
@@ -110,5 +120,11 @@ export function windowTrimmedSpan(
   while (end >= start && (lines[end] ?? '').trim() === '') end--;
   if (start > end) return [];
 
-  return windowLines(lines.slice(start, end + 1), baseLine + start, file, config, fileHash);
+  return windowLines(
+    lines.slice(start, end + 1),
+    baseLine + start,
+    file,
+    config,
+    fileHash,
+  );
 }
