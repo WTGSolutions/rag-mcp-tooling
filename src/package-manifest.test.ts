@@ -21,7 +21,15 @@ const TREE_SITTER = [
 
 describe('package.json — publish hygiene (TASK-036)', () => {
   it('ships the dist whitelist + vendored grammars (no src/, fixtures, tests)', () => {
-    expect(pkg['files']).toEqual(['dist', 'scripts', 'grammars', 'README.md', 'THEORY.md']);
+    expect(pkg['files']).toEqual([
+      'dist',
+      'scripts',
+      'grammars',
+      'README.md',
+      'THEORY.md',
+      'CHANGELOG.md',
+      'LICENSE',
+    ]);
   });
 
   it('declares engines, publishConfig=public and a prepack build', () => {
