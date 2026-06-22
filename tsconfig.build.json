@@ -4,6 +4,12 @@
 // script keeps working; only `prepack` uses this lean config for the tarball.
 {
   "extends": "./tsconfig.json",
+  // Keep .d.ts (consumers want types) but drop the maps: source/declaration maps
+  // point at src/, which the tarball does not ship — they would be dead links.
+  "compilerOptions": {
+    "sourceMap": false,
+    "declarationMap": false
+  },
   "exclude": [
     "node_modules",
     "dist",

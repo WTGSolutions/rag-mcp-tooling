@@ -10,6 +10,11 @@ const queriesPath = resolve(here, '../../eval/queries.hard.json');
 // the hard set runs against the real index (config at the repo root). src/eval → src →
 // rag-mcp → tools → repo root.
 const repoRoot = resolve(here, '../../../../');
+// The hard set's ground truth lives in the GuideTrackee monorepo (web/, mobile/).
+// In the standalone published repo (CI) that corpus is absent, so on-disk GT checks
+// are skipped there; they run fully inside the monorepo.
+const HAS_CORPUS =
+  existsSync(resolve(repoRoot, 'web')) && existsSync(resolve(repoRoot, 'mobile'));
 
 describe('queries.hard.json (Phase 7 headroom benchmark)', () => {
   const set = loadQuerySet(queriesPath); // parseQuerySet throws on malformed GT
@@ -24,7 +29,7 @@ describe('queries.hard.json (Phase 7 headroom benchmark)', () => {
     expect(segments).toEqual(new Set(['web', 'mobile', 'wiki', 'tools']));
   });
 
-  it('every ground-truth file exists on disk (anti-typo, from the repo root)', () => {
+  it.skipIf(!HAS_CORPUS)('every ground-truth file exists on disk (anti-typo, from the repo root)', () => {
     const missing: string[] = [];
     for (const q of set.queries) {
       for (const f of q.expectedFiles) {
@@ -34,7 +39,7 @@ describe('queries.hard.json (Phase 7 headroom benchmark)', () => {
     expect(missing).toEqual([]);
   });
 
-  it('every expectedSpan is 1-based and within its file bounds', () => {
+  it.skipIf(!HAS_CORPUS)('every expectedSpan is 1-based and within its file bounds', () => {
     for (const q of set.queries) {
       for (const s of q.expectedSpans ?? []) {
         const lineCount = readFileSync(resolve(repoRoot, s.file), 'utf8').split('\n').length;
@@ -45,7 +50,7 @@ describe('queries.hard.json (Phase 7 headroom benchmark)', () => {
     }
   });
 
-  it('every expectedSymbol base name appears in one of its expected files (anti-typo)', () => {
+  it.skipIf(!HAS_CORPUS)('every expectedSymbol base name appears in one of its expected files (anti-typo)', () => {
     const missing: string[] = [];
     for (const q of set.queries) {
       const sources = q.expectedFiles.map((f) => readFileSync(resolve(repoRoot, f), 'utf8'));

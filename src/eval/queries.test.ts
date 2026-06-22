@@ -7,6 +7,11 @@ import { parseQuerySet, loadQuerySet } from './queries.js';
 const here = dirname(fileURLToPath(import.meta.url));
 const queriesPath = resolve(here, '../../eval/queries.json');
 const repoRoot = resolve(here, '../../../../'); // src/eval → src → rag-mcp → tools → repo
+// The acceptance set's ground truth points at the GuideTrackee monorepo (web/, mobile/).
+// In the standalone published repo (CI) that corpus is absent, so the on-disk GT checks
+// can't run — guard them, while the schema/structure tests run everywhere.
+const HAS_CORPUS =
+  existsSync(resolve(repoRoot, 'web')) && existsSync(resolve(repoRoot, 'mobile'));
 
 describe('parseQuerySet', () => {
   const valid = {
@@ -115,7 +120,7 @@ describe('queries.json (acceptance set)', () => {
     expect(segments).toEqual(new Set(['web', 'mobile', 'wiki', 'tools']));
   });
 
-  it('points every ground-truth file at a path that actually exists', () => {
+  it.skipIf(!HAS_CORPUS)('points every ground-truth file at a path that actually exists', () => {
     // Self-validating ground truth: catches typos / moved files before measurement.
     const missing: string[] = [];
     for (const q of set.queries) {

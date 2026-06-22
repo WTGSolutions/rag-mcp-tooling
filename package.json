@@ -1,6 +1,6 @@
 {
   "name": "@wtgsolutions/rag-mcp",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "Semantic code index (RAG) + MCP server for codebase search",
   "type": "module",
   "license": "MIT",
@@ -32,7 +32,9 @@
     "scripts",
     "grammars",
     "README.md",
-    "THEORY.md"
+    "THEORY.md",
+    "CHANGELOG.md",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=20"
@@ -63,7 +65,8 @@
     "smoke:pack": "bash scripts/smoke-pack.sh",
     "sync-grammars": "node scripts/sync-grammars.mjs",
     "check-grammars": "node scripts/check-grammars.mjs",
-    "prepack": "npm run build:publish"
+    "prepack": "npm run build:publish",
+    "prepublishOnly": "npm run lint && npm test && npm run build:publish && npm run verify:pack"
   },
   "devDependencies": {
     "@biomejs/biome": "2.1.2",
